@@ -1,31 +1,74 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { ArrowRight, MapPin, Calendar, Compass, Sparkles } from 'lucide-react'
 import Container from '../common/Container.jsx'
 import Button from '../common/Button.jsx'
-import heroDestinationImg from '../../assets/painting-mountain-lake-with-mountain-background.webp'
+import heroPoster from '../../assets/hero/hero-poster.webp'
+
+const videoModules = import.meta.glob('../../assets/hero video.mp4', {
+  eager: true,
+  import: 'default',
+})
+
+const heroVideo = videoModules['../../assets/hero video.mp4'] || null
 
 /**
  * Hero Component
- * Immersive cinematic full-background hero section for the TripMind landing page.
- * Features the local alpine mountain lake artwork with a dark forest gradient overlay,
- * editorial typography, and an illustrative floating itinerary preview card.
+ * Immersive video background hero section for the TripMind landing page.
+ * Features the existing local hero video filling the hero background in its natural colors
+ * without overlays or filters, with prefers-reduced-motion and error fallback,
+ * while preserving all editorial typography, calls-to-action, and preview card layout.
  */
 export default function Hero() {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    }
+    return false
+  })
+  const [videoFailed, setVideoFailed] = useState(false)
+
+  // Listen to prefers-reduced-motion media query
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+    const handleChange = (e) => setPrefersReducedMotion(e.matches)
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleChange)
+      return () => mediaQuery.removeEventListener('change', handleChange)
+    } else if (mediaQuery.addListener) {
+      mediaQuery.addListener(handleChange)
+      return () => mediaQuery.removeListener(handleChange)
+    }
+  }, [])
+
   return (
-    <section id="hero" className="relative w-full overflow-hidden bg-forest-dark min-h-[640px] lg:min-h-[740px] flex items-center">
-      {/* 1. Full-Width Background Image */}
+    <section id="hero" className="relative w-full overflow-hidden min-h-[640px] lg:min-h-[740px] flex items-center">
+      {/* 1. Initial Visual Fallback: Hero Poster rendered as foundational image layer */}
       <img
-        src={heroDestinationImg}
-        alt="Panoramic painting of a tranquil alpine mountain lake reflecting rugged peaks under soft sky"
-        className="absolute inset-0 w-full h-full object-cover object-[50%_35%] pointer-events-none"
+        src={heroPoster}
+        alt="Panoramic view of emerald river gorge flanked by dramatic towering canyon cliffs"
+        className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none select-none"
         loading="eager"
+        fetchpriority="high"
       />
 
-      {/* 2. Responsive Directional Gradient Overlay for Natural Exposure & Text Protection */}
-      <div
-        className="absolute inset-0 bg-gradient-to-b from-forest-dark/85 via-forest-dark/65 to-forest-dark/30 lg:bg-gradient-to-r lg:from-forest-dark/80 lg:via-forest-dark/30 lg:to-transparent pointer-events-none"
-        aria-hidden="true"
-      />
+      {/* 2. Responsive Cinematic Video with Reduced-Motion and Error Guard */}
+      {!prefersReducedMotion && !videoFailed && heroVideo && (
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          poster={heroPoster}
+          onError={() => setVideoFailed(true)}
+          className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none select-none"
+          aria-hidden="true"
+        >
+          <source src={heroVideo} type="video/mp4" />
+        </video>
+      )}
 
       {/* 3. Hero Content Container */}
       <Container className="relative z-10 py-16 sm:py-20 lg:py-28">

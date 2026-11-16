@@ -48,13 +48,17 @@ Stage 5: AI Itinerary, Maps & Budget Analytics
 ### 3.2 Stage 3: User Registration and Login (Authentication)
 - **Description:** Secure user authentication using JWT and salted password hashing.
 - **Acceptance Criteria:**
-  - Registration form (Name, Email, Password) with client-side and server-side validation.
-  - Login form with error handling for invalid credentials.
-  - Password hashing handled strictly once via Mongoose `pre('save')` hook using `bcrypt` (10 salt rounds); services pass raw validated passwords.
-  - Issue JWT token upon successful authentication; client token storage strategy (HttpOnly Secure cookie vs. client-held Bearer token) is evaluated in [`DECISIONS.md`](./DECISIONS.md) (`Pending-002`). Code and acceptance criteria do not assume any specific storage is finalized.
-  - Protected route handling in React Router (redirect unauthenticated users to `/login`).
-  - Stateless logout functionality that clears client credentials/cookies; server-side token revocation is deferred.
-- **Current Status:** 🔴 Pending / Not Started
+  - [x] Registration backend endpoint (`POST /api/auth/register`) with server-side validation, duplicate email handling (HTTP 409), and bcrypt UTF-8 limits. *(Backend Registration API Completed)*
+  - [x] Registration form (`client/src/pages/RegisterPage.jsx`) with client-side validation (2–100 chars name, email format, 8-char min, bcrypt 72-byte limit). *(Frontend Registration Completed)*
+  - [x] Login backend endpoint (`POST /api/auth/login`) with input validation, generic credential error handling (HTTP 401), and HttpOnly cookie dispatch. *(Backend Login API Completed)*
+  - [x] Login form (`client/src/pages/LoginPage.jsx`) with client validation, password reveal toggle, loading states, and generic error display. *(Frontend Login Completed)*
+  - [x] Password hashing handled strictly once via Mongoose `pre('save')` hook using `bcrypt` (10 salt rounds); services pass raw validated passwords. *(User model implemented)*
+  - [x] Issue short-lived JWT access token (15m) stored exclusively in an HttpOnly Secure cookie upon successful authentication per ADR-010. *(JWT Authentication Completed)*
+  - [x] Reusable backend authentication middleware (`server/src/middleware/authMiddleware.js`) verifying cookie JWT and attaching `req.user`. *(Backend Auth Middleware Completed)*
+  - [x] Protected profile endpoint (`GET /api/auth/me`) retrieving current user session with safe fields (`id`, `name`, `email`, `role`, `createdAt`). *(Backend Profile API Completed)*
+  - [x] Protected route handling in React Router (`ProtectedRoute.jsx`, `PublicOnlyRoute.jsx`, redirecting unauthenticated users to `/login` and authenticated users to `/dashboard`). *(Frontend Route Protection Completed)*
+  - [x] Stateless logout functionality (`POST /api/auth/logout`) clearing client HttpOnly cookies and resetting React AuthContext; server-side token revocation is deferred per ADR-004. *(Logout Completed)*
+- **Current Status:** 🟢 Completed (End-to-end full-stack authentication, cookie session management, route protection, and UI integration complete)
 
 ### 3.3 Stage 4: Trip CRUD Management (Create, View, Update, Delete)
 - **Description:** Complete lifecycle management for user trips.

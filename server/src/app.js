@@ -1,7 +1,9 @@
 import express from 'express'
 import cors from 'cors'
+import cookieParser from 'cookie-parser'
 import { config } from './config/env.js'
 import healthRoutes from './routes/health.routes.js'
+import authRoutes from './routes/auth.routes.js'
 
 /**
  * Express Application Configuration
@@ -22,11 +24,13 @@ app.use(
   })
 )
 
-// 2. Request Body Parsers
+// 2. Request Body & Cookie Parsers
 app.use(express.json())
+app.use(cookieParser())
 
 // 3. API Routes
 app.use('/api', healthRoutes)
+app.use('/api/auth', authRoutes)
 
 // 4. 404 Not Found Handler
 app.use((req, res) => {
@@ -43,9 +47,27 @@ app.use((req, res) => {
 // 5. Centralized Error Handling Middleware
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
-  const statusCode = err.statusCode || err.status || 500
-  const errorCode =
+  let statusCode = err.statusCode || err.status || 500
+  let errorCode =
     typeof err.code === 'string' && err.code.length > 0 ? err.code : 'INTERNAL_SERVER_ERROR'
+
+  // Normalize Mongoose schema validation errors
+  if (err.name === 'ValidationError') {
+    statusCode = 400
+    errorCode = 'VALIDATION_ERROR'
+  }
+
+  // Normalize MongoDB duplicate-key errors
+  if (err.code === 11000) {
+    statusCode = 409
+    errorCode = 'EMAIL_ALREADY_EXISTS'
+  }
+
+  // Normalize Mongoose cast errors (malformed ObjectIds)
+  if (err.name === 'CastError') {
+    statusCode = 400
+    errorCode = 'INVALID_ID'
+  }
 
   res.status(statusCode).json({
     success: false,

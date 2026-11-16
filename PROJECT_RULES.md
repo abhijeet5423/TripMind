@@ -112,7 +112,7 @@ The backend architecture separates the server entry point from the Express appli
 
 ### 5.2 Authentication & Token Handling
 - User authentication uses JWT and bcrypt.
-- **Token Storage Evaluation:** The final client-side token storage mechanism (HttpOnly Secure cookies vs. client-held Bearer tokens) is an open architectural decision tracked as **PENDING** in [`DECISIONS.md`](./DECISIONS.md) (`Pending-002`). Code and documentation must not assume either mechanism is finalized.
+- **Token Storage Strategy:** The client-side token storage mechanism is confirmed in [`DECISIONS.md`](./DECISIONS.md) as **ADR-010** (JWT Access Token in HttpOnly Secure Cookie). JWT tokens are delivered strictly via `Set-Cookie` and never exposed in JSON response bodies.
 - **Stateless Logout vs. Revocation:** MVP logout is performed by clearing the client-side credential/cookie. Server-side token blacklists and active token revocation are explicitly deferred beyond the MVP.
 
 ### 5.3 Standardized API Responses

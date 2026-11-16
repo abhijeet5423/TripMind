@@ -11,7 +11,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 /**
  * Mandatory environment variables required for server operation
  */
-const REQUIRED_VARS = ['MONGODB_URI']
+const REQUIRED_VARS = ['MONGODB_URI', 'JWT_SECRET']
 
 /**
  * Validates that all required environment variables are configured.
@@ -31,7 +31,7 @@ export function validateEnv() {
 
   if (missing.length > 0) {
     throw new Error(
-      `[Config Error] Missing or unconfigured environment variable(s): ${missing.join(', ')}. Please provide a valid database URI in server/.env.`
+      `[Config Error] Missing or unconfigured environment variable(s): ${missing.join(', ')}. Please configure them in server/.env.`
     )
   }
 
@@ -59,6 +59,26 @@ export function validateEnv() {
       )
     }
   }
+
+  const jwtSecret = (process.env.JWT_SECRET || '').trim()
+
+  // Reject placeholder JWT secret
+  if (
+    jwtSecret.includes('your_jwt_secret') ||
+    jwtSecret.includes('<jwt_secret>') ||
+    jwtSecret.includes('<secret>')
+  ) {
+    throw new Error(
+      '[Config Error] JWT_SECRET contains unconfigured placeholders. Please update server/.env with a strong secret key.'
+    )
+  }
+
+  // Reject dangerously short JWT secrets
+  if (jwtSecret.length < 32) {
+    throw new Error(
+      '[Config Error] JWT_SECRET must be at least 32 characters long for cryptographic security.'
+    )
+  }
 }
 
 /**
@@ -68,5 +88,6 @@ export const config = {
   port: parseInt(process.env.PORT, 10) || 5000,
   nodeEnv: process.env.NODE_ENV || 'development',
   mongodbUri: process.env.MONGODB_URI ? process.env.MONGODB_URI.trim() : '',
+  jwtSecret: process.env.JWT_SECRET ? process.env.JWT_SECRET.trim() : '',
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
 }

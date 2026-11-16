@@ -1,30 +1,82 @@
 import React from 'react'
+import { Routes, Route } from 'react-router-dom'
 import Navbar from './components/layout/Navbar.jsx'
 import Footer from './components/layout/Footer.jsx'
-import Hero from './components/landing/Hero.jsx'
-import DestinationDiscovery from './components/landing/DestinationDiscovery.jsx'
+import LandingPage from './pages/LandingPage.jsx'
+import LoginPage from './pages/LoginPage.jsx'
+import RegisterPage from './pages/RegisterPage.jsx'
+import DashboardPage from './pages/DashboardPage.jsx'
+import ProtectedRoute from './components/common/ProtectedRoute.jsx'
+import PublicOnlyRoute from './components/common/PublicOnlyRoute.jsx'
 
 /**
- * App Component
- * Top-level application shell integrating the responsive Navbar, Hero section,
- * Destination Discovery showcase, and Footer.
+ * PublicLayout Component
+ * Standard layout shell with sticky Navbar, main content canvas, and Footer.
  */
-function App() {
+function PublicLayout({ children }) {
   return (
     <div className="min-h-screen flex flex-col bg-sand-ivory text-charcoal font-sans selection:bg-terracotta selection:text-white">
-      {/* Editorial Navigation Bar */}
       <Navbar />
-
-      {/* Landing Page Content */}
-      <main className="flex-1">
-        <Hero />
-        <DestinationDiscovery />
-      </main>
-
-      {/* Editorial Footer */}
+      <main className="flex-1">{children}</main>
       <Footer />
     </div>
   )
 }
 
-export default App
+/**
+ * App Component
+ * Top-level application shell with React Router declarations and session boundaries.
+ */
+export default function App() {
+  return (
+    <Routes>
+      {/* Editorial Landing Page */}
+      <Route
+        path="/"
+        element={
+          <PublicLayout>
+            <LandingPage />
+          </PublicLayout>
+        }
+      />
+
+      {/* Guest-Only Authentication Pages */}
+      <Route
+        path="/login"
+        element={
+          <PublicOnlyRoute>
+            <LoginPage />
+          </PublicOnlyRoute>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <PublicOnlyRoute>
+            <RegisterPage />
+          </PublicOnlyRoute>
+        }
+      />
+
+      {/* Protected Traveler Routes */}
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Wildcard Fallback */}
+      <Route
+        path="*"
+        element={
+          <PublicLayout>
+            <LandingPage />
+          </PublicLayout>
+        }
+      />
+    </Routes>
+  )
+}

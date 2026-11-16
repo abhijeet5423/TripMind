@@ -1,27 +1,38 @@
 import React, { useState } from 'react'
-import { Menu, X } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Menu, X, User as UserIcon, LogOut } from 'lucide-react'
 import Container from '../common/Container.jsx'
 import Button from '../common/Button.jsx'
+import { useAuth } from '../../context/AuthContext.jsx'
 
 /**
  * Navbar Component
  * Responsive editorial navigation header for TripMind.
+ * Integrates with AuthContext to display session status and navigation controls.
  *
  * @param {Object} props
  * @param {string} [props.className='']
  */
 export default function Navbar({ className = '' }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { user, isAuthenticated, logout } = useAuth()
+  const navigate = useNavigate()
 
   const navLinks = [
-    { label: 'Destinations', href: '#destinations' },
-    { label: 'Itineraries', href: '#itineraries' },
-    { label: 'Budget Planner', href: '#budget' },
-    { label: 'About', href: '#about' },
+    { label: 'Destinations', href: '/#destinations' },
+    { label: 'Itineraries', href: '/#itineraries' },
+    { label: 'Budget Planner', href: '/#budget' },
+    { label: 'About', href: '/#about' },
   ]
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen((prev) => !prev)
+  }
+
+  const handleLogout = async () => {
+    setMobileMenuOpen(false)
+    await logout()
+    navigate('/', { replace: true })
   }
 
   return (
@@ -31,8 +42,8 @@ export default function Navbar({ className = '' }) {
       <Container>
         <div className="flex items-center justify-between h-20">
           {/* Editorial Brand / Logo */}
-          <a
-            href="/"
+          <Link
+            to="/"
             className="flex items-center gap-1.5 shrink-0 text-decoration-none group focus:outline-none"
             aria-label="TripMind Home"
           >
@@ -40,7 +51,7 @@ export default function Navbar({ className = '' }) {
               TripMind
             </span>
             <span className="inline-block w-2 h-2 rounded-full bg-terracotta" />
-          </a>
+          </Link>
 
           {/* Desktop Navigation Links */}
           <nav
@@ -56,16 +67,45 @@ export default function Navbar({ className = '' }) {
                 {link.label}
               </a>
             ))}
+            {isAuthenticated && (
+              <Link
+                to="/dashboard"
+                className="text-forest hover:text-forest-dark font-semibold transition-colors duration-150 relative py-1"
+              >
+                Dashboard
+              </Link>
+            )}
           </nav>
 
           {/* Desktop Call to Actions */}
           <div className="hidden md:flex items-center gap-3 shrink-0">
-            <Button variant="ghost" size="sm" as="a" href="#signin">
-              Sign In
-            </Button>
-            <Button variant="primary" size="sm" as="a" href="#start">
-              Start Planning
-            </Button>
+            {isAuthenticated ? (
+              <div className="flex items-center gap-3">
+                <Link
+                  to="/dashboard"
+                  className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-stone hover:text-forest transition-colors"
+                >
+                  <UserIcon className="w-3.5 h-3.5 text-forest" />
+                  <span className="max-w-[120px] truncate">{user?.name?.split(' ')[0]}</span>
+                </Link>
+                <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-1.5">
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Sign Out</span>
+                </Button>
+                <Button variant="primary" size="sm" as={Link} to="/dashboard">
+                  My Journal
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" as={Link} to="/login">
+                  Sign In
+                </Button>
+                <Button variant="primary" size="sm" as={Link} to="/register">
+                  Start Planning
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile Hamburger Button */}
@@ -102,27 +142,62 @@ export default function Navbar({ className = '' }) {
                   {link.label}
                 </a>
               ))}
+              {isAuthenticated && (
+                <Link
+                  to="/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-2 px-3 rounded-md bg-sage/20 text-forest font-semibold transition-colors"
+                >
+                  Dashboard ({user?.name})
+                </Link>
+              )}
               <div className="pt-4 border-t border-sage flex flex-col gap-2.5">
-                <Button
-                  variant="outline"
-                  size="md"
-                  className="w-full justify-center"
-                  as="a"
-                  href="#signin"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Sign In
-                </Button>
-                <Button
-                  variant="primary"
-                  size="md"
-                  className="w-full justify-center"
-                  as="a"
-                  href="#start"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Start Planning
-                </Button>
+                {isAuthenticated ? (
+                  <>
+                    <Button
+                      variant="primary"
+                      size="md"
+                      className="w-full justify-center"
+                      as={Link}
+                      to="/dashboard"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Open Journal
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="md"
+                      className="w-full justify-center gap-2"
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="md"
+                      className="w-full justify-center"
+                      as={Link}
+                      to="/login"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Sign In
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="md"
+                      className="w-full justify-center"
+                      as={Link}
+                      to="/register"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Start Planning
+                    </Button>
+                  </>
+                )}
               </div>
             </nav>
           </Container>

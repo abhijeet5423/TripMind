@@ -196,3 +196,24 @@ The typographic identity balances literary prestige with modern legibility throu
   - Country overline: Terracotta `MapPin` icon paired with uppercase tracking-wider text (`text-xs font-sans font-semibold text-terracotta`).
   - Destination name: Editorial serif headline (`font-serif text-xl sm:text-2xl font-bold text-forest`).
   - Narrative lead: High-readability body copy (`text-sm font-sans text-stone leading-relaxed`).
+
+---
+
+### 5.8 Hero Video & Shared Authentication Backdrop Conventions
+
+#### 1. Hero Video Background (`client/src/assets/hero video.mp4`)
+- **Asset Location & Identity:** Uses the existing media asset `client/src/assets/hero video.mp4` directly without renaming, replacing, or regenerating assets.
+- **Visual Presentation & Natural Color Fidelity:** Rendered as the full-bleed background for the landing page Hero section. Completely eliminates all gradient overlays, dark ambient washes, color tints, opacity layers, and filters over the video. The video is displayed in its original, vibrant natural colors.
+- **Native HTML5 Playback:** Pure semantic `<video>` element configured with `autoPlay`, `muted`, `loop`, and `playsInline`.
+- **Responsive Layout & Aspect Ratio:** Uses `object-cover object-center` within an `absolute inset-0 w-full h-full` container, maintaining its original 16:9 aspect ratio without distortion or stretching across mobile (375px, 390px), tablet (768px), laptop (1024px), and desktop (1440px) viewports with zero horizontal overflow.
+- **Accessibility (`prefers-reduced-motion`) & Fallback:** Actively listens to `(prefers-reduced-motion: reduce)` and handles playback errors (`onError`). When motion is reduced or if video fails to load, gracefully displays the static poster image (`client/src/assets/hero/hero-poster.webp`), which is a matching 1920x1080 WebP keyframe extracted directly from `hero video.mp4` (emerald river canyon gorge) ensuring seamless visual continuity with zero flash.
+- **Layout Preservation:** All editorial narrative copy, headlines, primary and secondary CTA buttons, product pillars, and the floating illustrative preview card remain preserved in their exact positions.
+- **Master Asset Preservation & Deferred Web Optimization:** The original 3840×2160 (4K UHD) H.265/HEVC video asset (~208.41 MB) is strictly preserved as the master asset. Transcoding to a lightweight H.264 MP4 web delivery version (e.g., 1080p or 720p, ~1.0–3.0 MB) is documented as a deferred performance task for a separate future session.
+- **Fresh-Clone Resilience & Optional Glob Resolution:** Resolved via Vite's `import.meta.glob('../../assets/hero video.mp4', { eager: true, import: 'default' })`. When the 208 MB master video is present locally, it plays in 4K UHD. When absent on fresh GitHub clones, Vite compiles and bundles cleanly with zero module-resolution errors, gracefully falling back to the 1920×1080 WebP poster (`hero-poster.webp`) with zero broken media elements or runtime crashes.
+
+#### 2. Shared Authentication Backdrop (`client/src/assets/tama66-night-sky-10506842.jpg`)
+- **Single Shared Asset Rule:** Both `LoginPage.jsx` and `RegisterPage.jsx` import and render the exact same asset: `client/src/assets/tama66-night-sky-10506842.jpg`.
+- **Full-Page Coverage & Natural Colors:** Rendered full-screen behind the authentication content using `object-cover object-center` (`absolute inset-0 w-full h-full`). Displays the night sky in its natural colors with zero stretching or distortion.
+- **Zero Background Overlays:** Completely eliminates all gradient overlays, dark ambient overlays, uniform color veils, opacity layers, image filters, and background blur applied to the background.
+- **Form Card Contrast Isolation:** The elevated form card (`bg-white/95 backdrop-blur-md rounded-xl border border-sage/80 shadow-[0_12px_40px_rgba(16,45,39,0.35)]`) provides 100% of the required form contrast (WCAG AAA contrast for inputs, labels, and buttons against dark charcoal text), guaranteeing readability without requiring background overlays.
+- **Responsive Verification:** Fully verified across mobile (375px, 390px), tablet (768px), laptop (1024px), and desktop (1440px) viewports with zero horizontal overflow, no layout shifts, and full form usability.

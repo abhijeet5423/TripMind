@@ -27,3 +27,6 @@ yarn-error.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Large master media assets (excluded from Git history)
+/client/src/assets/hero video.mp4

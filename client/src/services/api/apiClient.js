@@ -13,6 +13,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -23,9 +24,17 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     const errorEnvelope = {
-      code: error.response?.data?.error?.code || (error.code === 'ECONNABORTED' ? 'TIMEOUT_ERROR' : 'NETWORK_ERROR'),
-      message: error.response?.data?.error?.message || error.message || 'An unexpected network error occurred',
-      details: Array.isArray(error.response?.data?.error?.details) ? error.response.data.error.details : [],
+      status: error.response?.status || 500,
+      code:
+        error.response?.data?.error?.code ||
+        (error.code === 'ECONNABORTED' ? 'TIMEOUT_ERROR' : 'NETWORK_ERROR'),
+      message:
+        error.response?.data?.error?.message ||
+        error.message ||
+        'An unexpected network error occurred',
+      details: Array.isArray(error.response?.data?.error?.details)
+        ? error.response.data.error.details
+        : [],
     }
 
     return Promise.reject(errorEnvelope)

@@ -52,7 +52,7 @@
   - Enforce **single-point password hashing** via a Mongoose `pre('save')` hook on the `User` schema using `bcrypt` (10 salt rounds). Domain services pass raw validated passwords to `User.create()` and must never pre-hash passwords.
   - Verification during login is handled via the `user.comparePassword()` schema instance method delegating to `bcrypt.compare`.
   - MVP logout is stateless, clearing client credentials/cookies. Server-side token blacklists and active token revocation are deferred beyond MVP.
-- **Scope Clarification:** This decision confirms the cryptographic identity and password hashing mechanism only. The client-side token storage mechanism (HttpOnly Secure cookies vs. client-held Bearer tokens) is intentionally decoupled and tracked as **PENDING** in [`Pending-002`](#pending-002-client-authentication-token-storage-strategy) below.
+- **Scope Clarification:** This decision confirms the cryptographic identity and password hashing mechanism. The client-side token storage mechanism is confirmed in ADR-010 (HttpOnly Secure Cookie).
 - **Rationale:**
   - Stateless tokens eliminate the need for server-side session stores during MVP.
   - `bcrypt` is a battle-tested industry standard for password protection.
@@ -144,6 +144,39 @@
 
 ---
 
+### ADR-010: JWT Access Token Stored in HttpOnly Secure Cookie
+- **Status:** 🟢 CONFIRMED (Resolved from Pending-002)
+- **Context:** TripMind uses stateless JSON Web Tokens for authentication. Choosing between client-held tokens (`localStorage` / `sessionStorage`) versus browser-managed cookies requires evaluating Cross-Site Scripting (XSS) and Cross-Site Request Forgery (CSRF) attack surfaces, frontend operational simplicity, and deployment topology.
+- **Decision:**
+  - Store the JWT access token exclusively inside an **`HttpOnly`** cookie named `token`.
+  - **Cookie Security Attributes:**
+    - `httpOnly: true`: Blocks client-side JavaScript access (`document.cookie`), completely preventing token exfiltration via XSS or malicious third-party dependencies.
+    - `secure: true` in production (enforcing HTTPS delivery); dynamically set to `false` in development (`process.env.NODE_ENV !== 'production'`) to enable local HTTP testing on `127.0.0.1` / `localhost`.
+    - `sameSite`: Set to `'lax'` for local development and single-origin/subdomain deployments; set to `'none'` (paired with `secure: true`) for cross-site decoupled domains.
+    - `path: '/'`: Cookie is attached to all backend API endpoints.
+    - `maxAge: 15 * 60 * 1000` (15 minutes), strictly synchronized with the JWT expiration.
+  - **Payload & Response Hygiene:**
+    - The JWT is transmitted **strictly via the `Set-Cookie` HTTP header**. It is **never** included in the JSON response body.
+    - JWT payload contains minimal claims: `sub` (User ID string) and standard timestamps (`iat`, `exp`). No passwords, hashes, emails, or personal data are embedded.
+    - Signed with `HS256` using `JWT_SECRET` validated on server startup.
+  - **Refresh-Token & Rotation Scope:**
+    - The MVP implements short-lived 15-minute access tokens.
+    - Refresh tokens, token rotation, and active server-side blacklisting are explicitly deferred to post-MVP production hardening.
+  - **CSRF Mitigations & Production Requirements:**
+    - Because browsers automatically attach cookies, cookie authentication is vulnerable to CSRF if unmitigated.
+    - In local development and same-site topologies, `SameSite=Lax` prevents the browser from sending cookies on cross-origin mutating requests (`POST`, `PUT`, `DELETE`).
+    - CORS policy explicitly restricts allowed origins to `CLIENT_URL` with `credentials: true`. Wildcard origins (`*`) are strictly prohibited.
+    - **Pre-Production Requirement:** For cross-site decoupled deployments requiring `SameSite=None`, an explicit anti-CSRF mechanism (e.g., custom request header verification such as `X-Requested-With`, or Double Submit Cookie tokens) must be implemented before public production launch.
+- **Rationale:**
+  - Provides superior security against XSS token exfiltration compared to `localStorage`.
+  - Simplifies frontend state management: client code never manually manages, persists, or injects Bearer headers.
+  - Browser handles cookie lifecycle and automatic expiration naturally.
+- **Consequences:**
+  - Frontend Axios client must configure `withCredentials: true`.
+  - Express CORS middleware must explicitly allow `config.clientUrl` with `credentials: true`.
+
+---
+
 ## 2. Pending Decisions (🟡 UNDER EVALUATION)
 
 The following architectural and technical choices are open for evaluation during future implementation planning. **Do not mark pending decisions as confirmed.**
@@ -159,20 +192,12 @@ The following architectural and technical choices are open for evaluation during
 ---
 
 ### Pending-002: Client Authentication Token Storage Strategy
-- **Status:** 🟡 UNDER EVALUATION
-- **Context:** Determining the safest client-side token storage mechanism requires evaluating the trade-offs between Cross-Site Scripting (XSS) and Cross-Site Request Forgery (CSRF).
-- **Options Under Consideration:**
-  - *Option A: HttpOnly, Secure Cookies*
-    - **XSS Impact:** Highly resistant; tokens cannot be accessed or stolen via malicious client scripts (`document.cookie` is blind).
-    - **CSRF Impact:** Susceptible to CSRF attacks if unmitigated because browsers automatically send cookies with cross-site requests. Requires `SameSite=Lax` or `SameSite=Strict`, along with anti-CSRF token verification for state-changing requests (`POST`, `PUT`, `DELETE`).
-    - **CORS Requirements:** Requires `credentials: true` on both Axios client and Express CORS middleware.
-  - *Option B: Client-Held Bearer Tokens (`localStorage` or `sessionStorage`)*
-    - **XSS Impact:** Highly vulnerable; any arbitrary script execution (malicious npm package, unescaped user input) can read storage and exfiltrate credentials.
-    - **CSRF Impact:** Immune to CSRF; browsers do not automatically send bearer tokens without explicit JavaScript header injection (`Authorization: Bearer <token>`).
-  - *Option C: In-Memory Storage + HttpOnly Refresh Token*
-    - **XSS Impact:** Access token stored in React state/memory; resistant to disk exfiltration, but cleared on page refresh. Refresh token stored in an HttpOnly cookie to silently renew access tokens.
-    - **CSRF Impact:** Minimal; mutating requests require memory token in headers.
-- **Next Step:** Select and confirm before implementing authentication in the backend and frontend.
+- **Status:** 🟢 RESOLVED (See ADR-010)
+- **Options Evaluated:**
+  - *Option A: HttpOnly, Secure Cookies* — High XSS resistance, browser-managed lifecycle, mitigated CSRF via `SameSite` and custom headers.
+  - *Option B: Client-Held Bearer Tokens (`localStorage` or `sessionStorage`)* — Immune to CSRF, but highly vulnerable to credential exfiltration via any XSS flaw or supply-chain script injection.
+  - *Option C: In-Memory Storage + HttpOnly Refresh Token* — Strong security but introduces high client state complexity and token renewal races for early MVP.
+- **Resolution:** Adopted Option A (JWT access token in an HttpOnly cookie with aligned expiration, strict CORS origin pairing, and `SameSite` protection). Confirmed as **ADR-010**.
 
 ---
 

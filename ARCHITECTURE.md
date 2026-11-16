@@ -110,10 +110,10 @@ sequenceDiagram
 - **Strict Boundary:** Zero business logic, data transformation, or database operations.
 
 #### 4. Middleware (`server/src/middleware/`)
-- **Authentication Guard (`auth.js`):** Extracts and validates JWT tokens (from headers or cookies depending on the finalized token strategy), decodes user identity, and attaches `req.user`.
-- **Request Validation:** Validates schema conformity for `req.body`, `req.params`, and `req.query` before controller execution.
-- **Centralized Error Handling (`errorHandler.js`):** Catches all exceptions forwarded via `next(err)` and returns standardized JSON error responses with status codes.
-- **Security & Headers:** Configures CORS, Helmet security headers, and request rate limiting.
+- **Authentication Guard (`authMiddleware.js`):** Extracts and validates JWT tokens from the HttpOnly `token` cookie (via `cookie-parser`), enforces `HS256` signature verification and expiration, decodes user identity, and attaches `req.user = { id: decoded.sub }`.
+- **Request Validation (`validators/`):** Validates schema conformity for `req.body`, `req.params`, and `req.query` before controller execution.
+- **Centralized Error Handling:** Catches all exceptions forwarded via `next(err)` and returns standardized JSON error responses with status codes.
+- **Security & Parsers:** Configures CORS, JSON body parser (`express.json`), and cookie parsing (`cookie-parser`).
 
 #### 5. Controllers (`server/src/controllers/`)
 - **Primary Role:** Coordinate the HTTP request and response lifecycle.
@@ -147,16 +147,23 @@ sequenceDiagram
 server/
 ├── src/
 │   ├── config/
-│   │   ├── env.js         # Validated environment configuration
+│   │   ├── env.js         # Validated environment configuration (MongoDB, JWT)
 │   │   └── db.js          # Mongoose connection & lifecycle
 │   ├── controllers/       # HTTP request coordinators
+│   │   └── authController.js # Registration, login, logout & profile handlers
 │   ├── models/            # Mongoose schemas & data models
+│   │   └── User.js        # User model with single-point bcrypt hashing
 │   ├── routes/            # Route declarations & endpoint binding
+│   │   ├── auth.routes.js # POST /register, POST /login, POST /logout, GET /me
 │   │   └── health.routes.js # GET /api/health endpoint
 │   ├── middleware/        # Auth guards, validation, error handlers
+│   │   └── authMiddleware.js # HttpOnly cookie JWT verification & req.user guard
 │   ├── services/          # Domain services & business logic
+│   │   └── authService.js # Registration, login & profile domain logic
 │   ├── validators/        # Input validation schemas
+│   │   └── authValidator.js # Registration & login payload validation
 │   ├── utils/             # Shared server utilities
+│   │   └── token.js       # JWT generation, verification & expiration constants
 │   └── app.js             # Express application configuration & middleware
 ├── server.js              # Server entry point & process lifecycle
 ├── .env                   # Local secrets (excluded from Git)
@@ -193,7 +200,8 @@ erDiagram
         ObjectId _id PK "Collection: users"
         string name
         string email UK
-        string passwordHash
+        string password "bcrypt hash, select: false"
+        string role "user | admin"
         date createdAt
         date updatedAt
     }
@@ -284,18 +292,15 @@ All backend network calls must be routed through dedicated API modules in `clien
 
 ## 5. Security & Authentication Architecture
 
-### 5.1 Authentication Strategy & Token Storage Evaluation
-TripMind utilizes JWT for stateless authentication and `bcrypt` for salted password hashing. The exact client-side token storage mechanism is explicitly marked as **PENDING** in [`DECISIONS.md`](./DECISIONS.md) (`Pending-002`).
+### 5.1 Authentication Strategy & Token Storage (Confirmed ADR-010)
+TripMind utilizes JWT for stateless authentication and `bcrypt` for salted password hashing. Per **ADR-010** (resolved from `Pending-002`), access tokens are stored strictly in an **`HttpOnly`** cookie.
 
-#### Security Trade-Off Analysis:
-
-| Storage Strategy | Resistance to XSS | Resistance to CSRF | Implementation Requirements & Trade-offs |
-| :--- | :--- | :--- | :--- |
-| **HttpOnly, Secure Cookies** | **High:** Inaccessible to client JavaScript; tokens cannot be stolen via Cross-Site Scripting (XSS). | **Vulnerable if unmitigated:** Browser automatically includes cookies in cross-origin requests. | Requires `SameSite=Lax` or `Strict`, anti-CSRF tokens for mutating actions, and `credentials: true` in CORS settings. |
-| **Client-Held Bearer Token (`localStorage`)** | **Vulnerable:** Any script execution (malicious dependency, XSS vulnerability) can access and exfiltrate the token. | **High:** Browsers do not automatically attach tokens to requests; requires explicit header injection. | Simpler setup across domains, but creates a high-severity risk if an XSS vulnerability exists. |
-| **In-Memory Storage + Silent Refresh** | **High:** Inaccessible via `localStorage` dumps; lost on page reload. | **High:** Bearer headers must be attached explicitly. | Requires a secondary refresh token mechanism (often via HttpOnly cookie) to survive page reloads. |
-
-> **Directive:** The final decision between HttpOnly cookies and client Bearer tokens must be finalized in [`DECISIONS.md`](./DECISIONS.md) after evaluating XSS and CSRF implications prior to authentication implementation. Neither option is assumed finalized in current code or specs.
+#### Security Architecture:
+- **HttpOnly, Secure Cookies (`token`):**
+  - **XSS Mitigation:** Complete resistance. JavaScript cannot access or read `document.cookie`, preventing token exfiltration via client-side injection flaws or compromised dependencies.
+  - **CSRF Defense:** Mitigated via `SameSite=Lax` in development and single-origin deployments. CORS policy strictly limits credentials to `config.clientUrl` (wildcards prohibited). For cross-site production topologies (`SameSite=None`), explicit anti-CSRF token verification is required prior to public launch.
+  - **Transmission Discipline:** JWT is delivered exclusively in the `Set-Cookie` header; the JSON response body contains only safe user metadata.
+  - **Token Expiration:** Short-lived access tokens (15 minutes). Refresh-token rotation and active blacklisting are deferred to post-MVP.
 
 ### 5.2 Single-Point Password Hashing Rule
 - Password hashing is encapsulated exclusively in the Mongoose `User` schema `pre('save')` hook (`server/src/models/User.js`).
