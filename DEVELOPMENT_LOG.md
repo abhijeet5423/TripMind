@@ -33,6 +33,597 @@
 
 ## 2. Session History
 
+### [2026-11-17] — Day 21: Frontend–Backend Integration, Complete Trip Creation Flow & Git Release
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Verify and complete the end-to-end trip creation experience, from authenticated Dashboard to MongoDB persistence and dynamic Dashboard synchronization. Conduct comprehensive integration tests (Scenarios A through F), verify design system and budget contract compliance, perform full frontend build and ESLint validation, update documentation, and perform the authorized Day 21 production release commit and push.
+
+#### 1. Files Created / Modified
+- [`scratch/test_day21_e2e_trip_creation.mjs`](./scratch/test_day21_e2e_trip_creation.mjs) — Created comprehensive 45-assertion end-to-end integration test suite verifying Scenarios A through F.
+- [`client/src/App.jsx`](./client/src/App.jsx) — Removed unused `React` import to achieve 100% clean ESLint pass on client files.
+- [`MVP_SCOPE.md`](./MVP_SCOPE.md) — Updated Stage 4 and Dashboard statuses to reflect verified completion of full-stack Trip Creation flow.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Documented Day 21 verification, test results, and release details.
+
+#### 2. Key Implementation Details & Concepts
+- **End-to-End Trip Creation Flow Verified:**
+  `DashboardPage → CreateTripModal → TripContext → useTrip → tripApi → apiClient → Backend route (POST /api/trips) → authenticate middleware → validateCreateTrip → tripController → tripService → Trip model → MongoDB`
+- **Full-Stack Invariant Verification:**
+  - User identity is derived strictly from backend-verified JWT (`req.user.id`); client-supplied `userId` is stripped.
+  - Budget contract across all layers is non-negative number (`budget >= 0`), with zero (`0`) explicitly accepted and tested.
+  - UI design tokens strictly adhere to TripMind palette (`sand-ivory`, `forest`, `terracotta`, `sage`, `charcoal`, `stone`, `burnt-crimson`).
+  - Form state is fully preserved on validation or network errors; duplicate submissions are prevented during `isCreating`.
+  - Dynamic Dashboard synchronization prepends created trip and increments total trip count without page reload.
+
+#### 3. Verification & Testing Performed
+- **Automated Day 21 E2E Integration Suite (`scratch/test_day21_e2e_trip_creation.mjs`):** 45 of 45 assertions passed (100%).
+  - Scenario A: Successful trip creation, response envelope, and MongoDB persistence (15/15 passed).
+  - Scenario B: Zero-budget trip acceptance and database storage (4/4 passed).
+  - Scenario C: Validation failure rejection, detailed error envelopes, and zero phantom record insertion (6/6 passed).
+  - Scenario D: Authentication enforcement, malformed token rejection, ownership spoofing defense, and cross-user data isolation (6/6 passed).
+  - Scenario E: Transient failure handling, input preservation, and retry recovery (2/2 passed).
+  - Scenario F: Dashboard synchronization, newest-first ordering, and existing trips preservation (4/4 passed).
+- **Historical Regression Suites Executed:**
+  - `test_day20_frontend_trips.mjs`: 54/54 passed.
+  - `test_day20_3_wizard.mjs`: 31/31 passed.
+  - `test_day16_create_trip.mjs`: 73/73 passed.
+  - `test_day14_full_auth_review.mjs`: 54/54 passed.
+  - Cumulative tested assertions in this session: 257 passed, 0 failed.
+- **Production Build & Lint Verification:**
+  - `npm --prefix client run build`: Production build succeeded in 1.09s with zero errors.
+  - ESLint checks on all Day 20/21 files: 0 errors, 0 warnings.
+  - Node.js syntax checks (`node --check`): All server files passed.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None. Complete trip creation experience is verified and ready for deployment.
+- **Next Steps:** Proceed to Stage 4 Trip Editing, Deletion UI, and Confirmation Modals in subsequent milestones.
+
+---
+
+### [2026-11-17] — Day 20.3: Premium Trip Creation Wizard UI Redesign
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Redesign the Create Trip modal into a polished, intuitive, travel-focused, multi-step wizard. Transform the generic single-page form into a 3-step guided flow (Step 1: Trip Basics, Step 2: Budget & Travellers, Step 3: Travel Preferences) plus a final confirmation review state, complete with a dual progress indicator tracking step completion and required-detail completion count.
+
+#### 1. Files Created / Modified
+- [`client/src/components/common/CreateTripModal.jsx`](./client/src/components/common/CreateTripModal.jsx) — Redesigned into a 3-step guided wizard + confirmation review. Implemented visual destination focal point with route relationship, side-by-side date selection with journey day calculation, prominent budget input with integrated currency selector, minus/plus counter for travellers (bounded 1–50), distinct travel pace selection cards (`relaxed`, `moderate`, `fast-paced`), selectable chips for popular & custom interests, accommodation & transit presets, dietary chips, final review state with direct `Edit` triggers, and dual progress tracking.
+- [`scratch/test_day20_3_wizard.mjs`](./scratch/test_day20_3_wizard.mjs) — Created automated 31-assertion test suite verifying required details counter logic, step-by-step validation boundaries, travellers counter clamping, and end-to-end trip creation via backend API with wizard payload.
+- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — Documented Section 5.9 codifying the 3-step wizard structure, dual progress indicator architecture, and responsive viewport discipline.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Recorded Day 20.3 redesign session details, test results, and operational verification.
+
+#### 2. Key Implementation Details & Concepts
+- **3-Step Structure & Final Confirmation Review:**
+  - **Step 1 — Trip Basics:** "Where should we take you?" Destination is styled as the primary visual focal point with origin relationship; departure and return dates are presented side-by-side with automatic journey duration computation.
+  - **Step 2 — Budget & Travellers:** "Let's plan your trip." Prominent budget input paired with currency selector; minus/plus counter for travellers with 1–50 boundary clamping; custom journey title rendered as visually secondary.
+  - **Step 3 — Travel Preferences:** "What kind of traveller are you?" Distinct cards for travel pace; interactive chips for 10 curated popular interests with custom tag addition; select presets for accommodation and transportation; dietary chips; optional notes. Includes a prominent "Skip to Review" action.
+  - **Step 4 — Final Review:** "Review Your Journey." Displays compact review cards for Route, Dates, Budget & Party, and Preferences, each with an "Edit" button that jumps directly back to the relevant step.
+- **Dual Progress Indicator Pattern:**
+  - Progress header communicates active step number and name (`Step X of 3 — <Name>`), completed steps with checkmark indicators, active step bar, and remaining steps.
+  - Required details counter separately reports: `"X of 5 required details completed"`. Tracks strictly the 5 backend-required fields (`startingLocation`, `destination`, `departureDate`, `returnDate`, and `budget`). Optional fields do not dilute progress, and invalid date pairs or empty budgets are prevented from showing false completion.
+- **Step-by-Step Validation & Error Mapping:**
+  - "Continue" validates only the current step before advancing, displaying clear inline errors if required fields are missing or invalid.
+  - If a backend submission fails on review, normalized backend error details are mapped to field keys, and the modal automatically redirects to the earliest step containing the invalid input.
+- **Viewport & Scrolling Discipline:**
+  - Modal container (`max-w-2xl` to `max-w-3xl`) features fixed progress header and action bar with a scrollable step canvas, preventing awkward nested scrollbars on desktop while adapting naturally on mobile viewports.
+
+#### 3. Verification & Testing Performed
+- **Automated Day 20.3 Test Suite (`scratch/test_day20_3_wizard.mjs`):**
+  - **31 of 31 assertions passed (100%)**:
+    - Required details counter calculations (empty = 0, partial progression, return date ordering check, budget emptiness check, zero budget acceptance, optional field independence) (10/10 passed).
+    - Step-by-step validation boundaries (empty data rejection, 1-char origin rejection, inverted date rejection, valid data pass, travellers counter 1–50 clamping) (8/8 passed).
+    - End-to-end trip creation via backend API with wizard payload and populated list retrieval (13/13 passed).
+- **Day 20 Integration Test Suite (`scratch/test_day20_frontend_trips.mjs`):** 54 of 54 passed.
+- **Backend Regression Test Suites:**
+  - `test_day19_1_hardening.mjs`: 64/64 passed.
+  - `test_day18_get_trip.mjs`: 66/66 passed.
+  - `test_day17_get_trips.mjs`: 82/82 passed.
+  - `test_day16_create_trip.mjs`: 73/73 passed.
+  - `test_day15_trip_model.mjs`: 84/84 passed.
+  - `test_day14_full_auth_review.mjs`: 54/54 passed.
+  - Total test assertions passed: 508 passed, 0 failed.
+- **Frontend Build & Linter Checks:**
+  - `npm --prefix client run build`: Built cleanly in 1.07s with zero errors.
+  - ESLint verification on Day 20.3 files: 0 errors, 0 warnings.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None. Wizard UX is verified and ready for user review.
+- **Next Steps:** Await user feedback or proceed to Day 21 (Trip Editing, Deletion UI, and Confirmation Modals).
+
+---
+
+### [2026-11-17] — Day 20: Trip Creation UI & Dashboard Integration
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement the frontend trip creation experience and authenticated dashboard trip listing using the existing backend APIs and frontend architecture. Establish dedicated `tripApi.js`, `TripContext.jsx`, `useTrip.js`, `CreateTripModal.jsx`, and integrate dynamic trip listing into `DashboardPage.jsx` across four distinct states (Loading, Error with Retry, Empty State, and Populated Trips Grid).
+
+#### 1. Files Created / Modified
+- [`client/src/services/api/tripApi.js`](./client/src/services/api/tripApi.js) — Created dedicated trip API service exporting `createTrip(tripData)` (POST `/trips`) and `getTrips(params)` (GET `/trips`), unwrapping and returning `response.data` using the shared `apiClient`.
+- [`client/src/context/TripContext.jsx`](./client/src/context/TripContext.jsx) — Created dedicated React Context and provider managing shared trip state (`trips`, `pagination`, `loading`, `error`, `isCreating`), asynchronous fetching, race-condition mitigation (`latestFetchRequestId`), and optimistic in-memory state updates preserving newest-first ordering and page limits upon trip creation.
+- [`client/src/hooks/useTrip.js`](./client/src/hooks/useTrip.js) — Created custom consumer hook re-exporting `useTrip` with boundary check.
+- [`client/src/components/common/CreateTripModal.jsx`](./client/src/components/common/CreateTripModal.jsx) — Created reusable editorial modal dialog for trip creation. Features controlled form state, required field enforcement (`startingLocation`, `destination`, `departureDate`, `returnDate`, `budget`), optional fields (`title`, `numberOfTravellers`, `currency`, `interests`, `travelPreferences`), robust non-empty budget validation preventing `Number('') === 0` falsification, date order verification, mapped backend validation error details, and keyboard accessibility (Escape key and focus trapping).
+- [`client/src/pages/DashboardPage.jsx`](./client/src/pages/DashboardPage.jsx) — Replaced static Stage 4 placeholder card with dynamic trip listing supporting four distinct states: (1) Centered loading spinner, (2) Error state with "Try Again" retry action, (3) Editorial empty state inviting the traveler to plan their first journey, and (4) Populated trips grid displaying destination headlines, status badges, departure/return date ranges with day counts, starting locations, traveller pills, formatted budgets, and creation timestamps.
+- [`client/src/App.jsx`](./client/src/App.jsx) — Wrapped `DashboardPage` route element with `<TripProvider>` at the narrowest appropriate route boundary (`<ProtectedRoute><TripProvider><DashboardPage /></TripProvider></ProtectedRoute>`).
+- [`scratch/test_day20_frontend_trips.mjs`](./scratch/test_day20_frontend_trips.mjs) — Created 54-assertion integration and unit test suite verifying API contracts, response envelopes, empty and populated states, newest-first ordering, validation error details, ownership isolation, budget edge cases, and in-memory state synchronization.
+- [`MVP_SCOPE.md`](./MVP_SCOPE.md) — Updated Section 3.3 to mark frontend trip creation UI as completed, and Section 3.9 to mark dashboard integration as completed.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Added Section 4.3 documenting `TripContext` state management, race-condition mitigation, and modal form integration.
+- [`DECISIONS.md`](./DECISIONS.md) — Confirmed ADR-011 for React Context API + Custom Hooks for client state management, resolving `Pending-004`.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Documented Day 20 implementation details, testing results, and operational verification.
+
+#### 2. Key Implementation Details & Concepts
+- **Dedicated Trip API Service (`tripApi.js`):**
+  - Adheres strictly to `authApi.js` conventions, invoking the shared `apiClient` instance configured with `withCredentials: true`.
+  - Exclusively returns `response.data`, preserving the standardized backend response envelope `{ success, data, message }`.
+  - Never supplies `userId` in query parameters or request body; ownership is enforced server-side from verified JWT cookies.
+- **Dedicated TripContext & Hook (`TripContext.jsx` & `useTrip.js`):**
+  - Encapsulates `trips`, `pagination`, `loading`, `error`, `isCreating`, `fetchTrips`, and `createTrip`.
+  - Race condition prevention: `latestFetchRequestId` ref tracks request IDs, silently discarding out-of-order network responses.
+  - State synchronization: Prepending newly created trip preserves newest-first ordering (`createdAt` descending), slices to the current page limit (`pagination.limit`), and updates pagination counts (`totalTrips` + 1, `totalPages` recalculated).
+  - Scope discipline: Authentication state remains completely separated in `AuthContext`.
+- **Trip Creation Modal (`CreateTripModal.jsx`):**
+  - Controlled React state capturing required (`startingLocation`, `destination`, `departureDate`, `returnDate`, `budget`) and optional (`title`, `numberOfTravellers`, `currency`, `interests`, `travelPreferences`) fields.
+  - Zero-budget bug prevention: Validates original raw input string is non-empty before converting to number, preventing `Number('') === 0` false validation passes.
+  - Date safety: Employs `YYYY-MM-DD` string values without local timezone conversion distortion.
+  - Error resilience: Preserves all entered form values upon validation or network failures; maps `err.details` array items to field-specific inline error notices.
+  - Double-submit guard: `isCreating` disables buttons and replaces CTA text with `<Loader2 className="animate-spin" /> Creating Journey...`.
+- **Dashboard Dynamic Integration (`DashboardPage.jsx`):**
+  - State 1 (Loading): Editorial animated spinner with contextual caption.
+  - State 2 (Error): Warning badge with error description and a "Try Again" retry button invoking `fetchTrips()`.
+  - State 3 (Empty State): Editorial compass badge with welcoming copy and a primary "Plan Your First Journey" CTA button.
+  - State 4 (Populated Grid): Responsive cards featuring destination headline, status badge (`draft`/`upcoming`/`completed`), origin, formatted date range (with UTC parsing and day count), traveler badge, localized budget formatting, and journal creation date.
+
+#### 3. Verification & Testing Performed
+- **Automated Day 20 Test Suite (`scratch/test_day20_frontend_trips.mjs`):**
+  - 54 of 54 assertions passed (100%):
+    - Trip API contract, response envelopes, empty list handling (7/7 passed).
+    - Trip creation, field persistence, and populated list retrieval (10/10 passed).
+    - Second trip creation & newest-first ordering preservation (4/4 passed).
+    - Backend validation error rejection & details array mapping (11/11 passed).
+    - Ownership isolation and spoofed userId stripping (5/5 passed).
+    - Client-side budget validation (empty string rejection, whitespace rejection, zero acceptance) and date invariant verification (7/7 passed).
+    - TripContext in-memory state updater and pagination synchronization (5/5 passed).
+- **Backend Regression Test Suites:**
+  - `test_day19_1_hardening.mjs`: 64/64 passed.
+  - `test_day18_get_trip.mjs`: 66/66 passed.
+  - `test_day17_get_trips.mjs`: 82/82 passed.
+  - `test_day16_create_trip.mjs`: 73/73 passed.
+  - `test_day15_trip_model.mjs`: 84/84 passed.
+  - `test_day14_full_auth_review.mjs`: 54/54 passed.
+  - Total test assertions passed: 477 passed, 0 failed.
+- **Frontend Build & Linter Checks:**
+  - `npm --prefix client run build`: Production build succeeded in 933ms with zero errors.
+  - ESLint verification on Day 20 files: 0 errors, 0 warnings.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None. Trip creation and dashboard listing are fully operational and verified.
+- **Next Steps:** Proceed to Day 21 (Trip Editing, Deletion UI, and Confirmation Modals) strictly following project rules and roadmap.
+
+---
+
+### [2026-11-17] — Day 19.1: PATCH Data Integrity Hardening
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Correct the four confirmed findings from the Day 19 read-only forensic audit to harden the `PATCH /api/trips/:id` endpoint: (1) Resolve TOCTOU race condition in cross-field date validation via conditional atomic database queries; (2) Fix nested subdocument replacement in `travelPreferences` by flattening partial updates into dot-notation paths (`travelPreferences.pace`, etc.); (3) Allow clearing `coverImageUrl` via `null` (normalized to `''`) and enforce valid HTTP/HTTPS URL validation; (4) Enforce maximum array length constraints for `interests` (max 30) and `dietary` (max 20) in both request validators and Mongoose schema definitions; (5) Document status lifecycle policy deferral.
+
+#### 1. Files Created / Modified
+- [`server/src/models/Trip.js`](./server/src/models/Trip.js) — Added array length validators to `interests` (max 30 items) and `travelPreferences.dietary` (max 20 items), and added `maxlength: 500` to `coverImageUrl`.
+- [`server/src/validators/tripValidator.js`](./server/src/validators/tripValidator.js) — Implemented `isValidHttpUrl` helper; enforced array length limits for `interests` (max 30) and `dietary` (max 20) in `validateCreateTrip` and `validateUpdateTrip`; allowed `coverImageUrl: null` and `''` (normalizing to `''`) with HTTP/HTTPS URL format and length validation; enforced `ALLOWED_TRAVEL_PREFERENCE_FIELDS` to reject unsupported nested keys; rejected empty `travelPreferences: {}` payloads; normalized trimmed subdocument strings.
+- [`server/src/controllers/tripController.js`](./server/src/controllers/tripController.js) — In `updateTrip`, flattened `req.body.travelPreferences` into dot-notation paths (`travelPreferences.pace`, `travelPreferences.dietary`, etc.) prior to service delegation, preventing subdocument replacement.
+- [`server/src/services/tripService.js`](./server/src/services/tripService.js) — In `updateTrip`: added defensive dot-notation flattening for `travelPreferences`; replaced the vulnerable separate read-then-compare pattern with conditional atomic database queries (`returnDate: { $gt: newDepDate }` for departure-only updates, `departureDate: { $lt: newRetDate }` for return-only updates); distinguished date invariant conflicts on owned trips (returning HTTP 400 `VALIDATION_ERROR`) from unowned/nonexistent trips (returning HTTP 404 `NOT_FOUND` anti-enumeration response).
+- [`scratch/test_day19_1_hardening.mjs`](./scratch/test_day19_1_hardening.mjs) — Created automated 64-assertion test suite validating date integrity, genuine overlapping concurrent opposing date updates (`Promise.all`), nested preference preservation, cover image null clearing and URL validation, array size ceilings, and direct Mongoose schema validation.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Documented conditional atomic query pattern for date invariants, dot-notation subdocument preservation, and array size limits.
+- [`MVP_SCOPE.md`](./MVP_SCOPE.md) — Updated Section 3.3 to record Day 19.1 PATCH Data Integrity Hardening.
+- [`DECISIONS.md`](./DECISIONS.md) — Updated ADR-005 to record conditional atomic queries for cross-field date validation and documented the status lifecycle policy (unrestricted enum transitions in MVP, strict state machine deferred pending product decision).
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Recorded Day 19.1 session entry.
+
+#### 2. Key Implementation Details & Concepts
+- **Conditional Atomic Database Queries (Fix 1):**
+  - Departure-only update query: `{ _id: tripId, userId: user._id, returnDate: { $gt: newDepartureDate } }`.
+  - Return-only update query: `{ _id: tripId, userId: user._id, departureDate: { $lt: newReturnDate } }`.
+  - Both dates update query: `{ _id: tripId, userId: user._id }` with in-memory validation `newReturnDate > newDepartureDate`.
+  - Unrelated fields update query: `{ _id: tripId, userId: user._id }`.
+  - Concurrency guarantee: In MongoDB, single-document updates are serialized by document write locks. Under overlapping opposing requests (e.g. moving departure forward to June 8 while concurrently moving return backward to June 5), the first write to execute atomically updates the document; the subsequent write's query condition evaluates against the updated counterpart date in disk storage, matching 0 documents and failing. The date invariant is preserved in 100% of execution orderings.
+  - Conflict vs. Anti-Enumeration: When 0 documents match, `tripService` runs an owner-scoped check `Trip.findOne({ _id: tripId, userId: user._id })`. If the trip exists and is owned, it throws HTTP 400 `VALIDATION_ERROR` (`"Return date must be later than departure date"`). If the trip does not exist or is owned by another user, it returns `null`, prompting the controller to return an identical anti-enumeration HTTP 404 `NOT_FOUND`.
+- **Nested Subdocument Preservation via Dot Notation (Fix 2):**
+  - In MongoDB, `{ $set: { travelPreferences: updateData } }` replaces the entire subdocument, wiping sibling fields.
+  - By flattening into `{ $set: { 'travelPreferences.pace': 'relaxed' } }`, MongoDB updates only the specified path, leaving `accommodationType`, `transportation`, `dietary`, and `notes` completely intact.
+  - Protected against injection by whitelisting allowable subfields (`pace`, `accommodationType`, `transportation`, `dietary`, `notes`) and rejecting unsupported keys with HTTP 400.
+- **Cover Image Null Normalization & Validation (Fix 3):**
+  - `{ coverImageUrl: null }` and `{ coverImageUrl: '' }` normalize to `''`, clearing the image while preserving the schema default string type.
+  - Non-empty strings require valid HTTP/HTTPS protocol via `new URL(trimmed)` and max 500 characters. Invalid URLs or non-string/non-null types are rejected with HTTP 400.
+- **Dual-Layer Array Ceilings (Fix 4):**
+  - `interests`: maximum 30 items.
+  - `travelPreferences.dietary`: maximum 20 items.
+  - Enforced in both HTTP request validators (`tripValidator.js`) and Mongoose schema definitions (`Trip.js`), ensuring direct model mutations cannot bypass limits.
+- **Status Lifecycle Policy (Section 6):**
+  - Documented that MVP permits transitions among `['draft', 'upcoming', 'completed']` for any allowed enum value.
+  - Formal state-machine transitions and prerequisite validations are explicitly deferred pending product definition.
+
+#### 3. Verification & Testing Performed
+- **Day 19.1 Automated Test Suite (`scratch/test_day19_1_hardening.mjs`):**
+  - **64 of 64 assertions passed (100%)**:
+    1. Departure-only valid update (200): Pass.
+    2. Return-only valid update (200): Pass.
+    3. Both dates updated together (200): Pass.
+    4. Invalid date pair rejected (400): Pass.
+    5. Departure later than return rejected (400): Pass.
+    6. Return earlier than departure rejected (400): Pass.
+    7. Unrelated field updates continue working (200): Pass.
+    8. Nonexistent trip returns 404: Pass.
+    9. Unowned trip returns 404 (identical envelope): Pass.
+    10. Genuinely concurrent opposing date updates via `Promise.all`: both could not succeed (one 200, one 400), and persisted database date invariant was verified strictly preserved: Pass.
+    11. Partial update of `pace` preserved `accommodationType`, `transportation`, `dietary`, and `notes` in memory and in MongoDB: Pass.
+    12. Partial update of `dietary` preserved `pace` and `accommodationType`: Pass.
+    13. Updating multiple nested fields together preserved unmentioned fields: Pass.
+    14. Rejection of invalid nested values (invalid pace enum rejected 400): Pass.
+    15. Rejection of unsupported nested fields (rejected 400 with field detail): Pass.
+    16. Setting valid cover image URL (200): Pass.
+    17. Clearing cover image with null normalized to `''` (200): Pass.
+    18. Clearing cover image with empty string (200): Pass.
+    19. Rejection of invalid URL strings (rejected 400): Pass.
+    20. Rejection of numeric/non-string cover image URL (rejected 400): Pass.
+    21. Accepting exactly 30 interests (200): Pass.
+    22. Rejecting 31 interests (400): Pass.
+    23. Accepting exactly 20 dietary items (200): Pass.
+    24. Rejecting 21 dietary items (400): Pass.
+    25. Rejecting non-string items and strings > 50 chars: Pass.
+    26. Direct Mongoose schema validation enforcing 30 interests and 20 dietary limits: Pass.
+- **Full Backend Regression Suite:**
+  - `scratch/test_day19_1_hardening.mjs`: **64/64 passed (100%)**
+  - `scratch/test_day19_update_delete_trip.mjs`: **79/79 passed (100%)**
+  - `scratch/test_day18_get_trip.mjs`: **66/66 passed (100%)**
+  - `scratch/test_day17_get_trips.mjs`: **82/82 passed (100%)**
+  - `scratch/test_day16_create_trip.mjs`: **73/73 passed (100%)**
+  - `scratch/test_day15_trip_model.mjs`: **84/84 passed (100%)**
+  - `scratch/test_day14_full_auth_review.mjs`: **54/54 passed (100%)**
+  - `scratch/test_day13_integration.mjs`: **11/11 passed (100%)**
+  - **Total: 513 / 513 assertions passing across all suites (100%).**
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None. All Day 19.1 hardening objectives achieved and verified with 100% test pass rate.
+- **Next Steps:**
+  - Proceed to Day 20 per development roadmap (Frontend Trip Creation UI or Dashboard integration).
+
+---
+
+### [2026-11-17] — Day 19: Authenticated Update and Delete Trip APIs (PATCH /api/trips/:id & DELETE /api/trips/:id)
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement the authenticated partial update (`PATCH /api/trips/:id`) and delete (`DELETE /api/trips/:id`) endpoints following the established 5-layer backend architecture (`routes -> authMiddleware -> tripValidator -> tripController -> tripService -> Trip model`). Enforce query-level ownership filtering (`findOneAndUpdate({ _id, userId })` and `findOneAndDelete({ _id, userId })`), strict request body validation (rejecting empty payloads, rejecting protected system fields `_id, userId, createdAt, updatedAt, __v`), cross-field date validation (ensuring returnDate remains after departureDate when updating single date fields), and atomic cascade deletion of embedded subdocuments (`days`, `activities`, `budgetSummary`).
+
+#### 1. Files Created / Modified
+- [`server/src/routes/trip.routes.js`](./server/src/routes/trip.routes.js) — Mounted `PATCH /api/trips/:id` (guarded by `authenticateToken`, `validateTripId`, `validateUpdateTrip`, and `updateTrip`) and `DELETE /api/trips/:id` (guarded by `authenticateToken`, `validateTripId`, and `deleteTrip`).
+- [`server/src/validators/tripValidator.js`](./server/src/validators/tripValidator.js) — Implemented `validateUpdateTrip` middleware verifying request body presence, rejecting protected system fields (`_id`, `id`, `userId`, `createdAt`, `updatedAt`, `__v`), rejecting unsupported fields, validating data types and constraints for allowed fields (`startingLocation`, `destination`, `title`, `departureDate`, `returnDate`, `budget`, `numberOfTravellers`, `currency`, `coverImageUrl`, `status`, `interests`, `travelPreferences`), and performing intra-payload departure vs return date comparison.
+- [`server/src/controllers/tripController.js`](./server/src/controllers/tripController.js) — Implemented `updateTrip` and `deleteTrip` coordinators extracting `userId` exclusively from `req.user.id`, extracting `tripId` from `req.params.id`, delegating to `tripService`, returning standardized HTTP 200 envelopes (`Trip updated successfully` with updated document, `Trip deleted successfully` with `data: null`), and throwing HTTP 404 `NOT_FOUND` if the target trip is unowned or non-existent.
+- [`server/src/services/tripService.js`](./server/src/services/tripService.js) — Implemented `updateTrip` and `deleteTrip` domain methods:
+  - `updateTrip`: Verifies user existence, checks for target document existence/ownership, performs cross-field date validation comparing new dates against existing database records when only one date field is submitted, executes `Trip.findOneAndUpdate({ _id: tripId, userId: user._id }, { $set: updateData }, { new: true, returnDocument: 'after', runValidators: true })`, and returns the updated document.
+  - `deleteTrip`: Verifies user existence, executes `Trip.findOneAndDelete({ _id: tripId, userId: user._id })`, atomically removing the parent trip and all embedded subdocuments in a single MongoDB operation.
+- [`scratch/test_day19_update_delete_trip.mjs`](./scratch/test_day19_update_delete_trip.mjs) — Created automated test suite with 79 assertions covering successful partial updates, cross-field date validation against existing records, rejection of invalid date combinations, rejection of empty payloads, rejection of protected system fields (`_id`, `userId`), cross-user authorization defense (anti-enumeration 404s), invalid ObjectId rejection, unauthenticated rejection, successful atomic deletion, subdocument removal verification, and database error handling.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Updated Server Directory Layout to reflect `PATCH` and `DELETE` endpoints and updated service/validator descriptions.
+- [`MVP_SCOPE.md`](./MVP_SCOPE.md) — Updated Section 3.3 to mark Backend Update API (PATCH) and Backend Delete API (DELETE) completed.
+- [`DECISIONS.md`](./DECISIONS.md) — Updated ADR-005 to record atomic query-level ownership constraints, cross-field date validation logic, and atomic subdocument removal for `PATCH` and `DELETE`.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Documented Day 19 implementation, security patterns, test evidence, and audit status.
+
+#### 2. Key Implementation Details & Concepts
+- **Strict Query-Level Ownership Enforcement:**
+  - `PATCH`: `Trip.findOneAndUpdate({ _id: tripId, userId: user._id }, { $set: updateData }, { new: true, returnDocument: 'after', runValidators: true })`.
+  - `DELETE`: `Trip.findOneAndDelete({ _id: tripId, userId: user._id })`.
+  - Ownership is bound strictly to `req.user.id` at the database query level. No in-memory authorization checks are performed.
+  - Anti-enumeration defense: When a user attempts to update or delete a trip belonging to another user, MongoDB returns `null`, and the service/controller returns an identical HTTP 404 `NOT_FOUND` ("Trip not found") response, completely obscuring whether the resource exists.
+- **Cross-Field Date Validation in Partial Updates:**
+  - A partial update (`PATCH`) may supply only `departureDate` or only `returnDate`. In MongoDB `$set`, update validators cannot inspect the counterpart date already persisted in the document.
+  - `tripService.updateTrip` explicitly queries the existing document, determines `effectiveDeparture = updateData.departureDate ?? existingTrip.departureDate` and `effectiveReturn = updateData.returnDate ?? existingTrip.returnDate`, and enforces `effectiveReturn > effectiveDeparture`. If invalid, throws HTTP 400 `VALIDATION_ERROR` with `{ field: 'returnDate', message: 'Return date must be later than departure date' }`.
+- **Protected System Fields Rejection:**
+  - `validateUpdateTrip` actively inspects `req.body` keys against `_id, id, userId, createdAt, updatedAt, __v`.
+  - Supplying any protected field is immediately rejected with HTTP 400 `VALIDATION_ERROR` detailing the unauthorized field, preventing parameter tampering and privilege escalation.
+- **Atomic Subdocument Lifecycle on Deletion:**
+  - Because `days`, `activities`, and `budgetSummary` are embedded inside the `Trip` document, `Trip.findOneAndDelete()` atomically removes the trip and all embedded subdocuments in a single MongoDB operation without requiring multi-collection cascade triggers or risking orphaned records.
+
+#### 3. Verification & Testing Performed
+- **Day 19 Automated Test Suite (`scratch/test_day19_update_delete_trip.mjs`):**
+  - Executed via `node scratch/test_day19_update_delete_trip.mjs` against local MongoDB.
+  - **79 of 79 assertions passed (100%)**:
+    1. Validation of PATCH single field update (`title`): Pass.
+    2. Validation of PATCH multiple fields (`budget`, `numberOfTravellers`): Pass.
+    3. Validation of PATCH date ranges (`departureDate` + `returnDate` valid): Pass.
+    4. Validation of cross-field date checking (updating only `departureDate` past existing `returnDate` rejected 400): Pass.
+    5. Validation of cross-field date checking (updating only `returnDate` before existing `departureDate` rejected 400): Pass.
+    6. Validation of PATCH empty body rejection (400): Pass.
+    7. Validation of PATCH protected fields rejection (`userId`, `_id`, `createdAt` rejected 400): Pass.
+    8. Validation of PATCH unapproved fields rejection (400): Pass.
+    9. Validation of PATCH invalid field values (negative budget, 0 travellers, invalid status rejected 400): Pass.
+    10. Validation of PATCH cross-user isolation & anti-enumeration (404 when User B updates User A's trip): Pass.
+    11. Validation of PATCH non-existent trip (404): Pass.
+    12. Validation of PATCH malformed ObjectId parameter (400): Pass.
+    13. Validation of PATCH unauthenticated request (401): Pass.
+    14. Validation of DELETE trip owned by user (200 with `data: null`): Pass.
+    15. Validation of DELETE atomic removal (confirming trip and embedded days/activities removed from DB): Pass.
+    16. Validation of DELETE cross-user isolation & anti-enumeration (404 when User B deletes User A's trip): Pass.
+    17. Validation of DELETE non-existent trip (404): Pass.
+    18. Validation of DELETE malformed ObjectId parameter (400): Pass.
+    19. Validation of DELETE unauthenticated request (401): Pass.
+    20. Centralized error handling & database failure handling: Pass.
+- **Full Backend Regression Suite:**
+  - `scratch/test_day19_update_delete_trip.mjs`: **79/79 passed (100%)**
+  - `scratch/test_day18_get_trip.mjs`: **66/66 passed (100%)**
+  - `scratch/test_day17_get_trips.mjs`: **82/82 passed (100%)**
+  - `scratch/test_day16_create_trip.mjs`: **73/73 passed (100%)**
+  - `scratch/test_day15_trip_model.mjs`: **84/84 passed (100%)**
+  - `scratch/test_day14_profile_api.mjs`: **54/54 passed (100%)**
+  - `scratch/test_day13_auth.mjs`: **11/11 passed (100%)**
+  - **Total: 449 / 449 assertions passing across all suites (100%).**
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None. All Day 19 objectives met with 100% test pass rate.
+- **Audit Recommendations Tracking (Day 16 Audit):**
+  - In Day 16 audit, recommendations were made regarding stripping client-provided `days`, `budgetSummary`, `coverImageUrl`, and enforcing `status: 'draft'` on initial creation. Per user instruction, these recommendations remain documented and will be addressed in a dedicated refactoring phase, not silently injected into Day 19.
+- **Next Steps:**
+  - Proceed to Day 20 per development roadmap (Frontend Trip Creation UI or Dashboard integration).
+
+---
+
+### [2026-11-17] — Day 18: Authenticated Get Single Trip API (GET /api/trips/:id)
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement the authenticated single-trip retrieval endpoint (`GET /api/trips/:id`) adhering strictly to the established 5-layer backend architecture (`routes -> authMiddleware -> tripValidator -> tripController -> tripService -> Trip model`). Enforce data isolation, strict ownership binding at query level (`Trip.findOne({ _id: tripId, userId: user._id })`), route parameter ObjectId validation (`validateTripId`), anti-enumeration identical 404 responses for non-existent and unowned trips, referential user existence verification, and standardized error envelopes.
+
+#### 1. Files Created / Modified
+- [`server/src/routes/trip.routes.js`](./server/src/routes/trip.routes.js) — Mounted `GET /api/trips/:id` route guarded by `authenticateToken`, `validateTripId`, and `getTripById`.
+- [`server/src/validators/tripValidator.js`](./server/src/validators/tripValidator.js) — Implemented `validateTripId` route middleware validating that `req.params.id` is a valid 24-character hexadecimal MongoDB ObjectId, returning HTTP 400 `INVALID_ID` for malformed IDs before database query execution.
+- [`server/src/controllers/tripController.js`](./server/src/controllers/tripController.js) — Implemented `getTripById` extracting `userId` exclusively from `req.user.id`, extracting `tripId` from `req.params.id`, delegating to `tripService.getTripById`, returning HTTP 404 `NOT_FOUND` if null, and returning HTTP 200 with standard `{ success: true, data: { trip }, message: "Trip retrieved successfully" }` envelope.
+- [`server/src/services/tripService.js`](./server/src/services/tripService.js) — Implemented `getTripById` domain method verifying user existence in MongoDB (`User.findById`), guarding against malformed ObjectIds, and querying `Trip.findOne({ _id: tripId, userId: user._id })`.
+- [`scratch/test_day18_get_trip.mjs`](./scratch/test_day18_get_trip.mjs) — Created automated test suite with 66 assertions validating happy path, cross-user isolation, anti-enumeration identical 404s, malformed ID rejection, spoofing defenses, deleted user handling, sensitive data protection, and centralized error handling.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Updated Server Directory Layout to reflect `GET /api/trips/:id`.
+- [`MVP_SCOPE.md`](./MVP_SCOPE.md) — Updated Section 3.3 to mark Backend Single-Trip Retrieval API completed.
+- [`DECISIONS.md`](./DECISIONS.md) — Updated ADR-005 to record query-level ownership enforcement and anti-enumeration behavior for `GET /api/trips/:id`.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Documented Day 18 implementation, security patterns, test evidence, and audit recommendations status.
+
+#### 2. Key Implementation Details & Concepts
+- **5-Layer Architecture Execution:**
+  - `GET /api/trips/:id` $\rightarrow$ `authenticateToken` $\rightarrow$ `validateTripId` $\rightarrow$ `getTripById` (controller) $\rightarrow$ `getTripById` (service) $\rightarrow$ `Trip.findOne({ _id: tripId, userId: user._id })`.
+- **Query-Level Ownership & Anti-Enumeration Security:**
+  - Query pattern: `Trip.findOne({ _id: tripId, userId: user._id })`.
+  - Ownership is strictly enforced inside MongoDB. The application never performs `Trip.findById(tripId)` followed by in-memory authorization checks.
+  - If a trip ID exists in the database but belongs to another user, `Trip.findOne` returns `null`, and the controller returns an identical HTTP 404 `NOT_FOUND` response with message `"Trip not found"`. An attacker cannot probe the endpoint to enumerate existing trip IDs.
+- **Route Parameter Validation (`validateTripId`):**
+  - Uses `mongoose.Types.ObjectId.isValid(req.params.id)`.
+  - Malformed IDs (non-hex, short strings, special characters) are rejected immediately with HTTP 400 `INVALID_ID` and `{ field: 'id' }` in `details`, preventing Mongoose `CastError` exceptions from reaching the database layer.
+- **Sensitive Data & Referential Integrity Protection:**
+  - Authenticated user existence is verified (`User.findById(userId)`), returning HTTP 404 `USER_NOT_FOUND` if the account was deleted while retaining a valid JWT.
+  - The `User` document is never populated in the query, preventing password hashes or user credentials from leaking.
+  - Version key `__v` is stripped from JSON output via schema transforms.
+- **Preservation of Day 16 Audit Recommendations:**
+  - The four pending recommendations from the Day 16 audit (`days`, `budgetSummary`, `coverImageUrl`, and initial `status` validation) remain explicitly documented as pending recommendations and were not touched during Day 18.
+
+#### 3. Verification & Testing Performed
+- **Day 18 Test Suite (`scratch/test_day18_get_trip.mjs`):**
+  - **66 assertions executed across 9 test groups, 66 passed, 0 failed.**
+  - Group 1: Authenticated user retrieves their own trip (HTTP 200, matching attributes) (16/16 passed).
+  - Group 2: Data isolation & cross-user access defense (User A cannot access User B trip, User B cannot access User A trip, identical anti-enumeration 404) (10/10 passed).
+  - Group 3: Nonexistent valid ObjectId returns HTTP 404 NOT_FOUND (5/5 passed).
+  - Group 4: Malformed MongoDB ObjectId validation (non-hex, short, non-hex 24-char, special chars return HTTP 400 INVALID_ID) (8/8 passed).
+  - Group 5: Authentication enforcement (missing token, malformed token, empty cookie return HTTP 401) (5/5 passed).
+  - Group 6: Client-supplied user ID tampering defense (spoofed ?userId= on own trip, spoofed ?userId= on other trip, header spoofing return expected status codes) (6/6 passed).
+  - Group 7: Deleted/missing authenticated user handling returns HTTP 404 USER_NOT_FOUND (2/2 passed).
+  - Group 8: Response envelope & sensitive data exposure guard (success, data, message, zero password fields, unpopulated User, __v stripped) (7/7 passed).
+  - Group 9: Unexpected database failure handling (simulated failure returns HTTP 500 INTERNAL_SERVER_ERROR with zero stack trace leakage) (5/5 passed).
+  - Cleaned up all 2 test trips and 2 test users from local MongoDB.
+- **Regression Verification:**
+  - Day 17 List Trips test suite (`scratch/test_day17_get_trips.mjs`): **82 passed, 0 failed**.
+  - Day 16 Create Trip test suite (`scratch/test_day16_create_trip.mjs`): **73 passed, 0 failed**.
+  - Day 15 Trip Model test suite (`scratch/test_day15_trip_model.mjs`): **84 passed, 0 failed**.
+  - Day 14 Full Auth Review test suite (`scratch/test_day14_full_auth_review.mjs`): **54 passed, 0 failed**.
+  - Day 13 Frontend Auth Integration test suite (`scratch/test_day13_integration.mjs`): **11 passed, 0 failed**.
+  - Grand total: **370 passed, 0 failed** across all active suites.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None. `GET /api/trips/:id` is fully functional, secure, tested, and aligned with architecture.
+- **Pending Recommendations:** The 4 recommendations from Day 16 audit (`days`, `budgetSummary`, `coverImageUrl`, `status`) remain pending for future cleanup.
+- **Next Steps:** Proceed to Day 19 (Update Trip API `PUT /api/trips/:id` and Delete Trip API `DELETE /api/trips/:id`).
+
+---
+
+### [2026-11-17] — Day 17: Authenticated Get User Trips API (GET /api/trips)
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement the authenticated `GET /api/trips` endpoint retrieving all trips belonging to the authenticated user. Follow the established 5-layer backend architecture (`routes -> authMiddleware -> tripValidator -> tripController -> tripService -> Trip model`), implement query parameter validation, pagination (`page`, `limit`), `(page - 1) * limit` skip calculation, `Math.ceil(totalTrips / limit)` totalPages computation, concurrent `find` and `countDocuments` queries leveraging compound index `{ userId: 1, createdAt: -1 }`, status filtering, and ownership isolation.
+
+#### 1. Files Created / Modified
+- [`server/src/routes/trip.routes.js`](./server/src/routes/trip.routes.js) — Added `GET /api/trips` route guarded by `authenticateToken`, `validateGetTrips`, and `getTrips`.
+- [`server/src/validators/tripValidator.js`](./server/src/validators/tripValidator.js) — Implemented `validateGetTrips` middleware validating positive integers for `page >= 1` and `1 <= limit <= 100`, whitelisting status filter values (`draft`, `upcoming`, `completed`), stripping `req.query.userId`, and returning HTTP 400 on invalid query inputs.
+- [`server/src/controllers/tripController.js`](./server/src/controllers/tripController.js) — Implemented `getTrips` coordinator extracting `userId` strictly from `req.user.id`, extracting validated pagination/filter query parameters, delegating to `tripService.getUserTrips`, and returning HTTP 200 with standard pagination envelope.
+- [`server/src/services/tripService.js`](./server/src/services/tripService.js) — Implemented `getUserTrips` domain method verifying user existence in MongoDB (`User.findById`), building `{ userId, ...filter }` query, executing concurrent `Promise.all([find, countDocuments])` sorted by `{ createdAt: -1 }`, and computing pagination metadata.
+- [`scratch/test_day17_get_trips.mjs`](./scratch/test_day17_get_trips.mjs) — Created automated test suite with 82 assertions validating ownership filtering, pagination math, multi-page consistency, boundary enforcement, status filtering, and error envelopes.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Updated Server Directory Layout to reflect `GET /api/trips`.
+- [`MVP_SCOPE.md`](./MVP_SCOPE.md) — Updated Section 3.3 and Section 3.9 to mark Backend List API and query support completed.
+- [`DECISIONS.md`](./DECISIONS.md) — Updated ADR-005 to note `GET /api/trips` compound index usage and query parameter ownership protection.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Documented Day 17 implementation, pagination formulas, index strategies, and verification evidence.
+
+#### 2. Key Implementation Details & Concepts
+- **5-Layer Architecture Execution:**
+  - `GET /api/trips` $\rightarrow$ `authenticateToken` $\rightarrow$ `validateGetTrips` $\rightarrow$ `getTrips` (controller) $\rightarrow$ `getUserTrips` (service) $\rightarrow$ `Trip.find(...)` & `Trip.countDocuments(...)`.
+- **Ownership Enforcement & Query Isolation:**
+  - `req.user.id` is derived strictly from the verified JWT cookie via `authenticateToken`.
+  - `validateGetTrips` immediately strips any `userId` query parameter (`delete req.query.userId`).
+  - `getTrips` controller exclusively reads `req.user.id`, never checking `req.query.userId`.
+  - `getUserTrips` service constructs query filter `{ userId: user._id }`, preventing any user from reading another traveler's trips.
+- **Pagination & Sorting Strategy:**
+  - Defaults: `page = 1`, `limit = 10`.
+  - Boundaries: `page >= 1` (integer), `1 <= limit <= 100` (integer). Limit > 100 or non-integers rejected with HTTP 400.
+  - Skip formula: `skip = (page - 1) * limit`.
+  - Sorting: `{ createdAt: -1 }` (newest trips first).
+  - Total Pages formula: `totalTrips === 0 ? 0 : Math.ceil(totalTrips / limit)`.
+- **Database Index Optimization & Concurrency:**
+  - Queries leverage the compound index `{ userId: 1, createdAt: -1 }` created in Day 15, enabling MongoDB to perform an efficient index scan for both the user match and chronological sort without in-memory sorting.
+  - `Trip.find(filter)` and `Trip.countDocuments(filter)` execute concurrently via `Promise.all([...])`, minimizing latency.
+- **Status Filtering:**
+  - Supports optional `?status=` query (`draft`, `upcoming`, `completed`). Invalid status values return HTTP 400 `VALIDATION_ERROR`.
+- **Response Format:**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "trips": [ ... ],
+      "pagination": {
+        "page": 1,
+        "limit": 10,
+        "totalTrips": 35,
+        "totalPages": 4
+      }
+    },
+    "message": "Trips retrieved successfully"
+  }
+  ```
+
+#### 3. Verification & Testing Performed
+- **Day 17 Test Suite (`scratch/test_day17_get_trips.mjs`):**
+  - **82 assertions executed across 12 test groups, 82 passed, 0 failed.**
+  - Group 1: Authenticated user trip retrieval with HTTP 200 and standard envelope (5/5 passed).
+  - Group 2: Data isolation and ownership filtering across distinct users (5/5 passed).
+  - Group 3: Empty trip list handling for user with 0 trips (7/7 passed).
+  - Group 4: Chronological sorting (createdAt descending) (3/3 passed).
+  - Group 5: Default pagination parameters (4/4 passed).
+  - Group 6: Custom page, limit, and multi-page consistency across pages 1, 2, 3 with zero duplicate IDs (14/14 passed).
+  - Group 7: Query validation (page = 0, -1, 1.5, 'abc'; limit = 0, -5, 2.5, 'xyz', 101, 100 boundary) (13/13 passed).
+  - Group 8: Status filtering (upcoming, draft, completed, invalid status rejection) (11/11 passed).
+  - Group 9: Ownership spoofing defense (?userId= query parameter discarded) (3/3 passed).
+  - Group 10: Authentication enforcement (missing token, malformed token return HTTP 401) (4/4 passed).
+  - Group 11: Non-existent user token handling returns HTTP 404 USER_NOT_FOUND (2/2 passed).
+  - Group 12: Standard response envelope verification on success and error (8/8 passed).
+  - Cleaned up all 7 test trips and 3 test users from local MongoDB.
+- **Regression Verification:**
+  - Day 16 Create Trip test suite (`scratch/test_day16_create_trip.mjs`): **73 passed, 0 failed**.
+  - Day 15 Trip Model test suite (`scratch/test_day15_trip_model.mjs`): **84 passed, 0 failed**.
+  - Day 13 Frontend Auth Integration suite (`scratch/test_day13_integration.mjs`): **11 passed, 0 failed**.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None. `GET /api/trips` is fully functional, performant, tested, and secure.
+- **Next Steps:** Proceed to Day 18 (Single-Trip Retrieval `GET /api/trips/:id`, Update `PUT /api/trips/:id`, and Delete `DELETE /api/trips/:id`).
+
+---
+
+### [2026-11-17] — Day 16: Authenticated Create Trip API (POST /api/trips)
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement the authenticated Create Trip endpoint (`POST /api/trips`) adhering strictly to the established 5-layer backend architecture (`routes -> authMiddleware -> tripValidator -> tripController -> tripService -> Trip model`). Enforce data isolation, strict ownership binding to `req.user.id`, mass assignment protection, referential user existence checks, input validation, and standardized error envelopes.
+
+#### 1. Files Created / Modified
+- [`server/src/routes/trip.routes.js`](./server/src/routes/trip.routes.js) — Created trip route router defining `POST /api/trips` guarded by `authenticateToken`, `validateCreateTrip`, and `createTrip`.
+- [`server/src/validators/tripValidator.js`](./server/src/validators/tripValidator.js) — Created request validation middleware checking required strings, valid date formats, date ordering (`returnDate > departureDate`), non-negative budget, integer traveller count (1–50), status/pace enums, aliases (`startDate`, `endDate`, `totalBudget`, `travellers`), and stripping client-supplied `userId`.
+- [`server/src/controllers/tripController.js`](./server/src/controllers/tripController.js) — Created trip controller extracting `userId` strictly from `req.user.id`, whitelisting permitted fields, delegating to `tripService.createTrip`, and returning HTTP 201 with standardized response envelope.
+- [`server/src/services/tripService.js`](./server/src/services/tripService.js) — Created domain service verifying authenticated user existence in MongoDB (`User.findById`), instantiating `Trip` with verified `userId`, saving to MongoDB, and mapping Mongoose errors.
+- [`server/src/app.js`](./server/src/app.js) — Mounted `tripRoutes` router at `/api/trips`.
+- [`scratch/test_day16_create_trip.mjs`](./scratch/test_day16_create_trip.mjs) — Created comprehensive 73-assertion automated test suite covering all functional criteria, ownership spoofing defense, error envelopes, and unexpected DB error handling.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Updated Server Directory Layout to include `tripController.js`, `trip.routes.js`, `tripService.js`, and `tripValidator.js`.
+- [`MVP_SCOPE.md`](./MVP_SCOPE.md) — Updated Section 3.3 to mark Backend Create API and Data Isolation criteria as completed.
+- [`DECISIONS.md`](./DECISIONS.md) — Updated ADR-005 to record controller ownership enforcement rules.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Documented Day 16 implementation, security patterns, test evidence, and next steps.
+
+#### 2. Key Implementation Details & Concepts
+- **5-Layer Architectural Pipeline:**
+  - `POST /api/trips` $\rightarrow$ `authenticateToken` $\rightarrow$ `validateCreateTrip` $\rightarrow$ `createTrip` (controller) $\rightarrow$ `createTrip` (service) $\rightarrow$ `Trip.save()` (Mongoose model).
+- **Ownership Enforcement & Spoofing Defense:**
+  - `req.user.id` is extracted strictly from the verified HttpOnly JWT token via `authenticateToken`.
+  - `validateCreateTrip` immediately deletes any `req.body.userId` payload.
+  - `tripController` constructs `tripPayload` from whitelisted fields only and derives `userId = req.user.id`.
+  - `tripService` explicitly verifies the user's existence in MongoDB (`User.findById`) before persisting the trip, returning HTTP 404 `USER_NOT_FOUND` if the account was deleted or cannot be found.
+- **Request Validation & Aliases:**
+  - Validates `startingLocation` and `destination` (min 2, max 100 characters).
+  - Validates `departureDate` and `returnDate` ensuring `returnDate > departureDate`. Accepts aliases `startDate` and `endDate`.
+  - Validates `budget` as a non-negative number (`>= 0`). Accepts alias `totalBudget`.
+  - Validates `numberOfTravellers` as an integer between 1 and 50. Accepts alias `travellers`. Defaults to 1.
+  - Validates optional `title`, `currency`, `status`, `interests`, and `travelPreferences`.
+- **Response & Error Envelopes:**
+  - Success: `201 Created` with `{ success: true, data: { trip: ... }, message: "Trip created successfully" }`.
+  - Validation failure: `400 Bad Request` with `{ success: false, error: { code: "VALIDATION_ERROR", message: "Validation failed", details: [...] } }`.
+  - Authentication failure: `401 Unauthorized` with `{ success: false, error: { code: "UNAUTHORIZED", message: "...", details: [] } }`.
+  - Missing user: `404 Not Found` with `{ success: false, error: { code: "USER_NOT_FOUND", message: "...", details: [] } }`.
+  - Unexpected server error: `500 Internal Server Error` with `{ success: false, error: { code: "INTERNAL_SERVER_ERROR", message: "...", details: [] } }`. Zero stack trace leakage.
+
+#### 3. Verification & Testing Performed
+- **Day 16 Test Suite (`scratch/test_day16_create_trip.mjs`):**
+  - **73 assertions executed across 10 test groups, 73 passed, 0 failed.**
+  - Test Group 1: Valid trip creation and persistence in MongoDB with HTTP 201 (14/14 passed).
+  - Test Group 2: Ownership spoofing defense (tampered `req.body.userId` discarded; trip owned by authenticated user) (3/3 passed).
+  - Test Group 3: Authentication enforcement (missing token, malformed token, empty cookie return HTTP 401) (6/6 passed).
+  - Test Group 4: Required fields validation (missing startingLocation, destination, departureDate, returnDate, budget, empty body return HTTP 400) (13/13 passed).
+  - Test Group 5: Budget & traveller count validation (negative budget, non-numeric, zero budget, negative/float/excess travellers, aliases return expected codes) (11/11 passed).
+  - Test Group 6: Date range validation (earlier return date, same-day return date, invalid string, date aliases) (5/5 passed).
+  - Test Group 7: Standard error envelope structure verification (code, message, details array, zero stack traces) (8/8 passed).
+  - Test Group 8: Deleted user edge case (token for non-existent user returns HTTP 404 USER_NOT_FOUND) (2/2 passed).
+  - Test Group 9: Unexpected database error handling (simulated failure returns HTTP 500 INTERNAL_SERVER_ERROR with zero stack leakage) (5/5 passed).
+  - Test Group 10: Custom title, interests, and preferences validation (6/6 passed).
+  - Cleaned up all 6 test trips and 2 test users from local MongoDB.
+- **Regression Verification:**
+  - Ran Day 15 Trip Model test suite (`scratch/test_day15_trip_model.mjs`): **84 passed, 0 failed**.
+  - Ran Day 13 Frontend Auth Integration test suite (`scratch/test_day13_integration.mjs`): **11 passed, 0 failed**.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None. Create Trip API is fully operational, thoroughly tested, and secured.
+- **Next Steps:** Ready for Day 17 (Trip Retrieval APIs — Get All Trips for Dashboard and Get Single Trip by ID).
+
+---
+
+### [2026-11-17] — Day 15: Trip Schema Design and Implementation
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Design, implement, and rigorously verify the Mongoose `Trip` model and its nested subdocument schemas (`ItineraryDay`, `Activity`, `BudgetSummary`, `CategoryBreakdown`, `TravelPreferences`) in `server/src/models/Trip.js` in strict accordance with the MVP architecture, data modeling standards, and project decisions.
+
+#### 1. Files Created / Modified
+- [`server/src/models/Trip.js`](./server/src/models/Trip.js) — Created the Trip Mongoose model with embedded days (`itineraryDaySchema`), activities (`activitySchema`), budget breakdown (`budgetSummarySchema`), travel preferences (`travelPreferencesSchema`), strict field validations, date range verification, integer traveller enforcement, ergonomic aliases, and compound indexing.
+- [`scratch/test_day15_trip_model.mjs`](./scratch/test_day15_trip_model.mjs) — Created comprehensive 84-assertion test suite validating all 11 minimum requirements, document persistence, edge cases, error messaging, alias mapping, and database cleanup.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Updated Server Directory Layout to include `server/src/models/Trip.js` and updated Section 3.2 ERD / Schema definitions with all trip fields, aliases, and subdocument schemas.
+- [`DECISIONS.md`](./DECISIONS.md) — Updated ADR-005 to record the detailed Trip schema specifications, validation constraints, index strategies, and ergonomic aliases.
+- [`MVP_SCOPE.md`](./MVP_SCOPE.md) — Updated Section 3.3 to reflect Trip Mongoose model completion (🟡 Model Implemented / CRUD Pending).
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Documented Day 15 implementation details, architectural decisions, validation rules, test results, and next steps.
+
+#### 2. Key Implementation Details & Concepts
+- **Trip Ownership Architecture:**
+  - Foreign key reference: `userId` (`type: mongoose.Schema.Types.ObjectId, ref: 'User'`), required with descriptive error message.
+  - Indexed via single-field index (`index: true`) and compound index `{ userId: 1, createdAt: -1 }` on `tripSchema`.
+  - Security note: Frontend-supplied user IDs are never trusted as proof of ownership; actual ownership enforcement will reside in authenticated CRUD controllers.
+- **Trip Metadata & Validation Rules:**
+  - `startingLocation`: String, required, trimmed, minlength 2, maxlength 100.
+  - `destination`: String, required, trimmed, minlength 2, maxlength 100.
+  - `title`: String, trimmed, maxlength 150, defaults via function to `Trip to <destination>`.
+  - `departureDate` (alias: `startDate`): Date, required.
+  - `returnDate` (alias: `endDate`): Date, required, custom validator enforces `returnDate > departureDate` (`Return date must be later than departure date`).
+  - `budget` (alias: `totalBudget`): Number, required, `min: 0` (`Budget must be a non-negative number`).
+  - `numberOfTravellers` (alias: `travellers`): Number, required, default 1, `min: 1`, `max: 50`, custom validator enforces `Number.isInteger`.
+  - `currency`: String, default `'USD'`, uppercase, trimmed, length 3.
+  - `status`: String, enum `['draft', 'upcoming', 'completed']`, default `'draft'`.
+  - `interests`: Array of trimmed strings (maxlength 50), default `[]`.
+  - `travelPreferences`: Embedded subdocument with `pace` (`['relaxed', 'moderate', 'fast-paced']`, default `'moderate'`), `accommodationType` (default `'hotel'`), `transportation` (default `'any'`), `dietary` (string array), and `notes`.
+- **Embedded Itinerary Structure:**
+  - `itineraryDaySchema`: Embedded in `days` array (alias: `itinerary`), containing `dayNumber` (required integer >= 1), `date`, `theme`, `notes`, and embedded `activities`.
+  - `activitySchema`: Embedded in day `activities`, containing `title` (required, 1–150 chars), `description`, `timeSlot` (default `'morning'`), `time`, `locationName`, `latitude` (-90 to 90), `longitude` (-180 to 180), `estimatedCost` (min: 0), and `category` (`['stay', 'food', 'transit', 'activity', 'other']`, default `'activity'`).
+  - Auto-generated `_id` on activities and days supports granular, atomic subdocument editing and deletions.
+- **Embedded Budget Structure:**
+  - `budgetSummarySchema`: Embedded in `budgetSummary` (alias: `budgetBreakdown`), containing `totalEstimated` (min: 0), `totalSpent` (min: 0), `remaining`, and nested `categories` (`categoryBreakdownSchema`).
+  - `categoryBreakdownSchema`: Non-negative numerical limits on `accommodation`, `food`, `transportation`, `activities`, and `other`.
+- **Serialization & Timestamps:**
+  - Mongoose `timestamps: true` manages `createdAt` and `updatedAt`.
+  - `toJSON` and `toObject` options strip `__v` and expose `id` virtuals.
+- **Embedded vs. Referenced Data Rationale:**
+  - Referenced `User`: Independent lifecycle, separate authentication queries.
+  - Embedded `days`, `activities`, `budgetSummary`: Always read together with the trip; guarantees atomic updates, zero orphaned subdocuments upon trip deletion, and instant single-query retrieval without expensive `$lookup` joins.
+
+#### 3. Verification & Testing Performed
+- **Dedicated Day 15 Test Suite (`scratch/test_day15_trip_model.mjs`):**
+  - **84 assertions executed across 13 test groups, 84 passed, 0 failed.**
+  - Test Group 1: Valid trip document creation, persistence, and round-trip retrieval from local MongoDB (12/12 passed).
+  - Test Group 2: User reference requirement and custom error messaging (2/2 passed).
+  - Test Group 3: Required field validation on all fields and trimming/minlength checks (9/9 passed).
+  - Test Group 4: Budget validation (negative budget rejection, zero budget acceptance, totalBudget alias) (4/4 passed).
+  - Test Group 5: Traveller count validation (zero, negative, float, max 50 rejection, default 1, travellers alias) (7/7 passed).
+  - Test Group 6: Date range validation (earlier return date rejected, same-date return date rejected, later return date accepted, startDate/endDate aliases) (6/6 passed).
+  - Test Group 7: Interests and travel preferences schema structure, defaults, and invalid enum rejection (9/9 passed).
+  - Test Group 8: Embedded itinerary days and activities validation (missing title, negative cost, invalid category, day number < 1, valid subdocuments with auto-generated ObjectIds) (6/6 passed).
+  - Test Group 9: Embedded budget breakdown validation (negative category expenses, negative totals, budgetBreakdown alias) (12/12 passed).
+  - Test Group 10: Timestamps generation on create and updated timestamp bump on update (5/5 passed).
+  - Test Group 11: Schema indexes and physical MongoDB collection index synchronization for `{ userId: 1 }` and `{ userId: 1, createdAt: -1 }` (7/7 passed).
+  - Test Group 12: Title defaulting to "Trip to <destination>" and custom title preservation (2/2 passed).
+  - Test Group 13: Serialization transformations (`__v` stripped, `id` exposed) (3/3 passed).
+  - Verified clean database cleanup of all temporary test trip and user documents from local MongoDB.
+- **Regression Verification:**
+  - Ran Day 13 integration test suite (`scratch/test_day13_integration.mjs`): 11 passed, 0 failed.
+  - Ran Day 14 comprehensive authentication test suite (`scratch/test_day14_full_auth_review.mjs`): 54 passed, 0 failed.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None. Schema is complete, fully tested, and ready for Day 16.
+- **Next Steps:** Proceed to Day 16 (Trip Creation API Endpoint and Controller implementation) strictly following scheduled development sequence.
+
+---
+
 ### [2026-11-16] — Optional Hero Video Import & Fresh Clone Compatibility Fix
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Fix the GitHub fresh-clone build failure caused by the missing 208 MB local hero video. Implement Vite's optional glob resolution (`import.meta.glob`) in `Hero.jsx`, update root `.gitignore` to explicitly exclude `/client/src/assets/hero video.mp4`, and thoroughly verify both scenarios: 4K video playback when present, and graceful WebP poster fallback when absent.

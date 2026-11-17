@@ -217,3 +217,16 @@ The typographic identity balances literary prestige with modern legibility throu
 - **Zero Background Overlays:** Completely eliminates all gradient overlays, dark ambient overlays, uniform color veils, opacity layers, image filters, and background blur applied to the background.
 - **Form Card Contrast Isolation:** The elevated form card (`bg-white/95 backdrop-blur-md rounded-xl border border-sage/80 shadow-[0_12px_40px_rgba(16,45,39,0.35)]`) provides 100% of the required form contrast (WCAG AAA contrast for inputs, labels, and buttons against dark charcoal text), guaranteeing readability without requiring background overlays.
 - **Responsive Verification:** Fully verified across mobile (375px, 390px), tablet (768px), laptop (1024px), and desktop (1440px) viewports with zero horizontal overflow, no layout shifts, and full form usability.
+
+---
+
+### 5.9 Guided Trip Creation Wizard & Progress Architecture
+- **3-Step Structure + Confirmation Review:**
+  - **Step 1 (Trip Basics):** Origin, Destination (primary visual focal point with route relationship), Departure & Return dates with automatic duration calculation (`X-day journey`).
+  - **Step 2 (Budget & Travellers):** Prominent total budget input with directly associated currency selector, touch-friendly minus/plus counter for travellers (clamped between 1 and 50), and visually secondary custom journey title.
+  - **Step 3 (Travel Preferences):** Visually distinct travel pace selection cards (`Relaxed`, `Moderate`, `Fast-Paced`), selectable chips for curated popular interests with custom tag additions, accommodation presets, transit options, dietary chips, and notes.
+  - **Step 4 (Final Review):** Compact summary cards displaying route, dates, investment, party, and preferences with direct `Edit` triggers jumping back to specific steps.
+- **Dual Progress Indicator Pattern:**
+  - **Segmented Step Progress:** 3-bar indicator visually communicating completed steps (forest fill with checkmark), active step (terracotta fill), and remaining steps (muted sage).
+  - **Dedicated Required-Detail Counter:** Explicitly reports `"X of 5 required details completed"`. Tracks strictly the 5 backend-required fields (`startingLocation`, `destination`, `departureDate`, `returnDate`, and `budget`), preventing false 100% completion while required fields are missing and guaranteeing optional fields do not dilute progress.
+- **Responsive & Viewport Discipline:** Wide, elegant modal container on desktop (`max-w-2xl` to `max-w-3xl`) with compact step layouts that fit comfortably without awkward nested scrolling; responsive single-column layout on mobile with comfortable touch targets ($\ge 44\times 44\text{px}$) and natural scrolling.

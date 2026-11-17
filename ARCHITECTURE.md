@@ -150,18 +150,23 @@ server/
 │   │   ├── env.js         # Validated environment configuration (MongoDB, JWT)
 │   │   └── db.js          # Mongoose connection & lifecycle
 │   ├── controllers/       # HTTP request coordinators
-│   │   └── authController.js # Registration, login, logout & profile handlers
+│   │   ├── authController.js # Registration, login, logout & profile handlers
+│   │   └── tripController.js # Trip creation & management handlers
 │   ├── models/            # Mongoose schemas & data models
+│   │   ├── Trip.js        # Trip model with embedded itinerary & budget breakdown
 │   │   └── User.js        # User model with single-point bcrypt hashing
 │   ├── routes/            # Route declarations & endpoint binding
 │   │   ├── auth.routes.js # POST /register, POST /login, POST /logout, GET /me
-│   │   └── health.routes.js # GET /api/health endpoint
+│   │   ├── health.routes.js # GET /api/health endpoint
+│   │   └── trip.routes.js # GET/POST /api/trips, GET/PATCH/DELETE /api/trips/:id
 │   ├── middleware/        # Auth guards, validation, error handlers
 │   │   └── authMiddleware.js # HttpOnly cookie JWT verification & req.user guard
 │   ├── services/          # Domain services & business logic
-│   │   └── authService.js # Registration, login & profile domain logic
+│   │   ├── authService.js # Registration, login & profile domain logic
+│   │   └── tripService.js # Trip creation, retrieval, update, delete & domain operations
 │   ├── validators/        # Input validation schemas
-│   │   └── authValidator.js # Registration & login payload validation
+│   │   ├── authValidator.js # Registration & login payload validation
+│   │   └── tripValidator.js # Trip creation, query, param & update validation
 │   ├── utils/             # Shared server utilities
 │   │   └── token.js       # JWT generation, verification & expiration constants
 │   └── app.js             # Express application configuration & middleware
@@ -208,15 +213,21 @@ erDiagram
 
     TRIP_COLLECTION {
         ObjectId _id PK "Collection: trips"
-        ObjectId userId FK "ref: users collection"
+        ObjectId userId FK "ref: users collection, indexed"
+        string startingLocation
         string destination
         string title
-        date startDate
-        date endDate
-        number totalBudget
-        string currency
+        date departureDate "alias: startDate"
+        date returnDate "alias: endDate"
+        number budget "alias: totalBudget"
+        number numberOfTravellers "alias: travellers"
+        string currency "USD"
         string coverImageUrl
         string status "draft | upcoming | completed"
+        array interests
+        object travelPreferences
+        array days "alias: itinerary"
+        object budgetSummary "alias: budgetBreakdown"
         date createdAt
         date updatedAt
     }
@@ -227,13 +238,15 @@ erDiagram
         date date
         string theme
         string notes
+        array activities "Embedded in day.activities"
     }
 
     ACTIVITY_EMBEDDED {
         ObjectId _id PK "Embedded in day.activities"
-        string timeSlot "morning | afternoon | evening"
         string title
         string description
+        string timeSlot "morning | afternoon | evening | night"
+        string time
         string locationName
         number latitude
         number longitude
@@ -245,7 +258,7 @@ erDiagram
         number totalEstimated "Embedded in Trip.budgetSummary"
         number totalSpent
         number remaining
-        object categoryBreakdown
+        object categories "alias: categoryBreakdown"
     }
 ```
 
@@ -253,6 +266,14 @@ erDiagram
 1. **Atomic Document Deletion:** Because `days`, `activities`, and `budgetSummary` reside physically inside the `Trip` document as embedded subdocuments, deleting a `Trip` document removes all associated itinerary and budget data in a single, atomic MongoDB operation.
 2. **No Multi-Collection Cascades:** Unlike relational databases that require cascade triggers or foreign key cascades across multiple tables, TripMind's document model eliminates cascading operations and guarantees zero orphaned records upon trip deletion.
 3. **Data Volume Fit:** A typical itinerary spans 1 to 21 days with 3 to 6 activities per day, easily remaining well under MongoDB's 16MB document size limit.
+
+### 3.4 Concurrency-Safe Partial Updates & Nested Subdocument Preservation
+1. **Conditional Atomic Query Invariants:** To guard against Time-of-Check to Time-of-Use (TOCTOU) race conditions during partial date updates, single-date updates embed counterpart date conditions directly into the atomic `findOneAndUpdate` query filter:
+   - Updating `departureDate` only: requires `returnDate: { $gt: newDepartureDate }`.
+   - Updating `returnDate` only: requires `departureDate: { $lt: newReturnDate }`.
+   Under concurrent opposing requests, MongoDB document-level write locks serialize operations so at most one succeeds, guaranteeing that inverted date ranges can never be persisted.
+2. **Dot-Notation Path Updates for Embedded Subdocuments:** Partial updates to `travelPreferences` are flattened into dot-notation paths (`'travelPreferences.pace'`, etc.) before applying `$set`. This preserves unmentioned sibling subdocument fields (`accommodationType`, `transportation`, `dietary`, `notes`) without full-object replacement.
+3. **Array Ceilings:** To prevent unbounded document growth, `interests` is capped at 30 items and `travelPreferences.dietary` is capped at 20 items at both the request validator and Mongoose schema levels.
 
 ---
 
@@ -287,6 +308,12 @@ All backend network calls must be routed through dedicated API modules in `clien
 - **`apiClient.js`:** Exports the configured Axios instance with base URL, timeout configurations, and request/response interceptors.
 - **Credential Handling:** The request interceptor handles authentication credentials based on the finalized token strategy (attaching Authorization header or configuring cookie credentials).
 - Components and pages must never call raw `fetch` or instantiate isolated `axios` instances.
+
+### 4.3 Trip State Management & Modal Integration (`TripContext` & `CreateTripModal`)
+- **`TripContext` (`client/src/context/TripContext.jsx`):** Encapsulates shared trip state (`trips`, `pagination`, `loading`, `error`, `isCreating`) and domain actions (`fetchTrips`, `createTrip`). Placed at the narrowest appropriate route boundary (`<ProtectedRoute><TripProvider><DashboardPage /></TripProvider></ProtectedRoute>`).
+- **Race Condition Prevention:** Uses a mutable request identifier ref (`latestFetchRequestId`) to silently discard out-of-order asynchronous responses if a newer fetch is dispatched.
+- **Immediate State Synchronization:** When `createTrip` resolves successfully, the newly created trip document is prepended to the in-memory `trips` state array, sliced to the active `pagination.limit`, and `totalTrips` and `totalPages` are recalculated without requiring a full page reload or redundant roundtrip.
+- **Controlled Modal Form (`CreateTripModal.jsx`):** Controlled React state capturing required (`startingLocation`, `destination`, `departureDate`, `returnDate`, `budget`) and optional (`title`, `numberOfTravellers`, `currency`, `interests`, `travelPreferences`) fields. Enforces explicit non-empty string checks before numerical conversion to prevent empty budgets evaluating to zero. Maps normalized backend validation error arrays (`err.details`) directly to field-level feedback.
 
 ---
 

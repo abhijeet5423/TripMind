@@ -70,15 +70,22 @@
     - Reserve MongoDB Atlas for cloud staging/production deployment. Cloud Atlas cluster configuration remains unconfigured/deferred during local development and is not marked as completed.
   - **Database Modeling:**
     - `users` and `trips` are independent MongoDB collections.
-    - Each document in `trips` references its owner via `userId` (`type: mongoose.Schema.Types.ObjectId, ref: 'User'`).
-    - For the MVP, `ItineraryDay` (days array), `Activity` (activities array within each day), and `BudgetSummary` are embedded subdocuments inside the `Trip` document.
+    - Each document in `trips` references its owner via `userId` (`type: mongoose.Schema.Types.ObjectId, ref: 'User'`, required and indexed).
+    - Compound query index `{ userId: 1, createdAt: -1 }` optimizes user dashboard trip retrieval sorted newest first (concurrently powering `GET /api/trips` pagination and `countDocuments`).
+    - Single-trip retrieval (`GET /api/trips/:id`) enforces ownership strictly at the database query level (`Trip.findOne({ _id: tripId, userId: user._id })`), rejecting malformed IDs before database queries, preventing in-memory authorization checks, and returning identical HTTP 404 responses for non-existent and unowned trips for anti-enumeration.
+    - Trip partial updates (`PATCH /api/trips/:id`) enforce query-level ownership and concurrency-safe data integrity. Cross-field date updates use conditional atomic queries: departure-only updates require `returnDate: { $gt: newDepDate }`, return-only updates require `departureDate: { $lt: newRetDate }`, and concurrent opposing updates serialize via MongoDB document write locks, preventing TOCTOU date range inversions. Date conflicts on owned trips return HTTP 400 `VALIDATION_ERROR`, while unowned or nonexistent trips return identical anti-enumeration HTTP 404 responses. Nested `travelPreferences` updates are flattened into dot-notation paths to prevent replacing the entire subdocument and preserve unmentioned fields. `coverImageUrl: null` normalizes to `''` to clear images with HTTP/HTTPS URL validation. Array ceilings are strictly enforced on `interests` (max 30 items) and `travelPreferences.dietary` (max 20 items) at both validator and schema levels.
+    - Trip status transitions: For the MVP, transitions among `draft`, `upcoming`, and `completed` are permitted for any valid enum member. Formal state-machine transitions and prerequisite validations (e.g. requiring generated days before `upcoming` or validating travel completion before `completed`) are explicitly deferred pending product definition.
+    - Trip deletion (`DELETE /api/trips/:id`) enforces query-level ownership via `Trip.findOneAndDelete({ _id: tripId, userId: user._id })`, returning identical HTTP 404 responses for nonexistent and unowned trips. Deleting the parent `Trip` document automatically and atomically deletes all embedded `days`, `activities`, and `budgetSummary` subdocuments with zero orphaned records and no multi-collection cascades.
+    - Strict validation enforces: required starting location and destination (min 2 chars), return date strictly later than departure date, non-negative budget, integer traveller count (1–50), and pace/category enums.
+    - Aliases provide ergonomic property access (`startDate` -> `departureDate`, `endDate` -> `returnDate`, `totalBudget` -> `budget`, `travellers` -> `numberOfTravellers`, `itinerary` -> `days`, `budgetBreakdown` -> `budgetSummary`).
+    - For the MVP, `ItineraryDay` (days array), `Activity` (activities array within each day), and `BudgetSummary` (totalEstimated, totalSpent, remaining, and categorical breakdown) are embedded subdocuments inside the `Trip` document.
     - Deleting a `Trip` document automatically and atomically deletes its embedded subdocuments in a single operation with zero multi-collection cascading operations required.
   - **Backend Layer Responsibilities:**
     - **Server Entry (`server/server.js`):** Application entry point. Loads environment variables, connects to MongoDB via Mongoose, starts HTTP listener, and manages graceful shutdown.
     - **App Configuration (`server/src/app.js`):** Configures middleware (`cors`, `helmet`, `express.json`), mounts routes, and mounts error handlers.
     - **Models (`server/src/models/`):** Define Mongoose schemas, types, validators, indexes, and interact directly with MongoDB to perform queries and persist documents.
     - **Services (`server/src/services/`):** Contain all domain and business logic, perform budget computations, orchestrate AI generation, and execute database operations exclusively through Mongoose models.
-    - **Controllers (`server/src/controllers/`):** Coordinate HTTP requests and responses, parse input parameters, invoke domain services, and return standardized JSON responses. Zero business logic or direct database queries.
+    - **Controllers (`server/src/controllers/`):** Coordinate HTTP requests and responses, parse input parameters, invoke domain services, and return standardized JSON responses. Zero business logic or direct database queries. Ownership is strictly derived from `req.user.id` (set by `authMiddleware.js`), never trusting client-supplied `userId` fields in request bodies or query parameters.
 - **Rationale:**
   - Embedded subdocuments allow atomic reads and writes for trips, eliminating multi-table joins (`$lookup`) and ensuring instant retrieval of full itineraries.
   - Strict separation between models, services, and controllers preserves testability and code maintainability.
@@ -177,6 +184,24 @@
 
 ---
 
+### ADR-011: React Context API + Custom Hooks for Client State Management
+- **Status:** 🟢 CONFIRMED (Resolved from Pending-004)
+- **Context:** TripMind requires client-side state coordination for authentication session management (`AuthContext`), user trips, and pagination metadata (`TripContext`). We must decide between introducing external state libraries (Zustand, Redux Toolkit, TanStack Query) versus utilizing React's built-in Context API and custom hooks.
+- **Decision:**
+  - Adopt React Context API paired with dedicated custom hooks (`useAuth`, `useTrip`) for client state management during MVP.
+  - Decouple cross-cutting concerns into specialized contexts:
+    - `AuthContext`: Strictly manages user session verification, profile state, and HttpOnly cookie login/logout flows.
+    - `TripContext`: Manages trip collections, pagination metadata, loading flags, error handling, and trip creation actions.
+  - Scope `TripProvider` narrowly at route boundaries (`<ProtectedRoute><TripProvider><DashboardPage /></TripProvider></ProtectedRoute>`) to prevent unnecessary context pollution across public routes.
+- **Rationale:**
+  - Zero external bundle weight or dependency drift.
+  - React 19 native primitives provide clean async lifecycle controls and memoized actions (`useCallback`, `useRef`).
+  - Separation of Concerns: Auth state remains isolated from Trip CRUD domain state.
+- **Consequences:**
+  - Deeply nested or highly granular subdocument updates in later stages (e.g. dragging itinerary activities) should be evaluated to avoid unnecessary parent re-renders. External state libraries (Zustand) remain an option post-MVP if state complexity expands.
+
+---
+
 ## 2. Pending Decisions (🟡 UNDER EVALUATION)
 
 The following architectural and technical choices are open for evaluation during future implementation planning. **Do not mark pending decisions as confirmed.**
@@ -213,12 +238,12 @@ The following architectural and technical choices are open for evaluation during
 ---
 
 ### Pending-004: Client-Side State Management Paradigm
-- **Status:** 🟡 UNDER EVALUATION
+- **Status:** 🟢 RESOLVED (See ADR-011)
 - **Options Under Consideration:**
   - *Option A: React Context API + Custom Hooks* — Zero additional dependencies, sufficient for MVP scope (Auth state + active Trip state).
   - *Option B: Zustand* — Lightweight, minimal boilerplate, eliminates unnecessary re-renders in complex itinerary editing.
   - *Option C: TanStack Query (React Query)* — Powerful server-state caching, automatic refetching, and mutation management.
-- **Recommendation:** Start with React Context + Hooks for MVP; evaluate Zustand or TanStack Query if state complexity expands.
+- **Resolution:** Adopted Option A (Dedicated React Contexts `AuthContext` and `TripContext` paired with custom hooks). Confirmed as **ADR-011**.
 
 ---
 

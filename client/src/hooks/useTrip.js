@@ -1,0 +1,28 @@
+import { useContext } from 'react'
+import { TripContext } from '../context/TripContext.jsx'
+
+/**
+ * useTrip Hook
+ *
+ * Provides access to shared trip state, pagination, and trip actions.
+ * Must be used within a TripProvider tree.
+ *
+ * @returns {{
+ *   trips: Array,
+ *   pagination: { page: number, limit: number, totalTrips: number, totalPages: number },
+ *   loading: boolean,
+ *   error: string|null,
+ *   isCreating: boolean,
+ *   fetchTrips: (params?: Object) => Promise<Array>,
+ *   createTrip: (payload: Object) => Promise<Object>
+ * }}
+ */
+export function useTrip() {
+  const context = useContext(TripContext)
+  if (!context) {
+    throw new Error('useTrip must be used within a TripProvider')
+  }
+  return context
+}
+
+export default useTrip

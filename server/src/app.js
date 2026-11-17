@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser'
 import { config } from './config/env.js'
 import healthRoutes from './routes/health.routes.js'
 import authRoutes from './routes/auth.routes.js'
+import tripRoutes from './routes/trip.routes.js'
 
 /**
  * Express Application Configuration
@@ -31,6 +32,7 @@ app.use(cookieParser())
 // 3. API Routes
 app.use('/api', healthRoutes)
 app.use('/api/auth', authRoutes)
+app.use('/api/trips', tripRoutes)
 
 // 4. 404 Not Found Handler
 app.use((req, res) => {

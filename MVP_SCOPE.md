@@ -63,12 +63,17 @@ Stage 5: AI Itinerary, Maps & Budget Analytics
 ### 3.3 Stage 4: Trip CRUD Management (Create, View, Update, Delete)
 - **Description:** Complete lifecycle management for user trips.
 - **Acceptance Criteria:**
-  - **Create:** Modal or form to define a new trip (Destination name, Start date, End date, Total budget, Cover image or preset tag).
-  - **View:** Trip detail page displaying overview, dates, duration, total budget, and associated daily itineraries.
-  - **Update:** Ability to edit trip metadata (dates, title, budget cap, notes).
-  - **Delete:** Safe trip deletion with confirmation prompt; deleting the parent `Trip` document automatically and atomically removes its embedded days, activities, and budget summary without requiring multi-collection cascade operations.
-  - Data isolation: Users can only view, update, or delete trips they own (`userId` check against authenticated user).
-- **Current Status:** 🔴 Pending / Not Started
+  - [x] **Backend Create API:** Authenticated `POST /api/trips` endpoint with strict request validation, ownership enforcement (`req.user.id`), mass assignment defense, and persistence in MongoDB. *(Day 16 Completed)*
+  - [x] **Backend List API:** Authenticated `GET /api/trips` endpoint retrieving user-owned trips with pagination (`page`, `limit`), sorting (`createdAt` descending), and status filtering (`draft`, `upcoming`, `completed`). *(Day 17 Completed)*
+  - [x] **Frontend Create UI:** Modal or form to define a new trip with client-side validation, error mapping, and immediate state synchronization via `TripContext` and `CreateTripModal.jsx`. *(Day 20 Completed)*
+  - [x] **Backend Single-Trip Retrieval API:** Authenticated `GET /api/trips/:id` endpoint with MongoDB ObjectId parameter validation, database query-level ownership filtering (`_id` and `userId`), anti-enumeration 404 responses, and data isolation. *(Day 18 Completed)*
+  - [ ] **View (Single Trip Frontend):** Trip detail page displaying overview, dates, duration, total budget, and associated daily itineraries. *(Pending)*
+  - [x] **Backend Update API (PATCH):** Authenticated `PATCH /api/trips/:id` partial update endpoint with allowed field filtering, protected field rejection (`_id`, `userId`, `createdAt`, etc.), concurrency-safe conditional atomic date queries, nested subdocument preservation via dot-notation, cover image null clearing, array length limits (30 interests, 20 dietary), and query-level ownership filtering. *(Day 19 & Day 19.1 Hardened)*
+  - [x] **Backend Delete API (DELETE):** Authenticated `DELETE /api/trips/:id` endpoint with query-level ownership enforcement (`Trip.findOneAndDelete({ _id: tripId, userId: user._id })`), atomically removing the parent trip and all embedded subdocuments (`days`, `activities`, `budgetSummary`). *(Day 19 Completed)*
+  - [ ] **Update (Frontend UI):** Ability to edit trip metadata (dates, title, budget cap, notes) in the trip workspace. *(Pending)*
+  - [ ] **Delete (Frontend UI):** Safe trip deletion from dashboard/workspace with confirmation modal. *(Pending)*
+  - [x] **Data Isolation:** Users can only create, list, retrieve, update, or delete trips assigned strictly to their authenticated identity (`userId` from session token). Client-supplied `userId` cannot spoof ownership, bypass query filters, or mutate foreign resources. *(Day 16, Day 17, Day 18 & Day 19 Completed)*
+- **Current Status:** 🟡 Full Backend Trip CRUD APIs & Frontend Trip Creation Implemented (Day 15 Trip model, Day 16 Create Trip API, Day 17 List Trips API, Day 18 Single-Trip Retrieval API, Day 19 Update & Delete Trip APIs, and Day 20/21 Frontend Trip Creation Wizard & Dashboard Integration completed; trip editing/deletion UI controls and trip detail workspace pending subsequent milestones)
 
 ### 3.4 Stage 5: AI Itinerary Generation
 - **Description:** Automated multi-day itinerary generation powered by an external LLM mediated through Express backend services (`server/src/services/aiService.js`).
@@ -127,7 +132,7 @@ Stage 5: AI Itinerary, Maps & Budget Analytics
   - Categorization tabs or filters (e.g., "Upcoming", "Past", "All").
   - Quick action buttons on each card: "Open Itinerary", "Edit Details", "Delete".
   - Empty state with editorial styling guiding first-time users to create their initial trip.
-- **Current Status:** 🔴 Pending / Not Started
+- **Current Status:** 🟡 Completed Day 20/21 Dashboard Integration (Dynamic trip listing with 4 states: Loading, Error with Retry, Empty State, and Populated Trips Grid with "Plan a Journey" creation CTA, verified complete end-to-end trip creation integration; trip editing and deletion UI controls scheduled for subsequent milestone)
 
 ---
 
