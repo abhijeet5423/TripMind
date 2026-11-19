@@ -1,12 +1,10 @@
-import React from 'react'
-
 /**
  * Button Component
  * Reusable editorial button adhering to the TripMind design system.
  *
  * @param {Object} props
  * @param {React.ReactNode} props.children
- * @param {'primary' | 'secondary' | 'outline' | 'accent' | 'ghost'} [props.variant='primary']
+ * @param {'primary' | 'secondary' | 'outline' | 'accent' | 'ghost' | 'danger'} [props.variant='primary']
  * @param {'sm' | 'md' | 'lg'} [props.size='md']
  * @param {string} [props.className='']
  * @param {boolean} [props.disabled=false]
@@ -43,6 +41,8 @@ export default function Button({
       'bg-terracotta text-white hover:bg-terracotta-dark border border-terracotta active:bg-terracotta-dark/90 shadow-sm',
     ghost:
       'bg-transparent text-forest hover:bg-sage/20 border border-transparent active:bg-sage/30',
+    danger:
+      'bg-burnt-crimson text-white hover:bg-[#9B2F2F] border border-burnt-crimson active:bg-[#852727] shadow-sm focus-visible:ring-burnt-crimson',
   }
 
   const selectedSize = sizeClasses[size] || sizeClasses.md

@@ -273,7 +273,7 @@ export async function updateTrip(userId, tripId, updateData) {
     const updatedTrip = await Trip.findOneAndUpdate(
       query,
       { $set: sanitizedUpdate },
-      { new: true, returnDocument: 'after', runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     )
 
     if (!updatedTrip) {
@@ -365,5 +365,132 @@ export async function deleteTrip(userId, tripId) {
 
   return deletedTrip
 }
+
+/**
+ * Persists a validated AI-generated itinerary to an existing trip owned by the user.
+ * Atomically updates embedded days, budgetSummary, summary, and travelTips subdocuments.
+ * Guarantees that departureDate, returnDate, destination, and original trip metadata remain untouched.
+ *
+ * @param {string} userId - Authenticated user's MongoDB ObjectId string.
+ * @param {string} tripId - Target trip's MongoDB ObjectId string.
+ * @param {object} itineraryData - Validated itinerary matching Day 25/Day 28 schema contract.
+ * @returns {Promise<import('mongoose').Document|null>} The updated Mongoose Trip document, or null if unowned/not found.
+ * @throws {Error} 400 for invalid ID format, 404 if user no longer exists, or Mongoose validation errors.
+ */
+export async function saveTripItinerary(userId, tripId, itineraryData) {
+  // 1. Guard against missing or malformed ObjectId format
+  if (!userId || typeof userId !== 'string' || !mongoose.Types.ObjectId.isValid(userId)) {
+    const formatError = new Error('Invalid user ID format')
+    formatError.statusCode = 400
+    formatError.code = 'INVALID_ID'
+    formatError.details = []
+    throw formatError
+  }
+
+  if (!tripId || typeof tripId !== 'string' || !mongoose.Types.ObjectId.isValid(tripId)) {
+    const formatError = new Error('Invalid trip ID format')
+    formatError.statusCode = 400
+    formatError.code = 'INVALID_ID'
+    formatError.details = []
+    throw formatError
+  }
+
+  // 2. Verify that authenticated user actually exists
+  const user = await User.findById(userId)
+  if (!user) {
+    const notFoundError = new Error('Authenticated user account no longer exists')
+    notFoundError.statusCode = 404
+    notFoundError.code = 'USER_NOT_FOUND'
+    notFoundError.details = []
+    throw notFoundError
+  }
+
+  // 3. Retrieve existing trip to verify ownership and read budget for remaining calculation
+  const existingTrip = await Trip.findOne({ _id: tripId, userId: user._id })
+  if (!existingTrip) {
+    return null
+  }
+
+  // 4. Map days and activities into Mongoose subdocument format
+  const mappedDays = (itineraryData.days || []).map((day) => ({
+    dayNumber: day.dayNumber,
+    theme: day.theme || '',
+    date: day.date ? new Date(day.date) : null,
+    notes: day.notes || '',
+    activities: (day.activities || []).map((activity) => ({
+      title: activity.name || activity.title,
+      description: activity.description || '',
+      timeSlot: activity.timeSlot || 'morning',
+      time: activity.time || '',
+      duration: activity.duration || '',
+      costBreakdown: activity.costBreakdown || '',
+      locationName: activity.location?.name || activity.locationName || '',
+      latitude: activity.location?.latitude ?? activity.latitude ?? null,
+      longitude: activity.location?.longitude ?? activity.longitude ?? null,
+      estimatedCost: typeof activity.estimatedCost === 'number' ? activity.estimatedCost : 0,
+      category: activity.category || 'activity',
+      location: activity.location
+        ? {
+            name: activity.location.name || '',
+            latitude: activity.location.latitude ?? null,
+            longitude: activity.location.longitude ?? null,
+            address: activity.location.address || '',
+          }
+        : undefined,
+    })),
+  }))
+
+  // 5. Map budgetSummary into Mongoose subdocument format
+  const totalEstimated =
+    typeof itineraryData.budget?.totalEstimated === 'number'
+      ? itineraryData.budget.totalEstimated
+      : 0
+  const cats = itineraryData.budget?.categories || {}
+  const mappedBudgetSummary = {
+    totalEstimated,
+    totalSpent: 0,
+    remaining: Math.max(0, (existingTrip.budget || 0) - totalEstimated),
+    categories: {
+      accommodation: typeof cats.accommodation === 'number' ? cats.accommodation : 0,
+      food: typeof cats.food === 'number' ? cats.food : 0,
+      transportation: typeof cats.transportation === 'number' ? cats.transportation : 0,
+      activities: typeof cats.activities === 'number' ? cats.activities : 0,
+      localTransport: typeof cats.localTransport === 'number' ? cats.localTransport : 0,
+      miscellaneous: typeof cats.miscellaneous === 'number' ? cats.miscellaneous : 0,
+      other: (Number(cats.localTransport) || 0) + (Number(cats.miscellaneous) || 0),
+    },
+  }
+
+  // 6. Execute atomic update strictly scoping to { _id: tripId, userId: user._id }
+  const updatePayload = {
+    $set: {
+      days: mappedDays,
+      budgetSummary: mappedBudgetSummary,
+      ...(itineraryData.summary && { summary: itineraryData.summary }),
+      ...(Array.isArray(itineraryData.travelTips) && { travelTips: itineraryData.travelTips }),
+    },
+  }
+
+  try {
+    const updatedTrip = await Trip.findOneAndUpdate(
+      { _id: tripId, userId: user._id },
+      updatePayload,
+      { returnDocument: 'after', runValidators: true }
+    )
+
+    return updatedTrip
+  } catch (error) {
+    if (error.name === 'ValidationError' && error.errors) {
+      error.statusCode = 400
+      error.code = 'VALIDATION_ERROR'
+      error.details = Object.keys(error.errors).map((field) => ({
+        field,
+        message: error.errors[field].message,
+      }))
+    }
+    throw error
+  }
+}
+
 
 

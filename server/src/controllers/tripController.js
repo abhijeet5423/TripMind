@@ -1,4 +1,6 @@
 import * as tripService from '../services/tripService.js'
+import { generateItinerary } from '../services/aiService.js'
+import { validateTripItinerary } from '../validators/itineraryValidator.js'
 
 /**
  * Trip Controller
@@ -286,6 +288,153 @@ export async function deleteTrip(req, res, next) {
     })
   } catch (error) {
     // Forward caught errors to centralized error handling middleware
+    next(error)
+  }
+}
+
+/**
+ * Maps normalized AI service error codes to standard HTTP status codes.
+ *
+ * @param {string} [code] - The normalized error code from aiService
+ * @returns {number} Corresponding HTTP status code
+ */
+export function mapAiErrorToStatusCode(code) {
+  switch (code) {
+    case 'INVALID_TRIP_CONTEXT':
+      return 400
+    case 'GEMINI_QUOTA_EXCEEDED':
+      return 429
+    case 'GEMINI_SERVICE_UNAVAILABLE':
+      return 503
+    case 'GEMINI_AUTH_FAILED':
+    case 'GEMINI_NETWORK_ERROR':
+    case 'GEMINI_EMPTY_RESPONSE':
+    case 'GEMINI_PARSE_ERROR':
+      return 502
+    case 'GEMINI_CONFIG_ERROR':
+    default:
+      return 500
+  }
+}
+
+/**
+ * Authenticated AI Itinerary Generation, Validation & Persistence
+ * POST /api/trips/:id/generate-itinerary
+ *
+ * Generates a structured multi-day travel itinerary for an existing trip
+ * owned by the authenticated user using Google Gemini AI, validates it
+ * against Tier-2 domain semantic invariants, and persists it atomically to MongoDB.
+ *
+ * SECURITY & PERSISTENCE RULES:
+ * 1. User ownership is strictly verified against req.user.id via tripService.
+ * 2. Unowned or non-existent trips return HTTP 404 NOT_FOUND to prevent enumeration.
+ * 3. Gemini API invocation occurs only after authentication and ownership verification succeed.
+ * 4. Free-tier budget constraint: ₹0.
+ * 5. Tier-2 Semantic Validation: Output is verified against trip destination, duration,
+ *    calendar date sequence, currency, and party-level budget.
+ * 6. Atomic Persistence: Validated itineraries are persisted atomically to MongoDB
+ *    via tripService.saveTripItinerary. Original trip dates and metadata are never mutated.
+ * 7. Regeneration Safety: Existing itineraries are preserved if generation or validation fails.
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
+export async function generateTripItinerary(req, res, next) {
+  try {
+    // 1. Extract verified owner identity strictly from authenticated token context
+    const userId = req.user.id
+    const tripId = req.params.tripId || req.params.id
+
+    // 2. Retrieve trip and enforce ownership at the database query level
+    const trip = await tripService.getTripById(userId, tripId)
+
+    // 3. Return HTTP 404 if trip does not exist or does not belong to authenticated user
+    // (Prevents cross-user data exposure and resource enumeration attacks)
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Trip not found',
+          details: [],
+        },
+      })
+    }
+
+    // 4. Delegate to AI service (executed only after auth and ownership succeed)
+    const aiResult = await generateItinerary(trip)
+
+    // 5. Handle AI service errors with standardized envelope and mapped HTTP status
+    if (!aiResult.success) {
+      const statusCode = mapAiErrorToStatusCode(aiResult.error?.code)
+      return res.status(statusCode).json({
+        success: false,
+        error: {
+          code: aiResult.error?.code || 'GEMINI_UNKNOWN_ERROR',
+          message: aiResult.error?.message || 'Failed to generate itinerary.',
+          details: aiResult.error?.details || [],
+        },
+      })
+    }
+
+    // 6. Tier-2 Semantic Validation against user's Trip context
+    const validation = validateTripItinerary(aiResult.data, trip)
+    if (!validation.valid) {
+      return res.status(422).json({
+        success: false,
+        error: {
+          code: 'ITINERARY_VALIDATION_FAILED',
+          message: 'Generated itinerary failed validation.',
+          details: validation.errors,
+        },
+      })
+    }
+
+    // 7. Atomic Persistence to MongoDB (Day 28)
+    const shouldPersist = req.query.persist !== 'false'
+    let persistedTrip = trip
+
+    if (shouldPersist) {
+      try {
+        persistedTrip = await tripService.saveTripItinerary(userId, tripId, aiResult.data)
+      } catch (persistErr) {
+        return res.status(500).json({
+          success: false,
+          error: {
+            code: 'PERSISTENCE_FAILED',
+            message: 'Failed to persist generated itinerary to database.',
+            details: [],
+          },
+        })
+      }
+
+      if (!persistedTrip) {
+        return res.status(500).json({
+          success: false,
+          error: {
+            code: 'PERSISTENCE_FAILED',
+            message: 'Failed to persist generated itinerary to database.',
+            details: [],
+          },
+        })
+      }
+    }
+
+    // 8. Return HTTP 200 OK with persisted itinerary conforming to standardized envelope
+    return res.status(200).json({
+      success: true,
+      data: {
+        tripId: String(persistedTrip._id || tripId),
+        itinerary: aiResult.data,
+        ...(aiResult.meta && { meta: aiResult.meta }),
+      },
+      message: shouldPersist
+        ? 'Itinerary generated and saved successfully.'
+        : 'Itinerary generated successfully.',
+    })
+  } catch (error) {
+    // Forward unexpected exceptions to centralized error handling middleware
     next(error)
   }
 }

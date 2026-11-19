@@ -13,12 +13,16 @@ import {
   AlertCircle,
   RefreshCw,
   CheckCircle2,
+  Edit3,
+  Trash2,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useTrip } from '../hooks/useTrip.js'
 import Container from '../components/common/Container.jsx'
 import Button from '../components/common/Button.jsx'
 import CreateTripModal from '../components/common/CreateTripModal.jsx'
+import EditTripModal from '../components/common/EditTripModal.jsx'
+import DeleteTripModal from '../components/common/DeleteTripModal.jsx'
 
 /**
  * Formats a date range into an editorial human-readable string.
@@ -110,7 +114,11 @@ export default function DashboardPage() {
 
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [editingTrip, setEditingTrip] = useState(null)
+  const [deletingTrip, setDeletingTrip] = useState(null)
   const [createdSuccessMessage, setCreatedSuccessMessage] = useState(null)
+  const [updatedSuccessMessage, setUpdatedSuccessMessage] = useState(null)
+  const [deletedSuccessMessage, setDeletedSuccessMessage] = useState(null)
 
   // Fetch trips on initial mount
   useEffect(() => {
@@ -130,8 +138,26 @@ export default function DashboardPage() {
   }
 
   const handleTripCreated = (newTrip) => {
+    setUpdatedSuccessMessage(null)
+    setDeletedSuccessMessage(null)
     setCreatedSuccessMessage(
       `Journey to ${newTrip?.destination || 'your destination'} curated successfully.`
+    )
+  }
+
+  const handleTripUpdated = (updatedTrip) => {
+    setCreatedSuccessMessage(null)
+    setDeletedSuccessMessage(null)
+    setUpdatedSuccessMessage(
+      `Journey to ${updatedTrip?.destination || 'your destination'} updated successfully.`
+    )
+  }
+
+  const handleTripDeleted = (deletedTrip) => {
+    setCreatedSuccessMessage(null)
+    setUpdatedSuccessMessage(null)
+    setDeletedSuccessMessage(
+      `Journey to ${deletedTrip?.destination || 'your destination'} was removed from your archive.`
     )
   }
 
@@ -256,7 +282,7 @@ export default function DashboardPage() {
 
             {/* Dynamic Journeys Section */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Transient Success Banner */}
+              {/* Transient Success Banners */}
               {createdSuccessMessage && (
                 <div
                   className="p-4 rounded-xl bg-forest/10 border border-forest/25 text-forest text-sm flex items-center justify-between animate-fadeIn"
@@ -269,6 +295,44 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => setCreatedSuccessMessage(null)}
+                    className="text-xs uppercase font-bold tracking-wider text-forest/70 hover:text-forest transition-colors ml-4 cursor-pointer"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+
+              {updatedSuccessMessage && (
+                <div
+                  className="p-4 rounded-xl bg-forest/10 border border-forest/25 text-forest text-sm flex items-center justify-between animate-fadeIn"
+                  role="status"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle2 className="w-5 h-5 text-forest shrink-0" />
+                    <span className="font-medium">{updatedSuccessMessage}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setUpdatedSuccessMessage(null)}
+                    className="text-xs uppercase font-bold tracking-wider text-forest/70 hover:text-forest transition-colors ml-4 cursor-pointer"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+
+              {deletedSuccessMessage && (
+                <div
+                  className="p-4 rounded-xl bg-forest/10 border border-forest/25 text-forest text-sm flex items-center justify-between animate-fadeIn"
+                  role="status"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle2 className="w-5 h-5 text-forest shrink-0" />
+                    <span className="font-medium">{deletedSuccessMessage}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDeletedSuccessMessage(null)}
                     className="text-xs uppercase font-bold tracking-wider text-forest/70 hover:text-forest transition-colors ml-4 cursor-pointer"
                   >
                     Dismiss
@@ -373,9 +437,34 @@ export default function DashboardPage() {
                             {/* Card Header: Destination & Status Pill */}
                             <div className="flex items-start justify-between gap-3 mb-2">
                               <h3 className="font-serif text-xl font-bold text-forest leading-snug">
-                                {trip.destination}
+                                <Link
+                                  to={`/trips/${tripKey}`}
+                                  className="hover:text-terracotta transition-colors"
+                                >
+                                  {trip.destination}
+                                </Link>
                               </h3>
-                              {renderStatusBadge(trip.status)}
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {renderStatusBadge(trip.status)}
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingTrip(trip)}
+                                  className="p-1 rounded-md text-stone hover:text-forest hover:bg-sage/40 transition-colors cursor-pointer"
+                                  title="Edit Journey"
+                                  aria-label={`Edit journey to ${trip.destination}`}
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDeletingTrip(trip)}
+                                  className="p-1 rounded-md text-stone hover:text-burnt-crimson hover:bg-burnt-crimson/10 transition-colors cursor-pointer"
+                                  title="Delete Journey"
+                                  aria-label={`Delete journey to ${trip.destination}`}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
 
                             {/* Optional Title (if specified) */}
@@ -415,10 +504,45 @@ export default function DashboardPage() {
                             </div>
                           </div>
 
-                          {/* Card Footer: Creation Date */}
-                          <div className="mt-5 pt-3 border-t border-sage/40 flex items-center justify-between text-[11px] text-stone/75">
-                            <span>Journal Entry</span>
-                            <span>Added {formatCreatedDate(trip.createdAt)}</span>
+                          {/* Card Footer: Itinerary Link, Creation Date, Edit & Delete Actions */}
+                          <div className="mt-5 pt-3 border-t border-sage/40 flex flex-wrap items-center justify-between gap-2 text-[11px] text-stone/75">
+                            <div className="flex items-center gap-2">
+                              <Link
+                                to={`/trips/${tripKey}`}
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-forest hover:text-terracotta transition-colors px-2.5 py-1 rounded-md bg-sage-light/60 hover:bg-sage-light border border-sage/60"
+                              >
+                                <Compass className="w-3.5 h-3.5 text-terracotta" />
+                                <span>
+                                  {trip.days && trip.days.length > 0
+                                    ? `Itinerary (${trip.days.length}d)`
+                                    : 'Plan Itinerary'}
+                                </span>
+                              </Link>
+                              <span className="hidden md:inline text-stone/60">
+                                Added {formatCreatedDate(trip.createdAt)}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1 sm:gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setEditingTrip(trip)}
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-forest hover:text-forest-dark transition-colors cursor-pointer px-2 py-1 rounded-md hover:bg-sage/30"
+                                aria-label={`Edit details for ${trip.destination}`}
+                              >
+                                <Edit3 className="w-3.5 h-3.5 text-terracotta" />
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeletingTrip(trip)}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-stone hover:text-burnt-crimson transition-colors cursor-pointer px-2 py-1 rounded-md hover:bg-burnt-crimson/10"
+                                aria-label={`Delete journey to ${trip.destination}`}
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-burnt-crimson" />
+                                <span>Delete</span>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       )
@@ -436,6 +560,22 @@ export default function DashboardPage() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSuccess={handleTripCreated}
+      />
+
+      {/* Trip Editing Modal */}
+      <EditTripModal
+        isOpen={Boolean(editingTrip)}
+        trip={editingTrip}
+        onClose={() => setEditingTrip(null)}
+        onSuccess={handleTripUpdated}
+      />
+
+      {/* Trip Deletion Confirmation Modal */}
+      <DeleteTripModal
+        isOpen={Boolean(deletingTrip)}
+        trip={deletingTrip}
+        onClose={() => setDeletingTrip(null)}
+        onSuccess={handleTripDeleted}
       />
     </div>
   )

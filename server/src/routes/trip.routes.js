@@ -5,6 +5,7 @@ import {
   getTripById,
   updateTrip,
   deleteTrip,
+  generateTripItinerary,
 } from '../controllers/tripController.js'
 import {
   validateCreateTrip,
@@ -36,6 +37,13 @@ router.get('/:id', authenticateToken, validateTripId, getTripById)
  * @access  Private (Requires valid HttpOnly JWT cookie)
  */
 router.post('/', authenticateToken, validateCreateTrip, createTrip)
+
+/**
+ * @route   POST /api/trips/:id/generate-itinerary
+ * @desc    Generate an AI itinerary for a trip owned by the authenticated user
+ * @access  Private (Requires valid HttpOnly JWT cookie)
+ */
+router.post('/:id/generate-itinerary', authenticateToken, validateTripId, generateTripItinerary)
 
 /**
  * @route   PATCH /api/trips/:id

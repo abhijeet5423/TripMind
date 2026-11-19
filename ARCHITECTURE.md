@@ -127,7 +127,7 @@ sequenceDiagram
 #### 6. Services (`server/src/services/`)
 - **Primary Role:** Contain and execute all domain and business logic.
 - Execute database operations exclusively through Mongoose models.
-- **AI Integration (`aiService.js`):** Construct system prompts, structure context, call the external LLM API, and parse/validate returned JSON itineraries.
+- **AI Integration (`aiService.js`):** Encapsulates external Google Gemini API communication via `@google/genai`. Formats and sanitizes provider error responses, executes backend connectivity smoke testing (`verifyGeminiConnection()`), and isolates LLM provider details from controllers and client code. Full prompt generation and JSON schema output validation are scheduled for subsequent itinerary generation milestones.
 - **Budget Computation (`budgetService.js`):** Perform calculations, expense categorizations, and balance tracking across itinerary days.
 - **Strict Boundary:** Services are completely decoupled from Express `req` and `res` objects to ensure pure testability.
 
@@ -139,16 +139,18 @@ sequenceDiagram
 - Manage direct database persistence, mutations, and query execution for MongoDB (local or Atlas).
 
 #### 8. Configuration Layer (`server/src/config/`)
-- **Environment Management (`env.js`):** Centralizes and validates environment configuration on process startup. Loads `server/.env` via `dotenv` and halts startup if critical variables (`MONGODB_URI`) are missing, unconfigured, or contain placeholder credentials. Supports local MongoDB URIs for development and requires explicit production database configuration without silent localhost fallbacks.
+- **Environment Management (`env.js`):** Centralizes and validates environment configuration on process startup. Loads `server/.env` via `dotenv` and halts startup if critical variables (`MONGODB_URI`, `JWT_SECRET`) are missing, unconfigured, or contain placeholder credentials. Validates `GEMINI_API_KEY` placeholder guards and exposes configuration options for Gemini (`geminiApiKey`, `geminiModel`).
 - **Database Connection (`db.js`):** Encapsulates the Mongoose connection lifecycle (`connectDB`, `disconnectDB`, `getDbStatus`), ensuring connections are established prior to HTTP server binding, logging sanitized host metadata without credential leakage, and safely reporting connection states.
+- **AI Client Configuration (`gemini.js`):** Configures and exports a cached singleton instance of the official Google GenAI JavaScript client (`GoogleGenAI` from `@google/genai`) and resolves the model identifier from `GEMINI_MODEL` (defaulting to `gemini-3.5-flash-lite`). Avoids creating separate client instances per request and isolates provider initialization.
 
 ### 2.2 Server Directory Layout
 ```
 server/
 ├── src/
 │   ├── config/
-│   │   ├── env.js         # Validated environment configuration (MongoDB, JWT)
-│   │   └── db.js          # Mongoose connection & lifecycle
+│   │   ├── env.js         # Validated environment configuration (MongoDB, JWT, Gemini)
+│   │   ├── db.js          # Mongoose connection & lifecycle
+│   │   └── gemini.js      # Reusable GoogleGenAI singleton & model configuration
 │   ├── controllers/       # HTTP request coordinators
 │   │   ├── authController.js # Registration, login, logout & profile handlers
 │   │   └── tripController.js # Trip creation & management handlers
@@ -161,7 +163,12 @@ server/
 │   │   └── trip.routes.js # GET/POST /api/trips, GET/PATCH/DELETE /api/trips/:id
 │   ├── middleware/        # Auth guards, validation, error handlers
 │   │   └── authMiddleware.js # HttpOnly cookie JWT verification & req.user guard
+│   ├── schemas/           # Structured response & JSON schema contracts
+│   │   └── itinerarySchema.js # Gemini & standard JSON schemas for AI itinerary generation
+│   ├── scripts/           # Standalone diagnostic & administrative scripts
+│   │   └── verifyGemini.js # Diagnostic CLI smoke test for Gemini API connectivity
 │   ├── services/          # Domain services & business logic
+│   │   ├── aiService.js   # Gemini API mediation, error normalization & connectivity test
 │   │   ├── authService.js # Registration, login & profile domain logic
 │   │   └── tripService.js # Trip creation, retrieval, update, delete & domain operations
 │   ├── validators/        # Input validation schemas
@@ -265,7 +272,7 @@ erDiagram
 ### 3.3 Deletion Mechanics & Embedded Lifecycle
 1. **Atomic Document Deletion:** Because `days`, `activities`, and `budgetSummary` reside physically inside the `Trip` document as embedded subdocuments, deleting a `Trip` document removes all associated itinerary and budget data in a single, atomic MongoDB operation.
 2. **No Multi-Collection Cascades:** Unlike relational databases that require cascade triggers or foreign key cascades across multiple tables, TripMind's document model eliminates cascading operations and guarantees zero orphaned records upon trip deletion.
-3. **Data Volume Fit:** A typical itinerary spans 1 to 21 days with 3 to 6 activities per day, easily remaining well under MongoDB's 16MB document size limit.
+3. **Data Volume Fit:** A typical itinerary spans 1 to 30 days with 3 to 6 activities per day, easily remaining well under MongoDB's 16MB document size limit.
 
 ### 3.4 Concurrency-Safe Partial Updates & Nested Subdocument Preservation
 1. **Conditional Atomic Query Invariants:** To guard against Time-of-Check to Time-of-Use (TOCTOU) race conditions during partial date updates, single-date updates embed counterpart date conditions directly into the atomic `findOneAndUpdate` query filter:
@@ -309,11 +316,17 @@ All backend network calls must be routed through dedicated API modules in `clien
 - **Credential Handling:** The request interceptor handles authentication credentials based on the finalized token strategy (attaching Authorization header or configuring cookie credentials).
 - Components and pages must never call raw `fetch` or instantiate isolated `axios` instances.
 
-### 4.3 Trip State Management & Modal Integration (`TripContext` & `CreateTripModal`)
-- **`TripContext` (`client/src/context/TripContext.jsx`):** Encapsulates shared trip state (`trips`, `pagination`, `loading`, `error`, `isCreating`) and domain actions (`fetchTrips`, `createTrip`). Placed at the narrowest appropriate route boundary (`<ProtectedRoute><TripProvider><DashboardPage /></TripProvider></ProtectedRoute>`).
-- **Race Condition Prevention:** Uses a mutable request identifier ref (`latestFetchRequestId`) to silently discard out-of-order asynchronous responses if a newer fetch is dispatched.
-- **Immediate State Synchronization:** When `createTrip` resolves successfully, the newly created trip document is prepended to the in-memory `trips` state array, sliced to the active `pagination.limit`, and `totalTrips` and `totalPages` are recalculated without requiring a full page reload or redundant roundtrip.
-- **Controlled Modal Form (`CreateTripModal.jsx`):** Controlled React state capturing required (`startingLocation`, `destination`, `departureDate`, `returnDate`, `budget`) and optional (`title`, `numberOfTravellers`, `currency`, `interests`, `travelPreferences`) fields. Enforces explicit non-empty string checks before numerical conversion to prevent empty budgets evaluating to zero. Maps normalized backend validation error arrays (`err.details`) directly to field-level feedback.
+### 4.3 Trip State Management & Modal Integration (`TripContext`, `CreateTripModal`, `EditTripModal` & `DeleteTripModal`)
+- **`TripContext` (`client/src/context/TripContext.jsx`):** Encapsulates shared trip state (`trips`, `pagination`, `loading`, `error`, `isCreating`, `isUpdating`, `isDeleting`) and domain actions (`fetchTrips`, `createTrip`, `updateTrip`, `deleteTrip`). Placed at the narrowest appropriate route boundary (`<ProtectedRoute><TripProvider><DashboardPage /></TripProvider></ProtectedRoute>`).
+- **Race Condition & Duplicate Submission Prevention:** Uses a mutable request identifier ref (`latestFetchRequestId`) to silently discard out-of-order asynchronous responses if a newer fetch is dispatched. State guards `isCreating`, `isUpdating`, and `isDeleting` block concurrent duplicate submissions.
+- **Immediate State Synchronization:**
+  - **Trip Creation:** Prepending newly created trip document to in-memory `trips` state array, sliced to active `pagination.limit`, with recalculated `totalTrips` and `totalPages` without requiring a full page reload or redundant roundtrip.
+  - **Trip Updates:** When `updateTrip` resolves successfully with the server-confirmed updated trip document, `TripContext` updates the matching item in `trips` in place (`(trip._id === id || trip.id === id) ? updatedTrip : trip`), preserving array order, pagination metadata, and sibling trips without refreshing the entire dashboard.
+  - **Trip Deletion:** When `deleteTrip` resolves successfully (`{ success: true, data: null }`), `TripContext` removes the targeted trip from `trips` in-memory, decrements `totalTrips`, and recalculates `totalPages`. If the deleted trip was the last item on a page greater than 1, `TripContext` automatically transitions to the previous page and re-fetches to prevent stranding on an empty page. If deletion fails, in-memory state remains untouched.
+- **Controlled Modal Forms & Dialogs:**
+  - **`CreateTripModal.jsx`:** 3-step guided wizard + review capturing required and optional fields with step-by-step validation.
+  - **`EditTripModal.jsx`:** Tabbed editorial editing interface (`Trip Basics`, `Budget & Party`, `Preferences & Style`) prepopulating existing values (converting ISO dates to `YYYY-MM-DD` inputs). Calculates client-side diff deltas to send partial updates containing only modified fields to `PATCH /api/trips/:id`. Preserves all entered values upon submission failure and directs the traveler to the earliest tab containing validation errors.
+  - **`DeleteTripModal.jsx`:** Accessible confirmation dialog (`role="alertdialog"`) explicitly identifying the destination, origin, dates, and budget of the targeted trip. Warns of permanent subdocument eradication, focuses the Cancel action by default to prevent accidental deletion, displays an inline error banner if deletion fails, and prevents double-submissions during deletion.
 
 ---
 
@@ -339,9 +352,36 @@ TripMind utilizes JWT for stateless authentication and `bcrypt` for salted passw
 - **Stateless Logout (MVP):** For the MVP, logging out is achieved on the client side by clearing the stored authentication credential or clearing the authentication cookie via `res.clearCookie()`.
 - **Server-Side Revocation (Deferred):** Active server-side token revocation (such as Redis-backed token blacklists or short-lived token rotation) is explicitly deferred beyond the MVP.
 
-### 5.4 AI & External Service Isolation
-- LLM API keys reside strictly on the server (`server/.env`).
-- Client requests for AI itinerary generation are routed to `POST /api/ai/generate-itinerary`. The Express backend validates inputs, applies rate limits, constructs the prompt, invokes the LLM API, and validates the structured output.
+### 5.4 AI & External Service Isolation (ADR-003, ADR-012, ADR-013 & ADR-014)
+- **Zero Credential Exposure:** Google Gemini API keys reside strictly on the server (`server/.env` under `GEMINI_API_KEY`). They are never exposed via Vite environment variables, client bundles, network payloads, or logs.
+- **Provider & SDK Configuration:** Standardized on official `@google/genai` (v3.6.1+) SDK with free-tier model `gemini-3.5-flash-lite` (configurable via `GEMINI_MODEL`).
+- **Singleton Client Architecture:** `server/src/config/gemini.js` maintains a cached `GoogleGenAI` client singleton, avoiding client churn and memory leaks.
+- **Service-Layer Mediation (`server/src/services/aiService.js`):** Client components and controllers never communicate directly with Gemini. `aiService.js` normalizes provider error responses into standardized error codes (`GEMINI_AUTH_FAILED`, `GEMINI_MODEL_NOT_FOUND`, `GEMINI_QUOTA_EXCEEDED`, `GEMINI_NETWORK_ERROR`, `GEMINI_SERVICE_UNAVAILABLE`, `GEMINI_EMPTY_RESPONSE`, `GEMINI_PARSE_ERROR`, `INVALID_TRIP_CONTEXT`).
+- **System Prompt Engineering & Context Injection:** `aiService.js` exports `SYSTEM_INSTRUCTION` establishing Gemini's role as TripMind's expert travel curator. It extracts real `Trip` model fields via `buildTripContext(tripData)` (supporting Mongoose documents and plain objects with alias resolution, 1–30 days duration validation rejecting out-of-range or inconsistent values, 30-item interest ceiling, and 20-item dietary ceiling), and constructs a structured user prompt via `buildItineraryUserPrompt(tripContext)` enforcing geographic clustering, 2–8 activities per day, sequential calendar dates, and party-level budgets.
+- **Structured Output Schema Contract (`server/src/schemas/itinerarySchema.js`):** AI generation requests configure `config: { responseMimeType: 'application/json', responseSchema: geminiItinerarySchema, systemInstruction: SYSTEM_INSTRUCTION, temperature: 0.7 }`. This forces Gemini's constrained decoding grammar to output strictly valid JSON conforming to TripMind's domain requirements (`destination`, `summary`, `travelTips`, `budget` categories, and contiguous `days` with 2–8 structured `activities` per day, 12-hour AM/PM time formats, and mutually dependent nullable coordinates).
+  - **Two-Tier Validation Strategy:**
+    - **Tier 1 (Structural Validation):** Schema typing enforces syntax, 12-hour AM/PM time formats, daily activity boundaries (2–8), and structural types at generation time via `validateItineraryStructure()` (`server/src/schemas/itinerarySchema.js`).
+    - **Tier 2 (Domain Semantic Validation):** Enforced via `validateItinerarySemantic()` in a dedicated validator module (`server/src/validators/itineraryValidator.js`). Validates destination consistency via deterministic segment/token matching (`areDestinationsConsistent`), calendar day duration matching (1–30 days), contiguous sequential day numbering starting at 1, departure date matching Day 1, non-exceeding return dates, exact currency matching (`trip.currency`), mathematical budget reconciliation (`totalEstimated == sum(categories)`), itemized activity costs vs allocated food/activities categories, double-counting prevention (ignoring `costBreakdown` strings in arithmetic sums), and mutual WGS84 coordinate nullability.
+    - **Composite Validator:** `validateTripItinerary(itinerary, trip)` composes Tier 1 and Tier 2 validations. Semantic failures reject persistence with HTTP 422 `ITINERARY_VALIDATION_FAILED` and structured details without invoking Gemini retries.
+  - **Atomic MongoDB Persistence (`tripService.saveTripItinerary`):**
+    - Persists validated itineraries directly into MongoDB using an atomic `Trip.findOneAndUpdate({ _id: tripId, userId: user._id }, ...)` update.
+    - Saves mapped `days`, `budgetSummary` (including all 6 categories: `transportation`, `accommodation`, `food`, `activities`, `localTransport`, `miscellaneous`), editorial `summary`, and `travelTips`.
+    - Guarantees original trip attributes (`departureDate`, `returnDate`, `destination`, `startingLocation`, `budget`, `currency`, `numberOfTravellers`) remain strictly immutable.
+    - **Regeneration Policy:** Authenticated owners may regenerate itineraries; existing saved itineraries in MongoDB are preserved completely if generation or validation fails.
+  - **₹0 Budget & Cost Safeguards:** All requests operate strictly within Google AI Studio's free tier. Grounding tools (Google Search, Maps grounding) and automatic retries are disabled to prevent quota burn.
+  - **Diagnostic Verification Method:** Minimal smoke test `verifyGeminiConnection()` sends a synthetic prompt (`"Reply with exactly: TripMind Gemini connection successful."`) to verify credentials and model accessibility without creating unauthenticated public testing endpoints.
+  - **Itinerary Generation & Persistence REST API (`POST /api/trips/:id/generate-itinerary`):**
+    - **Routing & Controller:** Implemented in `server/src/routes/trip.routes.js` and `server/src/controllers/tripController.js`, maintaining architectural cohesion within the existing `/api/trips` resource hierarchy without introducing premature disjoint route files.
+    - **Security & Ownership Enforcement:** Protected by `authenticateToken` middleware (extracting verified identity from HttpOnly JWT cookie) and `validateTripId` (enforcing MongoDB ObjectId format). The controller delegates retrieval to `tripService.getTripById(userId, tripId)` enforcing ownership at the database query level (`_id: tripId, userId: user._id`). Unowned or non-existent trips return identical HTTP 404 `NOT_FOUND` responses (`"Trip not found"`), preventing resource enumeration attacks.
+    - **Execution Order & Quota Protection:** `generateItinerary(trip)` is invoked strictly after authentication and ownership verification succeed. Unauthorized, malformed, or non-existent requests trigger 0 Gemini API calls.
+    - **HTTP Status Code Mapping:**
+      - `INVALID_TRIP_CONTEXT` -> `400 Bad Request`
+      - `ITINERARY_VALIDATION_FAILED` -> `422 Unprocessable Entity`
+      - `GEMINI_QUOTA_EXCEEDED` -> `429 Too Many Requests`
+      - `GEMINI_SERVICE_UNAVAILABLE` -> `503 Service Unavailable`
+      - `GEMINI_AUTH_FAILED`, `GEMINI_NETWORK_ERROR`, `GEMINI_EMPTY_RESPONSE`, `GEMINI_PARSE_ERROR` -> `502 Bad Gateway`
+      - `GEMINI_CONFIG_ERROR`, `PERSISTENCE_FAILED` / internal -> `500 Internal Server Error`
+    - **Success Envelope:** Returns HTTP 200 with `{ success: true, data: { tripId, itinerary, meta }, message: "Itinerary generated and saved successfully." }`. Optional `?persist=false` query parameter supports preview generation without database mutation.
 
 ---
 

@@ -230,3 +230,76 @@ The typographic identity balances literary prestige with modern legibility throu
   - **Segmented Step Progress:** 3-bar indicator visually communicating completed steps (forest fill with checkmark), active step (terracotta fill), and remaining steps (muted sage).
   - **Dedicated Required-Detail Counter:** Explicitly reports `"X of 5 required details completed"`. Tracks strictly the 5 backend-required fields (`startingLocation`, `destination`, `departureDate`, `returnDate`, and `budget`), preventing false 100% completion while required fields are missing and guaranteeing optional fields do not dilute progress.
 - **Responsive & Viewport Discipline:** Wide, elegant modal container on desktop (`max-w-2xl` to `max-w-3xl`) with compact step layouts that fit comfortably without awkward nested scrolling; responsive single-column layout on mobile with comfortable touch targets ($\ge 44\times 44\text{px}$) and natural scrolling.
+
+---
+
+### 5.10 Edit Trip Modal & Card Action Controls
+- **Card Action Controls:**
+  - Trip cards feature dual, non-intrusive Edit action triggers:
+    1. Header icon button (`Edit3`) adjacent to the status badge with accessible tooltip and ARIA label.
+    2. Footer text button (`Edit Details`) with terracotta pencil icon in the journal entry footer.
+- **Tabbed Modal Navigation (`EditTripModal.jsx`):**
+  - **Basics Tab:** Origin, Destination, Departure & Return date inputs with real-time duration badge, and status lifecycle selector (`draft`, `upcoming`, `completed`).
+  - **Budget & Party Tab:** Numerical budget input with currency selector, 1–50 travellers counter, custom title, and optional cover image URL.
+  - **Preferences & Style Tab:** 3-tier travel pace cards, popular & custom interest chips (up to 30), accommodation/transit presets, dietary chips (up to 20), and 500-char mindful travel notes.
+  - **Tab Badge Indicators:** Subtle crimson dot indicator on tab headers signaling unresolved validation errors within inactive tabs.
+- **Form State Prepopulation & Natural Key Reset:**
+  - Modal mounts with `key={tripId}` to naturally reset controlled form state without triggering cascading render effects.
+  - ISO date strings are parsed and formatted to `YYYY-MM-DD` for native HTML5 date input compatibility across all browsers.
+  - Partial update delta calculation compares entered values against initial trip prop, dispatching only changed fields to `PATCH /api/trips/:id` and notifying the traveler if no modifications were detected.
+- **Responsive Discipline & Accessibility:**
+  - Fixed modal header and action footer with independent, scrollable tab canvas (`max-h-[90vh]`).
+  - Escape key listener, auto-focus on initial input, and focus trapping.
+  - Loading spinner state during submission (`isUpdating`) with disabled submit buttons to prevent double-submissions.
+
+---
+
+### 5.11 Delete Confirmation Dialog & Destructive Actions
+- **Destructive Button (`variant="danger"`):**
+  - Background: `bg-burnt-crimson` (`#B33A3A`), hover: `hover:bg-[#9B2F2F]`, active: `active:bg-[#852727]`.
+  - Contrast: Crisp white typography with `focus-visible:ring-burnt-crimson`.
+  - Usage: Reserved strictly for irreversible destructive operations (trip deletion).
+- **Confirmation Dialog Anatomy (`DeleteTripModal.jsx`):**
+  - **Role & Semantics:** `role="alertdialog"`, `aria-modal="true"`, with explicit `aria-labelledby` and `aria-describedby` associations.
+  - **Visual Alert Indicator:** Centered circular insignia featuring `AlertTriangle` in Burnt Crimson over a soft `bg-burnt-crimson/10` wash.
+  - **Trip Identification Card:** Previews destination, starting location, dates, traveler count, budget, and title to provide clear confirmation context before destruction.
+  - **Explicit Destruction Disclosure:** Text explicitly communicates that deletion permanently erases all associated days, activities, and budget summaries from MongoDB with no rollback.
+  - **Safety-First Focus:** Auto-focuses the "Keep Journey" (Cancel) button upon mount, preventing accidental form submission via the Enter key.
+  - **Failure Resilience:** Keeps dialog open upon network/server rejection, presenting an inline error alert and preserving user intent.
+
+---
+
+### 5.12 Itinerary Workspace & Generation Conventions
+
+#### 1. Activity Card Anatomy (`ActivityCard.jsx`)
+- **Pacing & Time Badges:** 12-hour AM/PM start time with `Clock` icon, estimated duration badge, and uppercase timeSlot qualifier (`Morning`, `Afternoon`, `Evening`, `Night`).
+- **Category Badge Color Tokens:**
+  - `food`: `bg-amber-50 text-amber-800 border-amber-200/80` with `Utensils` icon.
+  - `activity`: `bg-forest/10 text-forest border-forest/25` with `Compass` icon.
+  - `stay`: `bg-sky-50 text-sky-800 border-sky-200/80` with `Bed` icon.
+  - `transit`: `bg-indigo-50 text-indigo-800 border-indigo-200/80` with `Bus` icon.
+  - `other`: `bg-sand-ivory text-stone border-sage` with `MapPin` icon.
+- **Location & Spatial Hierarchy:** Venue name with terracotta `MapPin`, optional physical address, or coordinate fallback (`lat, lng`).
+- **Party Cost & Breakdown:** Authoritative total party expenditure formatted in trip currency; optional human-readable editorial `costBreakdown` rendered in muted italic caption.
+- **Graceful Resilience:** Zero rendering of raw `undefined`, `null`, or broken layout gaps when optional fields are empty.
+
+#### 2. Categorical Budget Breakdown (`BudgetBreakdown.jsx`)
+- **Authoritative 6-Category Grid:** Itemizes Accommodation, Food, Activities, Transportation, Local Transit, and Miscellaneous against the backend-persisted `budgetSummary`.
+- **Target vs. Estimated Comparison:** Displays user's initial target budget, total estimated spend, remaining buffer, and a proportional color-coded progress bar.
+- **Category Distribution Stack:** Proportional horizontal bar visually communicating expense distribution across the 6 travel pillars.
+- **Responsive Geometry:** Collapses cleanly from a 3-column desktop grid to a single-column mobile view with zero horizontal overflow.
+
+#### 3. Regeneration Confirmation Dialog (`RegenerateItineraryModal.jsx`)
+- **Preservation Invariant Disclosure:** Text explicitly communicates that the existing itinerary in MongoDB will only be replaced upon a verified, successful generation. If the request fails, times out, or fails validation, the current itinerary is 100% retained.
+- **Focus Safety:** Auto-focuses the "Keep Current Itinerary" (Cancel) button upon mount to prevent accidental overwrite.
+- **Locked Actions:** Action buttons disable during `isGenerating` to prevent duplicate submissions.
+
+#### 4. Itinerary Workspace Canvas (`TripDetailPage.jsx`)
+- **Route & Layout:** Mounted at `/trips/:id` with back navigation to `/dashboard`.
+- **Generation State Handling:**
+  - *Idle:* Prominent "Generate Itinerary with AI" CTA with mindful travel description.
+  - *Generating:* Pulsing loading card with spinner, informative explanation of 10–25s duration, disabled action controls, and zero deceptive progress bars.
+  - *Success:* Dismissible green confirmation banner with immediate in-memory rendering.
+  - *Failure:* Alert banner with mapped human-readable error from `mapItineraryError`, retry action, and complete preservation of previously displayed itinerary.
+- **Day Navigation Tabs:** Horizontal scrollable day pill tabs allowing rapid navigation between Day 1 through Day N on both mobile touchscreens and desktop viewports.
+

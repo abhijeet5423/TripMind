@@ -33,6 +33,682 @@
 
 ## 2. Session History
 
+### [2026-11-19] — Day 30: End-to-End Quality Assurance & Release Readiness
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Perform a comprehensive quality-assurance audit of TripMind's existing MVP. Verify the complete end-to-end user journey (Authentication, Trip CRUD, AI Itinerary Generation, Refresh/Navigation Persistence, and Regeneration Invariants), evaluate AI itinerary quality across multiple representative destinations and budgets (Kyoto, Japan; New Delhi, India; Manali, India), test error handling and edge cases under simulated provider and network failures, and verify that existing functionality has not regressed.
+
+#### 1. Files Created / Modified
+- [`scratch/test_day30_e2e_qa.mjs`](./scratch/test_day30_e2e_qa.mjs) — Created comprehensive 86-assertion end-to-end QA test suite covering the 5 user journeys, multi-destination AI quality evaluation against all 12 criteria, and 16 error-injection scenarios.
+- [`server/src/services/tripService.js`](./server/src/services/tripService.js) — Eliminated Mongoose 9 deprecation warning on `findOneAndUpdate` by removing redundant `{ new: true }` in favor of `{ returnDocument: 'after', runValidators: true }`.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Documented Day 30 QA audit results, multi-destination findings, regression suite executions, build metrics, and release readiness assessment.
+
+#### 2. Key Implementation Details & Concepts
+- **Complete User Journey Verification:**
+  - *Authentication:* Tested user registration (HTTP 201), duplicate email handling (HTTP 409), invalid password handling (HTTP 401 with generic message), HttpOnly cookie dispatch, unauthenticated protected route rejection (HTTP 401), logout (HTTP 200), and subsequent protected access rejection.
+  - *Trip CRUD Lifecycle:* Tested trip creation (HTTP 201), dashboard listing retrieval (HTTP 200), detail page retrieval (HTTP 200), partial delta updating (HTTP 200), deletion (HTTP 200), malformed ID rejection (HTTP 400 `INVALID_ID`), non-existent trip handling (HTTP 404), and cross-user anti-enumeration protection (HTTP 404 `NOT_FOUND`).
+  - *AI Itinerary Generation & Persistence:* Tested initial empty canvas (`days: []`), generation via `POST /generate-itinerary` (HTTP 200), populated days (3 days), 6-pillar budget ($924), summary, travel tips, and dashboard badge synchronization.
+  - *Refresh & Navigation Persistence:* Verified that simulated browser reload (`GET /api/trips/:id`) and returning from dashboard (`GET /api/trips` -> `GET /api/trips/:id`) retrieve identical persisted itinerary documents from MongoDB, proving zero reliance on ephemeral React state.
+  - *Regeneration Lifecycle & Invariants:* Verified confirmation modal requirement when days exist, in-flight state preservation, dual-layer failure preservation (React state and MongoDB retain original 3 days on 422/503), successful atomic overwrite on HTTP 200, and refresh confirmation of updated days.
+- **Multi-Destination AI Quality Evaluation:**
+  - Evaluated 3 distinct destination and budget contexts:
+    1. *Kyoto, Japan (Moderate Budget):* 3 days, $1,500 target, 2 travellers, moderate pace, culture & cuisine. Passes all 12 criteria with $924 estimated total reconciling with all 6 categories.
+    2. *New Delhi, India (Budget-Conscious):* 2 days, $200 target, 1 traveller, fast-paced (5 and 4 activities/day), heritage & street food. Passes all 12 criteria with $155 estimated total respecting the $200 target.
+    3. *Manali, India (Flexible / Higher Budget):* 4 days, $2,000 target, 2 travellers, relaxed pace (3 activities/day), nature & wellness. Passes all 12 criteria with $1,420 estimated total, snow/winter acclimatization tips, and kath-kuni heritage sites.
+- **Defect Correction:**
+  - *Mongoose 9 Deprecation Warning:* Resolved `findOneAndUpdate()` deprecation warning in `tripService.js` line 276 by stripping `{ new: true }`, ensuring silent and clean query execution.
+
+#### 3. Verification & Testing Performed
+- **Day 30 QA Test Suite (`scratch/test_day30_e2e_qa.mjs`):**
+  - **86 of 86 assertions passed (100%)**:
+    - Part 1A: Authentication Lifecycle & Security (12/12 passed)
+    - Part 1B: Trip Management Lifecycle (13/13 passed)
+    - Part 1C: AI Itinerary Generation (7/7 passed)
+    - Part 1D: Refresh & Navigation Persistence (5/5 passed)
+    - Part 1E: Regeneration Lifecycle & Invariants (11/11 passed)
+    - Part 2: AI Itinerary Quality Evaluation across Destinations & Budgets (18/18 passed)
+    - Part 3: Error Handling & Edge-Case Verification (20/20 passed)
+- **All 10 Historical Regression Test Suites Executed:**
+  - `scratch/test_day29_frontend_itinerary.mjs`: 106 passed, 0 failed
+  - `scratch/test_day28_itinerary_validation.mjs`: 112 passed, 0 failed
+  - `scratch/test_day27_itinerary_api.mjs`: 67 passed, 0 failed
+  - `scratch/test_day26_ai_service.mjs`: 33 passed, 0 failed
+  - `scratch/test_day25_itinerary_schema.mjs`: 34 passed, 0 failed
+  - `scratch/test_day24_gemini_integration.mjs`: 28 passed, 0 failed
+  - `scratch/test_day23_frontend_trip_deletion.mjs`: 49 passed, 0 failed
+  - `scratch/test_day22_frontend_trip_editing.mjs`: 57 passed, 0 failed
+  - `scratch/test_day18_get_trip.mjs`: 66 passed, 0 failed
+  - `scratch/test_day15_trip_model.mjs`: 84 passed, 0 failed
+  - **Total verified assertions across all 11 executed suites: 722 passed, 0 failed (100%).**
+- **Production Build, Lint, and Syntax Checks:**
+  - `npm --prefix client run build`: Vite production bundle succeeded cleanly in **1.11s** (2,184 modules transformed).
+  - ESLint checks across modified frontend files: **0 errors, 0 warnings**.
+  - Node syntax checks (`node -c ...`) across 10 server entry and internal source files: **0 errors**.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None. All core MVP features, authentication, trip management, AI generation, persistence, refresh, regeneration, and error-handling pipelines are fully verified, robust, and release-ready.
+- **Week 4 Milestone Assessment:** Week 4 deliverable (AI Itinerary Generation, Schema Validation, Backend Persistence, and Frontend Workspace Integration) is 100% complete.
+- **Next Milestone:** Week 5 / Stage 5 (Leaflet & OpenStreetMap interactive spatial map rendering with coordinate markers, Recharts visual budget breakdowns and expense distributions).
+
+---
+
+### [2026-11-19] — Day 29.1: Frontend Persistence & Test Execution Verification
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Perform a rigorous, focused verification of the completed Day 29 frontend itinerary generation and display integration. Resolve the test execution discrepancy from the initial Day 29 test run, verify persistence across browser refresh, dashboard navigation, and revisit, verify preservation invariants during regeneration failure and success, and inspect responsive layouts across desktop and mobile breakpoints.
+
+#### 1. Files Created / Modified
+- [`scratch/test_day29_frontend_itinerary.mjs`](./scratch/test_day29_frontend_itinerary.mjs) — Added Section 6 ("Day 29.1 Persistence Across Refresh & Navigation Lifecycle") with 35 new assertions covering the complete 9-step user journey, browser refresh simulation, dashboard navigation synchronization, reopen retrieval, regeneration in-flight state invariants, failure preservation, and successful regeneration persistence.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Documented Day 29.1 verification findings, test discrepancy root cause analysis, regression results, and architectural confirmation.
+
+#### 2. Root Cause Analysis: Initial Test Execution Discrepancy
+- **Issue:** During the initial execution of `node scratch/test_day29_frontend_itinerary.mjs` in turn 1216, the command failed with code 1:
+  `MongooseServerSelectionError: connect EACCES 127.0.0.1:27017`
+- **Root Cause:** Standard Sandbox Mode enforces Windows sandbox network isolation, which blocks TCP loopback socket connections to local MongoDB on port 27017. This was an environment/sandbox network boundary restriction, not a test logic flaw or code regression.
+- **Resolution:** Following the sandbox rules ("Stick to What Works / BypassSandbox: true when a command genuinely requires network/socket access"), the identical command was executed with `BypassSandbox: true` in turn 1224. Local MongoDB connected immediately (`127.0.0.1:27017`), and all 71 original assertions executed and passed.
+- **Current Run:** Enhanced with Section 6, the suite executed 106 assertions and passed 100% (106 passed, 0 failed).
+
+#### 3. Verification Findings
+- **Persistence Across Browser Refresh & Revisit:**
+  - *Fresh Trip Canvas:* `GET /api/trips/:id` retrieves `days: []`, displaying the empty itinerary canvas and "Generate Itinerary with AI" CTA.
+  - *Generation & Persistence:* `POST /api/trips/:id/generate-itinerary` generates 3 days and persists `days`, `budgetSummary`, `summary`, and `travelTips` into MongoDB.
+  - *Simulated Refresh:* When `TripDetailPage.jsx` re-mounts on refresh, its `useEffect` calls `tripApi.getTrip(id)`. MongoDB returns the persisted document: all 3 days, 12 total activities (4 per day), all 6 budget categories ($924 total estimated), editorial summary, and travel tips are cleanly loaded into state.
+  - *Dashboard Navigation & Synchronization:* Navigating back to `/dashboard` renders the trip card with `Itinerary (3d)`. Re-opening `/trips/:id` from the dashboard re-fetches the identical persisted data without data loss.
+- **Regeneration Invariants:**
+  - *In-Flight State:* While `isGenerating` is true, `hasItinerary` remains true, keeping the existing multi-day itinerary visible beneath the pulsing curation status banner. Action buttons are locked to prevent duplicate submissions.
+  - *Failure Preservation:* When regeneration fails (e.g., HTTP 422 validation failure or HTTP 503 service outage), the error notice banner renders with friendly guidance, while React state retains the existing days and MongoDB remains completely unmodified.
+  - *Successful Overwrite:* When regeneration succeeds, the backend atomically replaces the embedded days and budget summary in MongoDB, and the frontend updates state only after the successful HTTP 200 response.
+- **Responsive Inspection (Static Code & Tailwind Token Review):**
+  - *Day Navigation:* Container uses `overflow-x-auto pb-1 max-w-full` with `whitespace-nowrap` pills, guaranteeing smooth horizontal scrolling on mobile touchscreens without page horizontal overflow.
+  - *Activity Cards:* Metadata strips use `flex-col sm:flex-row` and `flex-wrap`, gracefully adapting from single-column vertical flow on mobile to horizontal orientation on desktop viewports.
+  - *Budget Breakdown:* Uses a responsive grid `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` that collapses from 3 columns on desktop down to single-column on mobile.
+  - *Confirmation Dialog:* Uses `max-w-lg w-full p-4` with `flex-col-reverse sm:flex-row` actions, placing the safety-first Cancel button within comfortable touch reach.
+
+#### 4. Verification & Testing Performed
+- **Day 29 Enhanced Integration Suite (`scratch/test_day29_frontend_itinerary.mjs`):**
+  - **106 of 106 assertions passed (100%)**:
+    - Section 1: Error Normalization & User-Facing Messaging Helper (28/28 passed).
+    - Section 2: Frontend API Service Contract (12/12 passed).
+    - Section 3: Generation & Regeneration State Management Logic (3/3 passed).
+    - Section 4: Itinerary Workspace UI Formatting & Data Resilience (10/10 passed).
+    - Section 5: Full-Stack Integration with Ephemeral Server & MongoDB (18/18 passed).
+    - Section 6: Persistence Across Refresh & Navigation Lifecycle (35/35 passed).
+  - *Newly Added Assertions:* 35 assertions added in Section 6 (up from 71 to 106 total).
+- **Historical Regression Test Suites Executed:**
+  - `scratch/test_day28_itinerary_validation.mjs`: 112 passed, 0 failed.
+  - `scratch/test_day27_itinerary_api.mjs`: 67 passed, 0 failed.
+  - `scratch/test_day23_frontend_trip_deletion.mjs`: 49 passed, 0 failed.
+  - `scratch/test_day22_frontend_trip_editing.mjs`: 57 passed, 0 failed.
+  - **Total verified assertions across all 5 executed suites: 391 passed, 0 failed (100%).**
+- **Production Build & Lint Verification:**
+  - `npm --prefix client run build`: Vite production bundle succeeded cleanly in **3.33s** (2,184 modules transformed).
+  - ESLint checks on all modified frontend files: **0 errors, 0 warnings**.
+
+#### 5. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None. Frontend itinerary generation, display, persistence across refresh, and regeneration preservation are fully verified and operational.
+- **Next Steps:** Proceed to Day 30 for comprehensive end-to-end integration quality, edge case handling, and user journey stress testing.
+
+---
+
+### [2026-11-19] — Day 29: Frontend Itinerary Generation & Display Integration
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Integrate the backend itinerary generation and persistence pipeline (`POST /api/trips/:id/generate-itinerary`) into TripMind's React frontend. Provide a responsive, editorial travel-planning workspace (`TripDetailPage.jsx`) where travelers can review their journey parameters, trigger AI itinerary curation, observe loading and error states, confirm before regenerating over existing plans, and explore the persisted day-by-day itinerary, activity details, and 6-category budget breakdown.
+
+#### 1. Files Created / Modified
+- [`client/src/services/api/tripApi.js`](./client/src/services/api/tripApi.js) — Added `getTrip(id)` and `generateItinerary(id, options)` using centralized `apiClient` with `withCredentials: true` and a dedicated 60-second timeout for LLM generation.
+- [`client/src/utils/itineraryErrorHelper.js`](./client/src/utils/itineraryErrorHelper.js) — Created error normalization helper mapping all 12 backend error codes (`INVALID_ID`, `NOT_FOUND`, `INVALID_TRIP_CONTEXT`, `ITINERARY_VALIDATION_FAILED`, `GEMINI_CONFIG_ERROR`, `GEMINI_AUTH_FAILED`, `GEMINI_QUOTA_EXCEEDED`, `GEMINI_SERVICE_UNAVAILABLE`, `GEMINI_NETWORK_ERROR`, `GEMINI_EMPTY_RESPONSE`, `GEMINI_PARSE_ERROR`, `PERSISTENCE_FAILED`, `TIMEOUT_ERROR`) into empathetic, human-readable messages without leaking internal stack traces.
+- [`client/src/components/itinerary/ActivityCard.jsx`](./client/src/components/itinerary/ActivityCard.jsx) — Created reusable activity card displaying 12-hour AM/PM time, duration, timeSlot, category badges (`food`, `activity`, `stay`, `transit`, `other`), editorial descriptions, location/address/coordinate fallbacks, and formatted party costs with optional cost breakdowns.
+- [`client/src/components/itinerary/BudgetBreakdown.jsx`](./client/src/components/itinerary/BudgetBreakdown.jsx) — Created budget breakdown module presenting the 6 authoritative categories (Accommodation, Food, Activities, Transportation, Local Transit, Miscellaneous), target budget comparison, remaining buffer calculation, and proportional distribution bars.
+- [`client/src/components/itinerary/RegenerateItineraryModal.jsx`](./client/src/components/itinerary/RegenerateItineraryModal.jsx) — Created confirmation dialog warning that regeneration replaces existing days only upon success, retaining old data on failure, with safety-first focus on Cancel.
+- [`client/src/pages/TripDetailPage.jsx`](./client/src/pages/TripDetailPage.jsx) — Built comprehensive Itinerary Workspace page supporting generation states (Idle, Generating, Success, Failure), editorial journey overview, travel tips, day-by-day navigation tabs, and graceful empty states.
+- [`client/src/context/TripContext.jsx`](./client/src/context/TripContext.jsx) — Added `updateTripInState(id, updatedData)` to keep shared in-memory trips array synchronized with newly generated itineraries without requiring full page refetches.
+- [`client/src/hooks/useTrip.js`](./client/src/hooks/useTrip.js) — Updated hook types/JSDoc to expose `updateTripInState`.
+- [`client/src/pages/DashboardPage.jsx`](./client/src/pages/DashboardPage.jsx) — Added direct links to `/trips/:id` from journey destination headlines and card footer buttons ("Plan Itinerary" / "Itinerary (Nd)").
+- [`client/src/App.jsx`](./client/src/App.jsx) — Mounted protected route `/trips/:id` wrapping `TripDetailPage` with `ProtectedRoute` and `TripProvider`.
+- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — Documented Section 5.12 covering Itinerary Workspace components, category pill tokens, budget breakdown layout, and regeneration dialog conventions.
+- [`scratch/test_day29_frontend_itinerary.mjs`](./scratch/test_day29_frontend_itinerary.mjs) — Created automated test suite with 71 assertions verifying error mapping, API contract, generation/regeneration state management, UI formatting resilience, and full-stack integration with ephemeral Express server and MongoDB.
+
+#### 2. Key Implementation Details & Concepts
+- **API & Client Separation:** Generation requests flow exclusively through `tripApi.generateItinerary(id, { timeout: 60000 })` using `apiClient`. Zero Gemini SDK usage or credentials in the browser; all communication is proxied through the authenticated Express backend.
+- **Generation State Discipline:**
+  - *Idle:* Clear "Generate Itinerary with AI" CTA.
+  - *Generating:* Pulsing loading card with animated spinner, informative message explaining 10–25s duration, disabled action controls, and zero deceptive progress bars.
+  - *Success:* Dismissible green confirmation banner with immediate in-memory rendering.
+  - *Failure:* Alert banner with mapped human-readable error from `mapItineraryError`, retry action, and complete preservation of previously displayed itinerary.
+- **Regeneration UX & Invariant:** When an itinerary already exists, `handleActionClick` opens `RegenerateItineraryModal`. If regeneration fails (validation, provider error, or persistence failure), the old itinerary is 100% retained and visible.
+- **Resilient UI Formatting:** All optional activity fields (locationName, address, coordinates, costBreakdown, duration) employ graceful fallbacks with zero `undefined` or `null` leaks.
+- **Day-Wise Navigation:** Horizontal scrollable day pill tabs allowing rapid navigation between Day 1 through Day N on both mobile touchscreens and desktop viewports.
+
+#### 3. Verification & Testing Performed
+- **Automated Day 29 Test Suite (`scratch/test_day29_frontend_itinerary.mjs`):**
+  - **71 of 71 assertions passed (100%)**:
+    - Section 1 (Error Normalization & Helper): 28/28 passed (all 12 error codes mapped, zero stack traces leaked).
+    - Section 2 (Frontend API Service Contract): 12/12 passed (GET and POST /generate-itinerary response contracts verified).
+    - Section 3 (Generation & Regeneration Logic): 3/3 passed (decision tree, modal requirement, failure preservation invariant).
+    - Section 4 (Workspace UI Formatting Resilience): 11/11 passed (fallbacks, 6-category math, target budget comparison, day navigation).
+    - Section 5 (Full-Stack Integration with Ephemeral Server & MongoDB): 17/17 passed (fresh trip retrieval, generation persistence, page refresh retrieval, failed regeneration preservation, cross-user 404 anti-enumeration).
+- **Production Build:**
+  - `npm --prefix client run build`: Built cleanly in 1.01s; 2,184 modules transformed.
+- **Static Code Quality (ESLint):**
+  - `npx --prefix client eslint client/src/components/itinerary client/src/pages/TripDetailPage.jsx client/src/services/api/tripApi.js client/src/utils/itineraryErrorHelper.js client/src/pages/DashboardPage.jsx`: 0 errors, 0 warnings.
+- **Full Backend Regression Suite Execution:**
+  - `scratch/test_day28_itinerary_validation.mjs`: 112 of 112 passed (100%).
+  - `scratch/test_day27_itinerary_api.mjs`: 67 of 67 passed (100%).
+  - `scratch/test_day26_ai_service.mjs`: 33 of 33 passed (100%).
+  - `scratch/test_day25_itinerary_schema.mjs`: 34 of 34 passed (100%).
+  - `scratch/test_day24_gemini_integration.mjs`: 28 of 28 passed (100%).
+  - `scratch/test_day15_trip_model.mjs`: 84 of 84 passed (100%).
+  - `scratch/test_day18_get_trip.mjs`: 66 of 66 passed (100%).
+  - Total test assertions verified across all suites: **495 passed, 0 failed (100%)**.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None.
+- **Git Status:** All changes left unstaged in working tree (zero commit/push performed per instruction).
+- **Next Steps:** Proceed to Day 30: End-to-End Itinerary Quality, Budget Precision & Destination Stress Testing.
+
+---
+
+### [2026-11-19] — Day 28.1: Final Validation & Persistence Audit
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Perform a focused code-level audit and targeted hardening of the completed Day 28 itinerary validation and persistence layer before commencing Day 29 frontend integration. Audit destination matching precision to eliminate substring false positives while preserving legitimate variations; audit budget reconciliation to prevent double-counting and false rejections on multi-category activities; audit database persistence failure handling and atomicity; audit structural validation boundaries (malformed JSON, empty AI response, missing fields); audit Trip model backward compatibility; expand automated test coverage to 112 assertions; and verify zero regressions across all 7 project test suites.
+
+#### 1. Files Created / Modified
+- [`server/src/validators/itineraryValidator.js`](./server/src/validators/itineraryValidator.js) — Implemented and exported deterministic segment- and token-aware destination matching algorithm `areDestinationsConsistent(dest1, dest2)` replacing naive substring `includes()`; added double-counting prevention documentation; ensured multi-category activities (`category: 'other'`) are bounded only by `totalEstimated` and never compared against individual category allocations; preserved 6-category reconciliation ($1.0 tolerance).
+- [`server/src/controllers/tripController.js`](./server/src/controllers/tripController.js) — Hardened atomic persistence execution with explicit try/catch around `tripService.saveTripItinerary` guaranteeing immediate HTTP 500 `PERSISTENCE_FAILED` with zero internal stack traces or database driver details leaked if database write fails.
+- [`scratch/test_day28_itinerary_validation.mjs`](./scratch/test_day28_itinerary_validation.mjs) — Expanded test suite from 80 to 112 assertions: added B.15 (Destination Matching Substring False-Positive Rejections: "York" vs "New York", "Rome" vs "Jerome", "Mali" vs "Somalia", "Paris, France" vs "Paris, Texas"), B.16 (Destination Matching Legitimate Real-World Variations: "Kyoto" vs "Kyoto, Japan", "Paris, France" vs "Paris", "New York" vs "New York, USA", "New York City" vs "New York", "Kyoto Japan" vs "Kyoto, Japan"), B.17 (Activity `costBreakdown` editorial description is not double counted), B.18 (Multi-category activity with `category: 'other'` valid without false category rejection), B.19 (Incomplete category breakdown accepted), C.9 (Simulated DB persistence failure returns HTTP 500 `PERSISTENCE_FAILED` with DB untouched and zero stack trace leakage), D.7 (Malformed AI JSON returns HTTP 502 `GEMINI_PARSE_ERROR`, 0 DB writes, 1 Gemini call), D.8 (Empty AI response returns HTTP 502 `GEMINI_EMPTY_RESPONSE`, 0 DB writes, 1 Gemini call), D.9 (Missing top-level fields returns HTTP 422 `ITINERARY_VALIDATION_FAILED`, 0 DB writes, 1 Gemini call), and D.10 (Missing activity fields returns HTTP 422 `ITINERARY_VALIDATION_FAILED`, 0 DB writes, 1 Gemini call).
+- [`DECISIONS.md`](./DECISIONS.md) — Updated confirmed ADR-016 documenting segment-based destination consistency algorithm `areDestinationsConsistent`, explanation of why external geocoding API is unnecessary for MVP, budget reconciliation safeguards, and persistence failure guarantees.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Updated Section 5.4 documenting segment-based destination matching, budget double-counting prevention, and persistence failure safety.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Documented Day 28.1 audit findings, architectural hardening, test expansions, and regression results.
+
+#### 2. Key Implementation Details & Concepts
+- **Destination Matching Audit & Deterministic Algorithm (`areDestinationsConsistent`):**
+  - Replaced the vulnerable substring comparison `normItinDest.includes(normTripDest)` with segment- and token-aware evaluation.
+  - Substring false-positive vulnerability resolved: "York" vs "New York", "Rome" vs "Jerome", and "Mali" vs "Somalia" are now strictly rejected.
+  - Cross-regional collisions resolved: "Paris, France" vs "Paris, Texas" is strictly rejected because secondary regional segments contradict each other.
+  - Legitimate variations supported: "Kyoto" vs "Kyoto, Japan" (omitted country), "Paris, France" vs "Paris" (AI-added country), "New York" vs "New York, USA", "New York City" vs "New York" (administrative "City" suffix removal), and "Kyoto Japan" vs "Kyoto, Japan" (whitespace without commas).
+  - MVP Scope Discipline: Confirmed that an external geocoding or places API is completely unnecessary for the current MVP scope; deterministic token/segment comparison provides exactness with zero latency, zero third-party dependencies, and zero deviation from the ₹0 budget invariant.
+- **Budget Reconciliation & Double-Counting Audit:**
+  - `activity.costBreakdown` confirmed as strictly an optional human-readable editorial description (e.g. `"$15 admission fee × 2 travellers"`). It is never parsed as a number or added to category sums, guaranteeing zero double-counting.
+  - `activity.estimatedCost` confirmed as the sole source of numerical expenditure and represents total party-level cost.
+  - Activities spanning multiple categories (`category: 'other'`) or activities with incomplete category breakdown do not trigger false rejections; they are evaluated strictly against `budget.totalEstimated`.
+  - Six-category reconciliation preserved: `transportation + accommodation + food + activities + localTransport + miscellaneous === totalEstimated` within $1.0 rounding tolerance.
+- **Persistence Failure & Data Integrity Audit:**
+  - Verified single atomic document update: `Trip.findOneAndUpdate({ _id: tripId, userId: user._id }, { $set: ... })`.
+  - Zero partial writes: MongoDB document replacement either commits in full or not at all.
+  - Preservation of existing data: In case of generation failure, Tier-1/Tier-2 validation failure, or database write failure, existing itineraries in MongoDB remain 100% intact and untouched.
+  - Immutable original trip fields: `departureDate`, `returnDate`, `destination`, `startingLocation`, `budget`, `currency`, and `numberOfTravellers` are never in the update `$set` payload.
+  - Deterministic DB write failure simulation verified: controller immediately returns HTTP 500 `PERSISTENCE_FAILED` with zero internal stack traces leaked and zero DB mutations.
+- **Structural Validation Boundary Audit:**
+  - Verified standardized error envelopes and zero DB persistence calls across:
+    - Malformed JSON -> HTTP 502 `GEMINI_PARSE_ERROR` (0 DB writes, 1 Gemini call)
+    - Empty AI response -> HTTP 502 `GEMINI_EMPTY_RESPONSE` (0 DB writes, 1 Gemini call)
+    - Missing top-level schema fields -> HTTP 422 `ITINERARY_VALIDATION_FAILED` (0 DB writes, 1 Gemini call)
+    - Missing activity fields -> HTTP 422 `ITINERARY_VALIDATION_FAILED` (0 DB writes, 1 Gemini call)
+    - Schema rejections -> HTTP 422 `ITINERARY_VALIDATION_FAILED` (0 DB writes, 1 Gemini call)
+  - Zero automatic Gemini retries enforced across all error conditions.
+- **Model Compatibility Audit:**
+  - Audited Day 28 model additions in `Trip.js` (`alias: 'name'`, `duration`, `costBreakdown`, `location` subdoc, `localTransport`, `miscellaneous`, `summary`, `travelTips`).
+  - Confirmed all new fields have sensible defaults, ensuring 100% backward compatibility for pre-Day-28 trip documents without regressions.
+
+#### 3. Verification & Testing Performed
+- **Expanded Day 28 Test Suite (`scratch/test_day28_itinerary_validation.mjs`):**
+  - **112 of 112 assertions passed (100%)**:
+    - Category A (Valid Itineraries): 6/6 passed.
+    - Category B (Semantic Failures & Audits): 26/26 passed (including all destination false-positive tests, legitimate variations, costBreakdown non-double-counting, multi-category activities, and incomplete category breakdown).
+    - Category C (Safe Persistence Architecture): 33/33 passed (including simulated DB write failure C.9, regeneration safety, and data integrity).
+    - Category D (Security & Integration): 22/22 passed (including malformed JSON, empty response, missing top-level fields, missing activity fields, and 0-retry verification).
+    - Setup & Teardown: 25/25 passed.
+- **Full Backend Regression Suite Execution:**
+  - `scratch/test_day28_itinerary_validation.mjs`: 112 of 112 passed (100%).
+  - `scratch/test_day27_itinerary_api.mjs`: 67 of 67 passed (100%).
+  - `scratch/test_day26_ai_service.mjs`: 33 of 33 passed (100%).
+  - `scratch/test_day25_itinerary_schema.mjs`: 34 of 34 passed (100%).
+  - `scratch/test_day24_gemini_integration.mjs`: 28 of 28 passed (100%).
+  - `scratch/test_day15_trip_model.mjs`: 84 of 84 passed (100%).
+  - `scratch/test_day18_get_trip.mjs`: 66 of 66 passed (100%).
+  - Total test assertions verified across all suites: **424 passed, 0 failed (100%)**.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None.
+- **Git Status:** All changes left unstaged in working tree (zero commit/push performed per instruction).
+- **Next Steps:** Proceed to Day 29: Itinerary Display & Frontend Workspace Integration.
+
+---
+
+### [2026-11-19] — Day 28: Itinerary Semantic Validation & Safe Persistence Layer
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement Tier-2 domain semantic validation and atomic MongoDB document persistence for AI-generated travel itineraries (`POST /api/trips/:id/generate-itinerary`). Verify that structurally valid Gemini responses conform to user-specific trip invariants (destination match, calendar day duration 1–30 days, contiguous sequential day numbering, Day 1 matching departure date, dates not exceeding return date, currency equality, party-level budget mathematical reconciliation across all 6 categories with rounding tolerance, activity costs not exceeding budget allocations, daily activity limits 2–8, and mutual coordinate nullability). Persist validated itineraries atomically to `Trip.days`, `budgetSummary`, `summary`, and `travelTips` without corrupting original trip metadata (`departureDate`, `returnDate`, `destination`, `budget`, etc.), while ensuring zero Gemini retries and safe preservation of existing itineraries upon validation failure.
+
+#### 1. Files Created / Modified
+- [`server/src/models/Trip.js`](./server/src/models/Trip.js) — Extended Mongoose schemas: added `alias: 'name'`, `duration`, `costBreakdown`, and `location` subdocument to `activitySchema`; added `localTransport` and `miscellaneous` to `categoryBreakdownSchema`; added `summary` and `travelTips` to `tripSchema`. Preserved full backward compatibility with all existing trip documents and tests.
+- [`server/src/validators/itineraryValidator.js`](./server/src/validators/itineraryValidator.js) — Created dedicated validation module exporting `validateItinerarySemantic(itinerary, trip)` and composite `validateTripItinerary(itinerary, trip)` (alias `validateItinerary`), enforcing Tier-2 trip destination consistency, duration bounds, contiguous day numbering, sequential calendar date progression, currency equality, budget reconciliation, and mutual coordinate nullability.
+- [`server/src/services/tripService.js`](./server/src/services/tripService.js) — Implemented `saveTripItinerary(userId, tripId, itineraryData)` executing an atomic `Trip.findOneAndUpdate({ _id: tripId, userId: user._id }, ...)` update mapping activities and budget categories while leaving original trip metadata strictly untouched.
+- [`server/src/controllers/tripController.js`](./server/src/controllers/tripController.js) — Refactored `generateTripItinerary` to invoke Tier-2 semantic validation (`validateTripItinerary`) rejecting invalid output with HTTP 422 `ITINERARY_VALIDATION_FAILED`, and atomic persistence via `tripService.saveTripItinerary` returning HTTP 200 with message `"Itinerary generated and saved successfully."`.
+- [`scratch/test_day28_itinerary_validation.mjs`](./scratch/test_day28_itinerary_validation.mjs) — Created comprehensive 80-assertion automated test suite covering Category A (Valid 1-day, 3-day, 30-day itineraries, null/WGS84 coords), Category B (Semantic failures: destination mismatch, duration mismatch, non-sequential/duplicate days, bad start date, beyond return date, currency mismatch, budget total mismatch, negative costs, invalid/asymmetric coords, invalid category enums, empty title, 24h time format), Category C (Persistence behavior: DB retrieval, all 6 budget categories, immutable trip metadata, ownership preservation, regeneration overwrite, existing itinerary preservation on failure, invalid AI output rejection), and Category D (Security & integration).
+- [`scratch/test_day27_itinerary_api.mjs`](./scratch/test_day27_itinerary_api.mjs) — Updated trip fixture currency to USD and Group 2 persistence assertions to verify active Day 28 persistence.
+- [`DECISIONS.md`](./DECISIONS.md) — Recorded confirmed **ADR-016: Two-Tier Itinerary Validation & Atomic Document Persistence Strategy**.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Updated Section 5.4 documenting Tier-2 semantic validation, atomic persistence via `tripService.saveTripItinerary`, regeneration policy, and HTTP 422 error contract.
+- [`MVP_SCOPE.md`](./MVP_SCOPE.md) — Updated Section 3.4 marking Itinerary Validation and Persistence as completed.
+- [`PROJECT_CONTEXT.md`](./PROJECT_CONTEXT.md) — Updated Section 3 Tech Stack table referencing ADR-016.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Documented Day 28 implementation, validation architecture, and test verification results.
+
+#### 2. Key Implementation Details & Concepts
+- **Two-Tier Validation Architecture:**
+  - **Tier 1 (Structural Schema Validation):** `validateItineraryStructure()` (`server/src/schemas/itinerarySchema.js`) validates root object properties, typing, and 12-hour AM/PM formats.
+  - **Tier 2 (Domain Semantic Validation):** `validateItinerarySemantic()` (`server/src/validators/itineraryValidator.js`) validates that the generated itinerary aligns with the user's specific `Trip` context:
+    - *Destination Matching:* Punctuation- and case-normalized substring match between `itinerary.destination` and `trip.destination`.
+    - *Duration & Day Count Consistency:* Calendar day duration strictly derived from `trip.departureDate` and `trip.returnDate` (1–30 days); itinerary day count must match duration exactly.
+    - *Contiguous Day Numbering & Dates:* Days must start at 1, be strictly contiguous (`1..N`) with zero gaps or duplicates, Day 1 must match `departureDate`, subsequent dates advance sequentially by 1 calendar day, and dates must not extend beyond `returnDate`.
+    - *Currency Consistency:* Strict uppercase equality between `itinerary.budget.currency` and `trip.currency`.
+    - *Budget Reconciliation:* All monetary values must be finite, non-negative numbers. `totalEstimated` must equal the sum of all 6 budget categories within a 1.0 unit tolerance. Scheduled dining costs cannot exceed allocated food category, and scheduled activity admissions cannot exceed allocated activities category.
+    - *Activity Ceilings & Mutual Nullability:* 2–8 activities per day, valid category and timeSlot enums, and WGS84 coordinates that are either both valid finite numbers or both null.
+- **Safe Atomic Document Persistence (`tripService.saveTripItinerary`):**
+  - Executes single atomic `Trip.findOneAndUpdate({ _id: tripId, userId: user._id }, { $set: { days, budgetSummary, summary, travelTips } }, { returnDocument: 'after', runValidators: true })`.
+  - Maps AI activity objects (`name` -> `title`, `duration`, `costBreakdown`, `locationName`, `location`, `latitude`, `longitude`, `estimatedCost`, `category`) and items all 6 budget categories into `budgetSummary`.
+  - Original trip fields (`destination`, `startingLocation`, `departureDate`, `returnDate`, `budget`, `currency`, `numberOfTravellers`, `title`, `interests`, `travelPreferences`) remain strictly immutable and unchanged during itinerary persistence.
+- **Regeneration Policy:**
+  - Regeneration is fully supported: an authenticated owner may request generation again for a trip that already has saved days.
+  - Existing itineraries in MongoDB are preserved completely if regeneration fails or if the AI output fails validation.
+  - The database update occurs only after full validation passes with zero errors.
+- **Fallback & Error Handling (Zero-Cost Discipline):**
+  - Zero automatic Gemini retries: invalid output returns HTTP 422 `ITINERARY_VALIDATION_FAILED` with descriptive error details.
+  - Database persistence failures return HTTP 500 `PERSISTENCE_FAILED`.
+
+#### 3. Verification & Testing Performed
+- **Automated Day 28 Test Suite (`scratch/test_day28_itinerary_validation.mjs`):**
+  - **80 of 80 assertions passed (100%)**:
+    - Category A (Valid Itinerary Cases): 6/6 passed (1-day, 3-day, 30-day itineraries, null/WGS84 coordinates).
+    - Category B (Semantic Failures): 15/15 passed (destination mismatch, duration mismatch, non-sequential/duplicate days, bad start date, beyond return date, currency mismatch, budget total mismatch, negative costs, invalid/asymmetric coords, invalid category enums, empty title, 24h time format).
+    - Category C (Safe Persistence Architecture): 27/27 passed (HTTP 200, DB retrieval, all 6 budget categories, immutable trip metadata, ownership preservation, regeneration overwrite, existing itinerary preservation on failure, invalid AI output rejection).
+    - Category D (Security & Integration): 12/12 passed (unauthenticated, cross-user, malformed ID, non-existent trip, provider errors, direct service checks).
+    - Setup & Teardown Lifecycle: 20/20 passed.
+- **Backend Regression Test Suites:**
+  - `scratch/test_day27_itinerary_api.mjs`: 67 of 67 passed (100%).
+  - `scratch/test_day26_ai_service.mjs`: 33 of 33 passed (100%).
+  - `scratch/test_day25_itinerary_schema.mjs`: 34 of 34 passed (100%).
+  - `scratch/test_day24_gemini_integration.mjs`: 28 of 28 passed (100%).
+  - `scratch/test_day15_trip_model.mjs`: 84 of 84 passed (100%).
+  - `scratch/test_day18_get_trip.mjs`: 66 of 66 passed (100%).
+  - Total test assertions verified across all suites: **392 passed, 0 failed (100%)**.
+- **Syntax Verification:**
+  - `node --check server/src/models/Trip.js`: Clean pass with 0 errors.
+  - `node --check server/src/validators/itineraryValidator.js`: Clean pass with 0 errors.
+  - `node --check server/src/services/tripService.js`: Clean pass with 0 errors.
+  - `node --check server/src/controllers/tripController.js`: Clean pass with 0 errors.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None.
+- **Next Steps:** Proceed to Day 29: Itinerary Display & Frontend Workspace Integration.
+
+---
+
+### [2026-11-19] — Day 27: Create the Itinerary Generation API (POST /api/trips/:id/generate-itinerary)
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement the authenticated backend REST API endpoint connecting TripMind's Express application to the AI itinerary generation service (`server/src/services/aiService.js`). Enforce cookie JWT authentication (`authenticateToken`), ObjectId validation (`validateTripId`), database query-level ownership verification (`tripService.getTripById(userId, tripId)`), anti-enumeration generic 404 responses for unowned/non-existent trips, strict invocation ordering (zero Gemini calls on unauthenticated/unowned requests), AI error normalization with mapped HTTP status codes (400, 429, 502, 503, 500), standardized response envelope `{ success: true, data: { tripId, itinerary, meta }, message }`, and strict persistence boundary enforcement (itinerary is returned in-memory without saving to MongoDB; persistence with semantic validation deferred to Day 28).
+
+#### 1. Files Created / Modified
+- [`server/src/config/gemini.js`](./server/src/config/gemini.js) — Exported `setGeminiClient(client)` to support deterministic dependency injection of mock Gemini clients in automated test suites without incurring network calls or burning free-tier quota.
+- [`server/src/validators/tripValidator.js`](./server/src/validators/tripValidator.js) — Updated `validateTripId` to inspect `req.params.id || req.params.tripId`, ensuring parameter compatibility across trip routes.
+- [`server/src/controllers/tripController.js`](./server/src/controllers/tripController.js) — Added `generateTripItinerary(req, res, next)` and helper `mapAiErrorToStatusCode(code)` to coordinate authentication, ownership verification, AI service delegation, and mapped HTTP error responses within the standardized response envelope.
+- [`server/src/routes/trip.routes.js`](./server/src/routes/trip.routes.js) — Registered `POST /:id/generate-itinerary` protected by `authenticateToken` and `validateTripId`, delegating to `generateTripItinerary`.
+- [`scratch/test_day27_itinerary_api.mjs`](./scratch/test_day27_itinerary_api.mjs) — Created a comprehensive 67-assertion automated test suite covering all 14 required scenarios (successful generation, trip ID & itinerary verification, missing auth, malformed ID, non-existent trip, cross-user anti-enumeration, AI config error, quota exhaustion, network/service/parse failures, duration context validation, zero Gemini call assertions, persistence boundary enforcement, and standardized envelope checks).
+- [`DECISIONS.md`](./DECISIONS.md) — Recorded confirmed **ADR-015: AI Itinerary Generation Endpoint Architecture & Persistence Boundary**.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Updated Section 5.4 to document `POST /api/trips/:id/generate-itinerary`, ownership checks, AI error status mapping, and persistence boundary.
+- [`MVP_SCOPE.md`](./MVP_SCOPE.md) — Updated Section 3.4 to record completion of Day 27 Itinerary Generation REST API.
+- [`PROJECT_CONTEXT.md`](./PROJECT_CONTEXT.md) — Updated Section 3 Tech Stack table referencing ADR-015.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Documented Day 27 session progress, architectural patterns, and test verification results.
+
+#### 2. Key Implementation Details & Concepts
+- **Route Cohesion & Anti-Premature Files:**
+  - Registered `POST /:id/generate-itinerary` directly on `server/src/routes/trip.routes.js` (mounted under `/api/trips`).
+  - Handled directly within `server/src/controllers/tripController.js`, maintaining consistency with existing trip routes (`GET /:id`, `PATCH /:id`, `DELETE /:id`) and strictly satisfying Day 26 test assertion 8.1 prohibiting premature standalone `aiRoutes.js` and `aiController.js` files.
+- **Authentication & Anti-Enumeration Ownership Guards:**
+  - Requires `authenticateToken` middleware, verifying the HttpOnly JWT cookie and attaching verified subject identity to `req.user.id`.
+  - Enforces MongoDB ObjectId syntax via `validateTripId` returning HTTP 400 `INVALID_ID`.
+  - Delegates trip retrieval to `tripService.getTripById(userId, tripId)`, which executes query-level filtering: `Trip.findOne({ _id: tripId, userId: user._id })`.
+  - Non-existent trips and unowned cross-user trips return the identical HTTP 404 response (`{ success: false, error: { code: 'NOT_FOUND', message: 'Trip not found', details: [] } }`), preventing user resource enumeration.
+- **Strict Invocation Order & Quota Protection:**
+  - AI service invocation (`generateItinerary(trip)`) occurs strictly AFTER authentication, parameter validation, and ownership verification succeed.
+  - Zero Gemini API calls are dispatched for unauthenticated requests, malformed IDs, non-existent trips, cross-user unauthorized attempts, or invalid trip contexts (> 30 days).
+- **HTTP Status Code Mapping for AI Errors:**
+  - `INVALID_TRIP_CONTEXT` -> `400 Bad Request`
+  - `GEMINI_QUOTA_EXCEEDED` -> `429 Too Many Requests`
+  - `GEMINI_SERVICE_UNAVAILABLE` -> `503 Service Unavailable`
+  - `GEMINI_AUTH_FAILED`, `GEMINI_NETWORK_ERROR`, `GEMINI_EMPTY_RESPONSE`, `GEMINI_PARSE_ERROR` -> `502 Bad Gateway`
+  - `GEMINI_CONFIG_ERROR` / default -> `500 Internal Server Error`
+  - All error envelopes maintain `details: []` array compliance.
+- **Persistence Boundary Enforcement (Day 27 vs Day 28):**
+  - Generated itineraries are returned in-memory to the client (`data: { tripId, itinerary, meta }`).
+  - Day 27 explicitly leaves MongoDB `Trip.days` unmutated (`[]`), deferring document persistence and Tier-2 semantic validation to Day 28.
+
+#### 3. Verification & Testing Performed
+- **Automated Day 27 Test Suite (`scratch/test_day27_itinerary_api.mjs`):**
+  - **67 of 67 assertions passed (100%)**:
+    - Group 1 (Successful Generation): HTTP 200, success envelope, message, exact single Gemini call, complete data structure with itinerary and metadata (8/8 passed).
+    - Group 2 (Persistence Boundary): Trip exists in MongoDB, `days` array is empty `[]`, `budgetSummary` is unpersisted (3/3 passed).
+    - Group 3 (Authentication Enforcement): Missing token returns HTTP 401 UNAUTHORIZED with empty details array; 0 Gemini calls occurred (5/5 passed).
+    - Group 4 (Trip ID & Anti-Enumeration): Malformed ID returns 400 `INVALID_ID`; non-existent trip returns 404 `NOT_FOUND`; cross-user access returns identical 404 `NOT_FOUND`; 0 Gemini calls occurred for all three (11/11 passed).
+    - Group 5 (Trip Context Duration Bounds): 35-day trip returns 400 `INVALID_TRIP_CONTEXT` with descriptive message; 0 Gemini calls occurred (5/5 passed).
+    - Group 6 (AI Provider Error & Status Mapping): Configuration error -> 500, quota exceeded -> 429, network failure -> 502, service unavailable -> 503, auth failure -> 502, parse failure -> 502 (10/10 passed).
+    - Group 7 (Standardized Envelope & Status Mapping Unit Tests): Verified all 9 mapper branches for `mapAiErrorToStatusCode` (9/9 passed).
+    - Setup & Teardown: Clean registration/deletion of test users and seeded trips, ephemeral server shutdown, clean MongoDB disconnection (16/16 passed).
+- **Backend Regression Test Suites:**
+  - `scratch/test_day26_ai_service.mjs`: 33 of 33 passed (100%).
+  - `scratch/test_day25_itinerary_schema.mjs`: 34 of 34 passed (100%).
+  - `scratch/test_day24_gemini_integration.mjs`: 28 of 28 passed (100%).
+  - Total test assertions verified across active AI suites: **162 passed, 0 failed**.
+- **Syntax Verification:**
+  - `node --check server/src/controllers/tripController.js`: Clean pass with 0 errors.
+  - `node --check server/src/routes/trip.routes.js`: Clean pass with 0 errors.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None.
+- **Next Steps:** Proceed to Day 28: Itinerary Validation & Persistence (Tier-2 semantic validation against requested dates/budget/currency, and atomic persistence into Mongoose `Trip` document `days` and `budgetSummary`).
+
+---
+
+### [2026-11-19] — Day 26: Build the AI Service (Prompt Engineering, Context Injection, Duration Consistency Fix & Structured Generation)
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement the backend AI service (`server/src/services/aiService.js`) responsible for generating structured multi-day travel itineraries through Google Gemini (`gemini-3.5-flash-lite`) using the official `@google/genai` SDK and the Day 25 `geminiItinerarySchema`. Align trip-duration constraints with the final Day 25 schema decision (maximum 30 days instead of 21 days), engineer the master system prompt (`SYSTEM_INSTRUCTION`), implement trip context extraction (`buildTripContext`) from real Mongoose `Trip` model fields, construct structured user prompts (`buildItineraryUserPrompt`), build the asynchronous `generateItinerary` service interface, and enforce robust error normalization without auto-retries.
+
+#### 1. Files Created / Modified
+- [`server/src/schemas/itinerarySchema.js`](./server/src/schemas/itinerarySchema.js) — Aligned `SCHEMA_CONSTRAINTS.MAX_DAYS = 30` to reflect the final 30-day maximum itinerary duration established in Day 25 schema audit, updating `itineraryJsonSchema` boundaries and `validateItineraryStructure()`.
+- [`server/src/services/aiService.js`](./server/src/services/aiService.js) — Extended AI service with `SYSTEM_INSTRUCTION`, `buildTripContext()`, `buildItineraryUserPrompt()`, `calculateTripDuration()` (strictly rejecting date ranges exceeding 30 days or inverted date spans rather than clamping), `formatDateToISO()`, and the core generation method `generateItinerary()`, while preserving Day 24 diagnostic methods (`verifyGeminiConnection()`, `formatGeminiError()`, `CONNECTION_TEST_PROMPT`).
+- [`scratch/test_day26_ai_service.mjs`](./scratch/test_day26_ai_service.mjs) — Expanded to a 33-assertion automated test suite verifying 21-day, 25-day, and 30-day trip acceptance, rejection of 31-day trips, rejection of explicit durationDays >= 31, rejection of duration/date discrepancies, verification that Gemini mock is not invoked on invalid contexts, context extraction, prompt construction, error normalization, and scope boundaries.
+- [`scratch/test_day25_itinerary_schema.mjs`](./scratch/test_day25_itinerary_schema.mjs) — Expanded to 34 assertions verifying `SCHEMA_CONSTRAINTS.MAX_DAYS === 30` and rejection of 31-day itineraries.
+- [`DECISIONS.md`](./DECISIONS.md) — Recorded confirmed **ADR-014: AI Service Architecture, System Prompt Engineering & Context Injection** and updated ADR-013/ADR-014 duration boundaries to 1–30 days with strict rejection.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Updated Section 3.3 and Section 5.4 to reflect the 1–30 days duration boundary, rejection rules, prompt engineering, context extraction, and error normalization.
+- [`MVP_SCOPE.md`](./MVP_SCOPE.md) — Updated Section 3.4 marking Day 26 AI service implementation completed.
+- [`PROJECT_CONTEXT.md`](./PROJECT_CONTEXT.md) — Updated Section 3 Tech Stack table referencing ADR-014.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Documented Day 26 implementation, duration rejection rules, and regression verification.
+
+#### 2. Key Implementation Details & Concepts
+- **Trip Duration Consistency & Strict Rejection (1–30 Days):**
+  - Resolved discrepancy between Day 26 duration clamping and the final Day 25 schema contract (which supports up to 30 days).
+  - Enforced strict rejection (throwing `INVALID_TRIP_CONTEXT`) rather than silent clamping when inclusive duration exceeds `SCHEMA_CONSTRAINTS.MAX_DAYS` (30) or when explicit `durationDays` conflicts with the date-derived calendar range.
+  - Leaves `departureDate` and `returnDate` intact, ensuring 1:1 correspondence with accepted duration.
+  - Verified that `generateItinerary()` halts execution and returns standardized validation errors (`INVALID_TRIP_CONTEXT`) without dispatching requests to Google Gemini.
+- **System Prompt Engineering (`SYSTEM_INSTRUCTION`):**
+  - Defines the AI persona as TripMind's expert travel curator and itinerary architect with editorial standards.
+  - Enforces strict operational rules: raw structured JSON conforming to `geminiItinerarySchema`, geographical clustering to eliminate transit backtracking, strict 2–8 daily activity boundaries matching requested pace (relaxed: 2–3, moderate: 3–5, fast-paced: 5–8), temporal calendar stepping, mutual coordinate nullability, party-level budget summation, and non-factual seasonal estimation.
+- **Context Injection (`buildTripContext` & `buildItineraryUserPrompt`):**
+  - Strictly inspects real Mongoose `Trip` model fields: `destination`, `startingLocation`, `departureDate`, `returnDate`, `numberOfTravellers`, `budget`, `currency`, `interests`, and `travelPreferences` (`pace`, `accommodationType`, `transportation`, `dietary`, `notes`), plus optional `title`.
+  - Supports both Mongoose document instances (via `.toObject()`) and plain objects, resolving schema aliases (`startDate`, `endDate`, `totalBudget`, `travellers`).
+  - Automatically calculates inclusive trip duration in calendar days (`calculateTripDuration`) validating boundaries (1–30 days).
+  - Enforces array boundaries: caps `interests` at 30 items and `travelPreferences.dietary` at 20 items.
+- **Gemini Structured Output Integration:**
+  - Invokes `client.models.generateContent` with `model: getGeminiModel()`, `contents: userPrompt`, `config: { responseMimeType: 'application/json', responseSchema: geminiItinerarySchema, systemInstruction: SYSTEM_INSTRUCTION, temperature: 0.7 }`.
+  - Supports optional client dependency injection (`options.client`) enabling deterministic unit testing without live network calls.
+- **Error Normalization & Zero-Cost Safeguards:**
+  - Normalizes empty model responses (`GEMINI_EMPTY_RESPONSE`) and malformed JSON (`GEMINI_PARSE_ERROR`).
+  - Normalizes provider error statuses (400, 401/403, 404, 429, 503, network errors) into standardized error codes (`GEMINI_AUTH_FAILED`, `GEMINI_QUOTA_EXCEEDED`, `GEMINI_SERVICE_UNAVAILABLE`, `GEMINI_NETWORK_ERROR`, `GEMINI_CONFIG_ERROR`).
+  - No automatic retries to prevent burning the traveler's free-tier quota (₹0 initial budget).
+- **Scope Discipline:**
+  - Zero controllers, routes, or frontend integrations introduced in Day 26; MongoDB persistence deferred to Day 28.
+
+#### 3. Verification & Testing Performed
+- `node scratch/test_day26_ai_service.mjs`: 33 of 33 assertions passed (100%).
+- `node scratch/test_day25_itinerary_schema.mjs`: 34 of 34 assertions passed (100%).
+- `node scratch/test_day24_gemini_integration.mjs`: 28 of 28 assertions passed (100%).
+- `node --check server/src/services/aiService.js`: Clean pass with 0 syntax or parsing errors.
+- `node --check server/src/schemas/itinerarySchema.js`: Clean pass with 0 syntax or parsing errors.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Next Milestone:** Day 27: AI Itinerary Generation Controller and Route Implementation.
+
+---
+
+### [2026-11-19] — Day 25: Itinerary JSON Schema Design & Audit Consistency Fixes
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Design a reliable, predictable JSON schema for AI-generated travel itineraries using TripMind's existing architecture and the Google Gemini provider (`@google/genai` with `gemini-3.5-flash-lite`). Perform a rigorous schema audit to resolve inconsistencies across schemas, documented business rules, sample payloads, and automated tests. Enforce a strict 2–8 daily activity ceiling, reconcile sample itemized costs against category budgets ($924 total), enforce mutual coordinate nullability, establish 12-hour AM/PM time validation, and document Day 28 semantic validation invariants without implementing endpoints or premature generation routes.
+
+#### 1. Files Created / Modified
+- [`server/src/schemas/itinerarySchema.js`](./server/src/schemas/itinerarySchema.js) — Created schema module exporting `geminiItinerarySchema` (using `@google/genai` `Type` enum for constrained token decoding), `itineraryJsonSchema` (standard OpenAPI 3.0 / JSON Schema Draft-07), `sampleItinerary` (reconciled 3-day Kyoto editorial itinerary), `SCHEMA_CONSTRAINTS` (min/max bounds, regex patterns), `getExpectedDate()`, and `validateItineraryStructure()` validator helper.
+- [`scratch/test_day25_itinerary_schema.mjs`](./scratch/test_day25_itinerary_schema.mjs) — Expanded to an automated 33-assertion test suite validating schema structure, type enums, strict 2–8 activity boundaries, sample budget reconciliation, currency formatting & mismatch checks, mutual coordinate nullability, calendar date step sequencing, 12-hour AM/PM time validation, and Day 28 semantic failure modes.
+- [`DECISIONS.md`](./DECISIONS.md) — Recorded and updated confirmed **ADR-013: AI Itinerary JSON Schema & Structured Output Contract** incorporating audit outcomes.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Updated Sections 2.2 and 5.4 with the schema contract, 2–8 activity ceiling, mutual coordinate nullability, and two-tier validation architecture.
+- [`MVP_SCOPE.md`](./MVP_SCOPE.md) — Updated Section 3.4 to reflect completion and audit of the Itinerary JSON Schema Design milestone.
+- [`PROJECT_CONTEXT.md`](./PROJECT_CONTEXT.md) — Updated Section 3 Tech Stack table referencing ADR-013.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Documented Day 25 audit and consistency fixes.
+
+#### 2. Key Audit Outcomes & Implementation Details
+- **Activity Count Consistency (Strict 2–8 Rule):**
+  - Resolved discrepancy between schema (which allowed 1) and documented rule (2–8).
+  - Standardized on `MIN_ACTIVITIES_PER_DAY: 2` and `MAX_ACTIVITIES_PER_DAY: 8` across `SCHEMA_CONSTRAINTS`, `itineraryJsonSchema` (`minItems: 2, maxItems: 8`), and `validateItineraryStructure`.
+  - Enforces realistic travel pacing (at least morning and afternoon/evening stops per day) while preventing schedule exhaustion.
+- **Sample Budget & Activity Reconciliations ($924 Exact Match):**
+  - Corrected sample payload numbers to ensure 100% internal mathematical consistency for 2 travellers:
+    - Accommodation: $400 (2 nights @ $200/night)
+    - Transportation: $140 (Haruka Express airport train roundtrip for 2 travellers)
+    - Food: $280 (sum of scheduled dining activities: Day 1 $30+$60, Day 2 $25+$65, Day 3 $20+$80 = $280)
+    - Activities: $34 (sum of scheduled admissions: Tenryu-ji $10, Kinkaku-ji $8, Fushimi Inari $0, Kiyomizu-dera $8, Ginkaku-ji $8, Philosopher's Path $0 = $34)
+    - Local Transport: $40 (subway/bus IC cards for 3 days for 2 travellers)
+    - Miscellaneous: $30 (temple amulets, luggage lockers, snacks)
+    - Total Estimated: $924 (= 140 + 400 + 280 + 34 + 40 + 30)
+- **Currency Validation & Semantic Alignment:**
+  - Retained `^[A-Z]{3}$` regex for 3-letter uppercase representation.
+  - Documented that regex format validation alone does not guarantee a valid ISO 4217 code.
+  - Added `options.expectedCurrency` check to `validateItineraryStructure` to model Day 28 semantic validation comparing generated currency against requested `trip.currency`.
+- **Spatial Coordinate Mutual Dependency (Both-or-Neither Invariant):**
+  - Updated validator and schema rules to mandate that `latitude` and `longitude` must either **both be valid WGS84 numbers within bounds** (`-90 <= lat <= 90`, `-180 <= lng <= 180`), or **both be null**.
+  - Partially populated coordinates (e.g. latitude provided without longitude) are strictly rejected.
+- **Date Consistency & Sequential Calendar Step:**
+  - Defined `getExpectedDate(departureDate, dayNumber)` calculating exact calendar date steps across days.
+  - Verified that Day 1 date corresponds to `trip.departureDate` and each subsequent day advances by exactly one calendar day.
+- **Time Format & TimeSlot Consistency:**
+  - Standardized `time` on 12-hour AM/PM format matching regex `^(0[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$` (e.g., `"09:30 AM"`, `"02:30 PM"`).
+  - Enforced `timeSlot` enum (`morning`, `afternoon`, `evening`, `night`) consistent with TripMind's Mongoose model.
+
+#### 3. Verification & Testing Performed
+- **Automated Day 25 Audit Suite (`scratch/test_day25_itinerary_schema.mjs`):**
+  - **33 of 33 assertions passed (100%)**:
+    - Section 1: Schema structure and Type compatibility (2/2 passed).
+    - Section 2: Activity count boundaries (2–8 rule, rejecting 1 and 9) (5/5 passed).
+    - Section 3: Sample budget reconciliation ($924 total, scheduled food == $280, scheduled admissions == $34, party-level costs) (7/7 passed).
+    - Section 4: Currency representation and Day 28 semantic matching (3/3 passed).
+    - Section 5: Coordinate consistency (both-valid, both-null, partial rejection, bounds check) (5/5 passed).
+    - Section 6: Date consistency and sequential calendar step (4/4 passed).
+    - Section 7: Time validation (12-hour AM/PM regex and timeSlot enum) (4/4 passed).
+    - Section 8: General semantic invariants (budget mismatch, non-contiguous days, negative costs) (3/3 passed).
+- **Historical Full-Stack Regression Verification:**
+  - Day 24 Gemini Connectivity Suite (`scratch/test_day24_gemini_integration.mjs`): 28/28 assertions passed (100%).
+  - Node.js syntax checks (`node --check`): Clean pass on all server source files.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None. All audit findings and inconsistencies have been resolved, verified, and reconciled across all schemas, code, and documentation. Day 25 is 100% complete.
+- **Next Steps:** Proceed to Day 26 (System Prompt Engineering and Context Injection).
+
+---
+
+### [2026-11-19] — Day 24: Gemini API Configuration and Integration
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Configure Google Gemini API as TripMind's AI provider using the free-tier model (`gemini-3.5-flash-lite`) via the official `@google/genai` JavaScript SDK (v3.6.1). Establish a secure, reusable backend-only client configuration with zero credential exposure and ₹0 budget safeguards, implement comprehensive provider error normalization, create a diagnostic smoke test method (`verifyGeminiConnection()`), and document connectivity test results and local configuration instructions without prematurely implementing itinerary generation routes or schemas.
+
+#### 1. Files Created / Modified
+- [`server/package.json`](./server/package.json) — Installed official `@google/genai` SDK (v3.6.1) as a server dependency and added the `verify:gemini` diagnostic CLI script.
+- [`server/src/config/env.js`](./server/src/config/env.js) — Added `geminiApiKey` and `geminiModel` to `config`, added `validateGeminiConfig()` with placeholder guards, and updated `validateEnv(options)` with optional `requireAi` validation.
+- [`server/src/config/gemini.js`](./server/src/config/gemini.js) — Created reusable singleton client manager exporting `getGeminiClient()`, `getGeminiModel()`, and `resetGeminiClient()` to prevent client churn across requests.
+- [`server/src/services/aiService.js`](./server/src/services/aiService.js) — Created AI service layer providing error normalization (`formatGeminiError`), synthetic test prompt constants, and the diagnostic smoke test method (`verifyGeminiConnection()`).
+- [`server/src/scripts/verifyGemini.js`](./server/src/scripts/verifyGemini.js) — Created standalone diagnostic CLI script for executing Gemini API connectivity smoke tests.
+- [`server/.env.example`](./server/.env.example) — Added sanitized template variables: `GEMINI_API_KEY=your_gemini_api_key_here` and `GEMINI_MODEL=gemini-3.5-flash-lite`.
+- [`server/.env`](./server/.env) — Added `GEMINI_API_KEY=` (empty placeholder for local user configuration) and `GEMINI_MODEL=gemini-3.5-flash-lite`.
+- [`scratch/test_day24_gemini_integration.mjs`](./scratch/test_day24_gemini_integration.mjs) — Created 28-assertion test suite verifying package installation, environment validation, reusable singleton client caching, error normalization, diagnostic verification method contracts, scope safety, and live connectivity status.
+- [`DECISIONS.md`](./DECISIONS.md) — Added confirmed ADR-012 documenting Google Gemini as TripMind's AI provider and resolved `Pending-001`.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Updated Sections 2.1, 2.2, and 5.4 with Gemini SDK configuration, reusable singleton architecture, error normalization, and ₹0 budget safeguards.
+- [`MVP_SCOPE.md`](./MVP_SCOPE.md) — Updated Section 3.4 to reflect completion of the Stage 5 AI integration foundation.
+- [`PROJECT_CONTEXT.md`](./PROJECT_CONTEXT.md) — Updated Section 3 Tech Stack table with `@google/genai` and `gemini-3.5-flash-lite` (ADR-012).
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Documented Day 24 engineering session.
+
+#### 2. Key Implementation Details & Concepts
+- **Official Google GenAI SDK (`@google/genai` v3.6.1):**
+  - Standardized on Google's modern, unified generative AI JavaScript SDK.
+  - Installed strictly on the backend (`server/package.json`), ensuring zero client-side package bloat or credential exposure.
+- **Model Resolution & Free-Tier Budget Safeguards (₹0 Budget):**
+  - Standardized on `gemini-3.5-flash-lite` (free-tier model) read dynamically from `GEMINI_MODEL` with fallback to `gemini-3.5-flash-lite`.
+  - Zero paid add-ons: Google Search grounding and Maps grounding are strictly disabled.
+  - Automatic retries that could consume free-tier quota are omitted.
+- **Zero Credential Exposure & Secret Hygiene:**
+  - `GEMINI_API_KEY` is loaded strictly from `server/.env`.
+  - Both root and server `.gitignore` files ignore `.env` files.
+  - `.env.example` contains only sanitized placeholder values (`your_gemini_api_key_here`).
+  - No credentials appear in client bundles, Vite configs, error logs, or source code.
+- **Reusable Singleton Client Architecture (`server/src/config/gemini.js`):**
+  - `getGeminiClient()` creates and caches a single `GoogleGenAI` instance on demand. Subsequent calls reuse the existing instance, preventing memory leaks and connection churn.
+  - `resetGeminiClient()` enables clean client invalidation for testing and dynamic configuration changes.
+- **Standardized Error Normalization (`formatGeminiError`):**
+  - Maps provider and network exceptions into sanitized error codes with zero credential leakage:
+    - 400 (Invalid API key) & 401/403 (Permission denied) → `GEMINI_AUTH_FAILED`
+    - 404 (Model not found) → `GEMINI_MODEL_NOT_FOUND`
+    - 429 (Resource exhausted) → `GEMINI_QUOTA_EXCEEDED`
+    - 500/503 (Service unavailable) → `GEMINI_SERVICE_UNAVAILABLE`
+    - Fetch / Network failures → `GEMINI_NETWORK_ERROR`
+    - Missing / Placeholder config → `GEMINI_CONFIG_ERROR`
+- **Diagnostic Connectivity Verification Method (`verifyGeminiConnection`):**
+  - Backend-only smoke test method executing a single text-generation call with synthetic prompt: `"Reply with exactly: TripMind Gemini connection successful."`
+  - Returns a standardized envelope: `{ success: true, data: { status: 'connected', provider: 'Google Gemini', model, prompt, response, latencyMs, timestamp }, message }` on success, or `{ success: false, error: { code, message, details: [] }, provider, model, latencyMs, timestamp }` on failure.
+  - No public unauthenticated HTTP endpoint is created for testing.
+- **Scope Discipline:**
+  - No itinerary prompts, schemas, controllers, routes, or database persistence modifications were introduced.
+
+#### 3. Verification & Testing Performed
+- **Automated Day 24 Test Suite (`scratch/test_day24_gemini_integration.mjs`):**
+  - **28 of 28 assertions passed (100%)**:
+    - Section 1: SDK installation, package dependencies, and instantiability (3/3 passed).
+    - Section 2: Environment configuration, placeholder guards, and default model resolution (7/7 passed).
+    - Section 3: Reusable singleton client caching and reset lifecycle (3/3 passed).
+    - Section 4: Error formatting and standardized code normalization (7/7 passed).
+    - Section 5: Diagnostic verification method envelope contracts and error handling (3/3 passed).
+    - Section 6: Scope boundaries, zero unauthenticated test routes, and client credential isolation (4/4 passed).
+    - Section 7: Live Gemini connectivity diagnostic status reporting (1/1 passed).
+- **Diagnostic CLI Execution (`node server/src/scripts/verifyGemini.js`):**
+  - Successfully verified diagnostic CLI runner: gracefully reported `GEMINI_CONFIG_ERROR` for unconfigured key without unhandled exceptions or credential exposure.
+- **Historical Full-Stack Regression Test Suites:**
+  - `test_day23_frontend_trip_deletion.mjs`: 49/49 assertions passed (100%).
+  - `test_day22_frontend_trip_editing.mjs`: 57/57 assertions passed (100%).
+  - Total assertions passed in this session: 134 passed, 0 failed.
+- **Client Build & Syntax Verification:**
+  - `npm --prefix client run build`: Production build succeeded in 1.22s with zero errors.
+  - `node --check` syntax verification: All modified/created server files passed with zero errors.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Live Gemini API Test Status / Blocker:** `GEMINI_API_KEY` in `server/.env` is currently unconfigured (empty placeholder). Per prompt instructions, the user already has a Gemini API key associated with a Google AI Studio Free Tier project and will configure its actual value locally. Once the user adds their key to `server/.env`, running `npm --prefix server run verify:gemini` or `node server/src/scripts/verifyGemini.js` will immediately test live end-to-end connectivity.
+- **Next Steps:** Proceed to Stage 5 AI Itinerary Generation prompts, JSON schema enforcement, backend generation controller/routes, and MongoDB persistence.
+
+---
+
+### [2026-11-18] — Day 23: Frontend Trip Deletion & Confirmation Dialog (Week 3 CRUD Completed)
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Complete the final outstanding Week 3 CRUD requirement by implementing frontend trip deletion. Connect the existing backend `DELETE /api/trips/:id` endpoint to the Dashboard, synchronize `TripContext` in-memory state upon server confirmation, handle edge-case pagination transitions for the last item on a page, prevent accidental deletions through an accessible editorial confirmation dialog (`DeleteTripModal`), and enforce ownership data isolation.
+
+#### 1. Files Created / Modified
+- [`client/src/services/api/tripApi.js`](./client/src/services/api/tripApi.js) — Added and exported `deleteTrip(id)` delegating to `apiClient.delete('/trips/:id')` and returning `response.data`.
+- [`client/src/context/TripContext.jsx`](./client/src/context/TripContext.jsx) — Added `isDeleting` state flag and `deleteTrip(id)` domain action. Upon server confirmation (`success: true, data: null`), filters out the deleted trip from `trips`, decrements `totalTrips`, recalculates `totalPages`, and handles last-item-on-page edge cases by transitioning to the previous page when page > 1 becomes empty. Preserves in-memory state when deletion fails.
+- [`client/src/hooks/useTrip.js`](./client/src/hooks/useTrip.js) — Updated hook JSDoc annotations to document `deleteTrip` and `isDeleting`.
+- [`client/src/components/common/Button.jsx`](./client/src/components/common/Button.jsx) — Added `danger` button variant (`bg-burnt-crimson text-white hover:bg-[#9B2F2F]`) and removed unused `React` import.
+- [`client/src/components/common/DeleteTripModal.jsx`](./client/src/components/common/DeleteTripModal.jsx) — Created reusable editorial confirmation dialog. Features `role="alertdialog"`, `aria-labelledby`, `aria-describedby`, clear trip identification card (destination, origin, dates, travellers, budget, custom title), explicit disclosure of permanent subdocument eradication, safety-first auto-focus on "Keep Journey" (Cancel) button, inline error alerts upon server rejection, and duplicate submission prevention during deletion.
+- [`client/src/pages/DashboardPage.jsx`](./client/src/pages/DashboardPage.jsx) — Added dual Delete action triggers to trip cards (header trash icon button and footer Delete button), managed `deletingTrip` state, mounted `DeleteTripModal`, and added transient deletion success notifications.
+- [`scratch/test_day23_frontend_trip_deletion.mjs`](./scratch/test_day23_frontend_trip_deletion.mjs) — Created automated 49-assertion test suite validating modal identification, formatting, cancellation, TripContext state reducer logic, last-item-on-page transition, failure preservation, full-stack DELETE contract verification (`data: null`), cross-user anti-enumeration 404 security, atomic document removal, empty-state transition, and full CRUD regression.
+- [`MVP_SCOPE.md`](./MVP_SCOPE.md) — Updated Section 3.3 to mark Frontend Trip Deletion completed and marked full backend and frontend Trip CRUD completed.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Documented Section 4.3 Trip State Management with `deleteTrip` in-memory synchronization, duplicate submission guards, and `DeleteTripModal.jsx` integration.
+- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — Added Section 5.11 detailing the Delete confirmation dialog anatomy and `variant="danger"` button design token.
+- [`DECISIONS.md`](./DECISIONS.md) — Updated ADR-011 to record `deleteTrip` atomic deletion removal in `TripContext`.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Documented Day 23 engineering session.
+
+#### 2. Key Implementation Details & Concepts
+- **Dedicated Deletion Service & Response Envelope:**
+  - `tripApi.deleteTrip(id)` transmits `DELETE /api/trips/:id` using `apiClient` with credentials.
+  - Matches the backend contract returning `{ success: true, data: null, message: 'Trip deleted successfully' }`.
+- **In-Memory State Synchronization & Pagination Safety:**
+  - `TripContext.deleteTrip` removes only the target trip (`(t._id || t.id) !== id`). Sibling trips are untouched.
+  - Decrements `totalTrips` and recalculates `totalPages = Math.max(1, Math.ceil(newTotal / limit))`.
+  - Edge Case: If the deleted item was the last trip on a page where `page > 1`, `TripContext` automatically decrements `page` to `prevPage = page - 1` and fetches that page, preventing the traveler from getting stranded on an empty page.
+  - Failure Safety: If the network or backend returns an error, the trip is strictly preserved in `trips`.
+- **Accessible, Safety-First Editorial Confirmation Dialog:**
+  - `DeleteTripModal` utilizes `role="alertdialog"`, warning icon, and clear identification details.
+  - Default focus is placed on the Cancel ("Keep Journey") button, preventing accidental deletion if the user presses Enter.
+  - Both buttons are disabled while `isDeleting` is true to prevent double-submissions.
+  - If the server rejects the request, the modal remains open and presents an inline error alert.
+- **Ownership Enforcement & Anti-Enumeration Security:**
+  - Identity is derived strictly from backend-verified JWT cookies (`req.user.id`).
+  - Attempting to delete another user's trip yields an identical HTTP 404 `NOT_FOUND` response ("Trip not found"), completely preventing resource enumeration.
+  - Database verification confirms that deleting a trip atomically removes its embedded `days`, `activities`, and `budgetSummary` with zero multi-collection cascade logic.
+
+#### 3. Verification & Testing Performed
+- **Automated Day 23 Test Suite (`scratch/test_day23_frontend_trip_deletion.mjs`):**
+  - **49 of 49 assertions passed (100%)**:
+    - Section 1: Modal state, formatting & confirmation logic (6/6 passed).
+    - Section 2: TripContext state reducer & pagination logic (7/7 passed).
+    - Section 3: End-to-end backend DELETE API integration (19/19 passed).
+    - Section 4: Full CRUD regression verification (17/17 passed).
+- **Historical Regression Test Suites Executed:**
+  - `test_day22_frontend_trip_editing.mjs`: 57/57 passed.
+  - `test_day21_e2e_trip_creation.mjs`: 45/45 passed.
+  - `test_day20_frontend_trips.mjs`: 54/54 passed.
+  - `test_day19_1_hardening.mjs`: 64/64 passed.
+  - Total test assertions passed across all suites: 269 passed, 0 failed.
+- **Production Build & Lint Verification:**
+  - `npm --prefix client run build`: Production build succeeded in 963ms with zero errors.
+  - ESLint checks on all touched client files (`DashboardPage.jsx`, `TripContext.jsx`, `useTrip.js`, `tripApi.js`, `Button.jsx`, `DeleteTripModal.jsx`, `EditTripModal.jsx`): 0 errors, 0 warnings.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None. All Week 3 CRUD requirements (Create, Read, Update, Delete) are 100% complete and verified.
+- **Next Steps:** Proceed to Stage 4 Trip Detail view & Day-Wise Itinerary workspace (`/trips/:id`), followed by Stage 5 AI Itinerary Generation, Leaflet/OSM Maps, and Recharts Budget Analytics.
+
+---
+
+### [2026-11-18] — Day 22: Frontend Trip Editing & Partial Update Integration
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement frontend trip editing using the existing backend PATCH `/api/trips/:id` endpoint. Build an editorial `EditTripModal` component with prepopulated trip values, client-side diff delta calculation, validation before submission, duplicate submission prevention, and in-memory state synchronization via `TripContext` without unnecessary dashboard refetching. Maintain data isolation, design system consistency, and regression safety.
+
+#### 1. Files Created / Modified
+- [`client/src/services/api/tripApi.js`](./client/src/services/api/tripApi.js) — Exported `updateTrip(id, tripData)` delegating to `apiClient.patch('/trips/:id', tripData)` and returning `response.data`.
+- [`client/src/context/TripContext.jsx`](./client/src/context/TripContext.jsx) — Added `isUpdating` state and `updateTrip(id, payload)` domain action with immediate in-memory `trips` replacement matching the updated document by ID, preserving list ordering, sibling trips, and pagination metadata without triggering full dashboard refetches.
+- [`client/src/hooks/useTrip.js`](./client/src/hooks/useTrip.js) — Updated hook JSDoc annotations to document `updateTrip` and `isUpdating`.
+- [`client/src/components/common/EditTripModal.jsx`](./client/src/components/common/EditTripModal.jsx) — Created reusable editorial modal for trip editing. Keyed by trip ID to naturally reset internal state without cascading render side-effects; organizes editing across 3 tabs (Trip Basics, Budget & Party, Preferences & Style); formats ISO dates to `YYYY-MM-DD` inputs; computes clean partial update payloads containing strictly modified fields; normalizes cover image clearing; maps backend validation errors to field-specific notices; displays transient alerts and loading state.
+- [`client/src/pages/DashboardPage.jsx`](./client/src/pages/DashboardPage.jsx) — Added dual Edit action triggers on trip cards (header icon button and footer "Edit Details" action), integrated `EditTripModal`, managed `editingTrip` state, and added transient update success banner.
+- [`scratch/test_day22_frontend_trip_editing.mjs`](./scratch/test_day22_frontend_trip_editing.mjs) — Created comprehensive 57-assertion test suite validating date formatting, delta calculation, client-side validation, in-memory state synchronization, end-to-end PATCH API contracts, cross-field date validation against database records, nested preference preservation, protected field rejection, and anti-enumeration 404 security.
+- [`MVP_SCOPE.md`](./MVP_SCOPE.md) — Updated Section 3.3 to mark Frontend Trip Editing completed.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Documented Section 4.3 Trip State Management with `updateTrip` in-memory synchronization and `EditTripModal.jsx` integration.
+- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — Documented Section 5.10 detailing Edit Trip Modal tab architecture, prepopulation, and trip card action controls.
+- [`DECISIONS.md`](./DECISIONS.md) — Updated ADR-011 to record `updateTrip` in-place state replacement.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — Documented Day 22 engineering session.
+
+#### 2. Key Implementation Details & Concepts
+- **Strict Partial Update Contract via Diff Delta:**
+  - `computePartialPayload` compares edited form values against original trip properties. Only modified fields are included in the PATCH body.
+  - Nested `travelPreferences` are compared per subfield (`pace`, `accommodationType`, `transportation`, `dietary`, `notes`), sending only changed preferences.
+  - If no modifications are detected, the modal gracefully informs the traveler with a clean notice ("No changes detected") and prevents redundant network requests.
+- **Form State Prepopulation & React 19 Key Reset:**
+  - `EditTripModal` mounts `EditTripDialog` keyed by `trip._id || trip.id`. Switching trips or opening the dialog automatically initializes fresh state via `useState(() => initializeFormState(trip))` without calling `setState` inside `useEffect`, preventing cascading re-render warnings.
+  - ISO dates are converted to UTC `YYYY-MM-DD` strings for standard HTML5 `<input type="date">` compatibility.
+- **In-Memory State Synchronization:**
+  - `TripContext.updateTrip` replaces the targeted trip in `trips` (`trip._id === id ? updatedTrip : trip`), preserving existing array order, sibling trips, and pagination metadata (`totalTrips`, `totalPages`).
+  - Completely avoids full dashboard refetching, eliminating network roundtrips and UI flicker.
+- **Data Isolation & Anti-Enumeration Security:**
+  - Identity is derived strictly from backend-verified JWT cookies (`req.user.id`).
+  - Protected fields (`_id`, `userId`, `createdAt`, `updatedAt`, `__v`) are never exposed or editable, and rejected with HTTP 400 if tampered with.
+  - Cross-user editing attempts return identical HTTP 404 `NOT_FOUND` responses for anti-enumeration defense.
+  - Cross-field date validation enforces conditional atomic queries (`returnDate > departureDate`), preventing TOCTOU inversions.
+
+#### 3. Verification & Testing Performed
+- **Automated Day 22 Test Suite (`scratch/test_day22_frontend_trip_editing.mjs`):**
+  - **57 of 57 assertions passed (100%)**:
+    - Section 1: Form prepopulation, date helpers, and delta logic (10/10 passed).
+    - Section 2: TripContext state synchronization logic (6/6 passed).
+    - Section 3: End-to-end backend PATCH integration (41/41 passed).
+- **Historical Regression Test Suites Executed:**
+  - `test_day21_e2e_trip_creation.mjs`: 45/45 passed.
+  - `test_day20_frontend_trips.mjs`: 54/54 passed.
+  - `test_day19_1_hardening.mjs`: 64/64 passed.
+  - Total test assertions passed across all suites: 220 passed, 0 failed.
+- **Production Build & Lint Verification:**
+  - `npm --prefix client run build`: Production build succeeded in 965ms with zero errors.
+  - ESLint checks on all Day 22 client files (`DashboardPage.jsx`, `TripContext.jsx`, `useTrip.js`, `tripApi.js`, `EditTripModal.jsx`): 0 errors, 0 warnings.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None. Frontend trip editing is fully implemented, verified, and operational.
+- **Next Steps:** Proceed to Trip Deletion UI & Confirmation Modal (final Week 3 carryover item) or Stage 4 Day-Wise Itinerary workspace.
+
+---
+
 ### [2026-11-17] — Day 21: Frontend–Backend Integration, Complete Trip Creation Flow & Git Release
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Verify and complete the end-to-end trip creation experience, from authenticated Dashboard to MongoDB persistence and dynamic Dashboard synchronization. Conduct comprehensive integration tests (Scenarios A through F), verify design system and budget contract compliance, perform full frontend build and ESLint validation, update documentation, and perform the authorized Day 21 production release commit and push.

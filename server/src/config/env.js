@@ -23,7 +23,7 @@ const REQUIRED_VARS = ['MONGODB_URI', 'JWT_SECRET']
  *
  * Throws a clean descriptive error without exposing sensitive values.
  */
-export function validateEnv() {
+export function validateEnv(options = {}) {
   const missing = REQUIRED_VARS.filter((key) => {
     const val = process.env[key]
     return !val || val.trim() === ''
@@ -79,6 +79,58 @@ export function validateEnv() {
       '[Config Error] JWT_SECRET must be at least 32 characters long for cryptographic security.'
     )
   }
+
+  // If requireAi is requested or GEMINI_API_KEY is populated, validate placeholder guard
+  if (options.requireAi) {
+    validateGeminiConfig()
+  } else if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim().length > 0) {
+    const apiKey = process.env.GEMINI_API_KEY.trim()
+    if (
+      apiKey.includes('your_gemini_api_key') ||
+      apiKey.includes('<gemini_api_key>') ||
+      apiKey.includes('your_api_key') ||
+      apiKey.includes('<api_key>')
+    ) {
+      throw new Error(
+        '[Gemini Config Error] GEMINI_API_KEY contains unconfigured placeholder values. Please update server/.env with a valid Google AI Studio API key.'
+      )
+    }
+  }
+}
+
+/**
+ * Validates Google Gemini AI configuration.
+ * Enforces strict environment boundaries:
+ * - Ensures GEMINI_API_KEY is non-empty.
+ * - Rejects placeholder credentials (your_gemini_api_key_here, <gemini_api_key>, etc.).
+ * - Ensures GEMINI_MODEL is defined (defaults to gemini-3.5-flash-lite).
+ *
+ * Throws a clean descriptive error without exposing sensitive values.
+ *
+ * @returns {{ apiKey: string, model: string }}
+ */
+export function validateGeminiConfig() {
+  const apiKey = (process.env.GEMINI_API_KEY || '').trim()
+  const model = (process.env.GEMINI_MODEL || '').trim() || 'gemini-3.5-flash-lite'
+
+  if (!apiKey) {
+    throw new Error(
+      '[Gemini Config Error] Missing or unconfigured GEMINI_API_KEY. Please configure your Google Gemini API key in server/.env.'
+    )
+  }
+
+  if (
+    apiKey.includes('your_gemini_api_key') ||
+    apiKey.includes('<gemini_api_key>') ||
+    apiKey.includes('your_api_key') ||
+    apiKey.includes('<api_key>')
+  ) {
+    throw new Error(
+      '[Gemini Config Error] GEMINI_API_KEY contains unconfigured placeholder values. Please update server/.env with a valid Google AI Studio API key.'
+    )
+  }
+
+  return { apiKey, model }
 }
 
 /**
@@ -90,4 +142,6 @@ export const config = {
   mongodbUri: process.env.MONGODB_URI ? process.env.MONGODB_URI.trim() : '',
   jwtSecret: process.env.JWT_SECRET ? process.env.JWT_SECRET.trim() : '',
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
+  geminiApiKey: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : '',
+  geminiModel: (process.env.GEMINI_MODEL && process.env.GEMINI_MODEL.trim()) || 'gemini-3.5-flash-lite',
 }

@@ -30,3 +30,61 @@ export async function getTrips(params = {}) {
   const response = await apiClient.get('/trips', { params })
   return response.data
 }
+
+/**
+ * Retrieves a single trip by ID owned by the authenticated user.
+ *
+ * @param {string} id - The MongoDB ObjectId of the trip to retrieve.
+ * @returns {Promise<Object>} Standardized API response containing trip document.
+ */
+export async function getTrip(id) {
+  const response = await apiClient.get(`/trips/${id}`)
+  return response.data
+}
+
+/**
+ * Partially updates an existing trip for the authenticated user.
+ *
+ * @param {string} id - The MongoDB ObjectId of the trip to update.
+ * @param {Object} tripData - Sanitized partial update payload.
+ * @returns {Promise<Object>} Standardized API response containing the updated trip data.
+ */
+export async function updateTrip(id, tripData) {
+  const response = await apiClient.patch(`/trips/${id}`, tripData)
+  return response.data
+}
+
+/**
+ * Atomically deletes an existing trip owned by the authenticated user.
+ * Deletes the trip and all embedded daily itineraries, activities, and budget summaries.
+ *
+ * @param {string} id - The MongoDB ObjectId of the trip to delete.
+ * @returns {Promise<Object>} Standardized API response { success: true, data: null, message: string }.
+ */
+export async function deleteTrip(id) {
+  const response = await apiClient.delete(`/trips/${id}`)
+  return response.data
+}
+
+/**
+ * Generates and atomically persists a structured multi-day AI itinerary for an existing trip.
+ * Uses Google Gemini backend integration with Tier-1 and Tier-2 validation.
+ *
+ * @param {string} id - The MongoDB ObjectId of the trip.
+ * @param {Object} [options={}] - Optional settings (e.g. timeout, persist query).
+ * @param {boolean} [options.persist=true] - Whether to persist generated itinerary to MongoDB.
+ * @param {number} [options.timeout=60000] - Request timeout in milliseconds (defaults to 60s for LLM operations).
+ * @returns {Promise<Object>} Standardized API response { success: true, data: { tripId, itinerary, meta }, message: string }.
+ */
+export async function generateItinerary(id, options = {}) {
+  const { persist = true, timeout = 60000 } = options
+  const params = persist === false ? { persist: 'false' } : {}
+  const response = await apiClient.post(`/trips/${id}/generate-itinerary`, {}, {
+    params,
+    timeout,
+  })
+  return response.data
+}
+
+
+

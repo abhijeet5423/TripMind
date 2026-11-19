@@ -191,7 +191,7 @@
   - Adopt React Context API paired with dedicated custom hooks (`useAuth`, `useTrip`) for client state management during MVP.
   - Decouple cross-cutting concerns into specialized contexts:
     - `AuthContext`: Strictly manages user session verification, profile state, and HttpOnly cookie login/logout flows.
-    - `TripContext`: Manages trip collections, pagination metadata, loading flags, error handling, and trip creation actions.
+    - `TripContext`: Manages trip collections, pagination metadata, loading flags, error handling, trip creation, in-place partial update synchronization (`updateTrip`), and atomic deletion removal (`deleteTrip`).
   - Scope `TripProvider` narrowly at route boundaries (`<ProtectedRoute><TripProvider><DashboardPage /></TripProvider></ProtectedRoute>`) to prevent unnecessary context pollution across public routes.
 - **Rationale:**
   - Zero external bundle weight or dependency drift.
@@ -202,17 +202,187 @@
 
 ---
 
+### ADR-012: Google Gemini as AI Provider (SDK: @google/genai, Model: gemini-3.5-flash-lite, Free Tier Budget: ₹0)
+- **Status:** 🟢 CONFIRMED (Resolved from Pending-001)
+- **Context:** TripMind requires an external generative AI provider to generate detailed multi-day travel itineraries. The integration must operate strictly on backend Node.js services with a ₹0 initial API budget, leveraging the free tier without paid billing, search grounding, or maps grounding fees.
+- **Decision:**
+  - Adopt **Google Gemini** as TripMind's primary AI provider.
+  - Standardize on the official **`@google/genai`** JavaScript SDK (v3.6.1+).
+  - Configure the default free-tier model: **`gemini-3.5-flash-lite`** (read dynamically from `GEMINI_MODEL`, falling back to `gemini-3.5-flash-lite`).
+  - Read credentials exclusively from backend environment variable **`GEMINI_API_KEY`** in `server/.env`. Credentials must never be exposed to Vite, client-side code, logs, or source code.
+  - Implement a reusable client singleton (`server/src/config/gemini.js`) avoiding repeated instantiation per request.
+  - Isolate provider logic within `server/src/services/aiService.js` to ensure the model or provider can be modified without altering controllers or client interfaces.
+  - Implement backend-only diagnostic connectivity verification (`verifyGeminiConnection()`) without exposing public unauthenticated testing endpoints.
+- **Rationale:**
+  - Official `@google/genai` SDK is Google's modern, unified generative AI library for Node.js.
+  - Google AI Studio Free Tier provides generous rate limits at zero financial cost (₹0 budget).
+  - Lightweight `gemini-3.5-flash-lite` delivers rapid response latency suitable for responsive trip planning.
+  - Reusable singleton architecture prevents memory leaks and client churn.
+- **Consequences:**
+  - Free-tier rate limits must be respected with proper error normalization (`GEMINI_QUOTA_EXCEEDED`).
+  - Grounding tools (Google Search, Maps grounding) are disabled to prevent unexpected billing.
+
+---
+
+### ADR-013: AI Itinerary JSON Schema & Structured Output Contract
+- **Status:** 🟢 CONFIRMED
+- **Context:** TripMind uses generative AI (Google Gemini `gemini-3.5-flash-lite`) to generate complete multi-day travel itineraries. The generated data must integrate seamlessly with MongoDB `Trip` documents (embedded `days`, `activities`, and `budgetSummary`), Leaflet/OSM map rendering, Recharts budget visualizers, and the editorial design system. A strict, deterministic schema contract is required to prevent malformed responses, broken coordinates, or invalid monetary values.
+- **Decision:**
+  - **Schema Definition (`server/src/schemas/itinerarySchema.js`):**
+    - Standardize on `geminiItinerarySchema` configured with `@google/genai`'s native `Type` enum for constrained token decoding (`config: { responseMimeType: 'application/json', responseSchema }`).
+    - Standardize on `itineraryJsonSchema` (OpenAPI 3.0 / JSON Schema Draft-07) for runtime validation, documentation, and external tooling.
+  - **Top-Level Envelope:** Requires `destination`, `summary`, `travelTips`, `budget`, and `days`.
+  - **Currency Alignment:** The model strictly outputs all financial figures (`estimatedCost`, `budget.categories.*`, `budget.totalEstimated`) in the traveler's selected trip currency (`trip.currency`, ISO 4217 code). Schema regex `^[A-Z]{3}$` enforces format; Day 28 semantic validation explicitly verifies that the currency matches `trip.currency` and belongs to supported ISO 4217 codes. An optional `costBreakdown` string may reference local currency amounts for traveler clarity.
+  - **Total Party Expenditure:** All `estimatedCost` amounts and categorical allocations represent the **total estimated cost for the entire travel party** (`numberOfTravellers`). This unifies room rates, rental vehicles, and individual entrance fees under a single coherent summation.
+  - **Budget Categorization & Reconciliation:**
+    - Itemizes 6 categories: `transportation`, `accommodation`, `food`, `activities`, `localTransport`, and `miscellaneous`.
+    - Returns `totalEstimated`. In Day 28 persistence, the backend will verify `totalEstimated == sum(categories)` and ensure scheduled dining and activity costs reconcile with their respective categories.
+  - **Spatial Coordinate Nullability & Mutual Dependency:**
+    - `location.latitude` and `location.longitude` are strictly `number | null` (`nullable: true`).
+    - **Both-or-Neither Invariant:** Coordinates must either both be valid WGS84 numbers within bounds (`-90 <= lat <= 90`, `-180 <= lng <= 180`), or both be `null`. Partially populated coordinates (e.g., latitude present but longitude null) are strictly rejected. Prohibits placeholder coordinates (such as `0, 0` Null Island or `999`).
+  - **Temporal Contiguity & Activity Limits:**
+    - Itinerary days span 1 to 30 days matching requested trip duration (`returnDate - departureDate + 1`).
+    - `dayNumber` is a 1-indexed contiguous integer sequence (`1..N`).
+    - Day 1 calendar date must match `trip.departureDate`, and each subsequent day must advance by exactly one calendar day.
+    - Activities per day are strictly constrained to **2–8 items** across all schemas, validators, and tests (recommended 3–5) with valid `timeSlot` enums (`morning`, `afternoon`, `evening`, `night`) and 12-hour AM/PM time strings (`^(0[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$`). Activity categories strictly follow the Mongoose model (`stay`, `food`, `transit`, `activity`, `other`).
+  - **Two-Tier Validation Paradigm:**
+    - Tier 1: Schema-enforced typing via Gemini's constrained decoding grammar.
+    - Tier 2: Backend semantic validation in Day 28 (validating day count vs duration, contiguous indexing, coordinate bounding, budget summation, and string sanitization).
+  - **Non-Factual Editorial Framing:**
+    - All pricing and hours are explicitly framed with a standard `disclaimer` string as AI-generated seasonal estimates, not live booking rates or guaranteed inventory.
+- **Rationale:**
+  - Guarantees 100% predictable, parseable JSON output from Gemini.
+  - Direct 1:1 mapping into TripMind's Mongoose `Trip` subdocuments and Recharts color tokens.
+  - Preserves user safety by guarding against hallucinated coordinates and fictitious prices.
+- **Consequences:**
+  - Day 28 generation service must pass `responseSchema: geminiItinerarySchema` to `generateContent`.
+  - The persistence layer must map `localTransport` and `miscellaneous` cleanly into `Trip.budgetSummary`.
+
+---
+
+### ADR-014: AI Service Architecture, System Prompt Engineering & Context Injection
+- **Status:** 🟢 CONFIRMED
+- **Context:** Following Gemini client configuration (ADR-012) and itinerary schema specification (ADR-013), TripMind requires a backend AI service (`server/src/services/aiService.js`) to generate multi-day travel itineraries from user trip data. The service must bridge user inputs to Google Gemini (`gemini-3.5-flash-lite`) via prompt engineering and context injection while enforcing security, ₹0 budget free-tier safeguards, error normalization, and predictable response contracts.
+- **Decision:**
+  - **Service Architecture & Exported Functions:**
+    - `generateItinerary(tripData, options)`: Main generation orchestration method.
+    - `buildTripContext(tripData)`: Extracts, cleanses, validates, and normalizes trip data into a structured context object.
+    - `buildItineraryUserPrompt(tripContext)`: Constructs the structured user prompt injecting traveler context and explicit generation rules.
+    - `calculateTripDuration(depStr, retStr)`: Utility computing inclusive calendar duration in days (1–30 days); strictly rejects date ranges exceeding 30 days or inverted date spans.
+    - `formatDateToISO(dateValue)`: Normalizes Dates or date strings to `YYYY-MM-DD`.
+    - Preserves existing Day 24 diagnostic methods (`verifyGeminiConnection`, `formatGeminiError`, `CONNECTION_TEST_PROMPT`).
+  - **System Prompt Engineering (`SYSTEM_INSTRUCTION`):**
+    - Establishes the model's persona as TripMind's expert travel curator and itinerary architect with editorial refinement.
+    - Enforces raw structured JSON conforming to `geminiItinerarySchema` without markdown code fences or conversational filler.
+    - Mandates geographical proximity grouping to minimize transit backtracking.
+    - Enforces strict **2 to 8 activities per day** matching requested pace: relaxed (2–3), moderate (3–5), fast-paced (5–8).
+    - Requires temporal continuity: Day 1 date = `departureDate`, subsequent days increment by 1 calendar day, 12-hour AM/PM time format (`HH:MM AM/PM`), and `timeSlot` enums (`morning`, `afternoon`, `evening`, `night`).
+    - Enforces mutual coordinate nullability: known landmarks require accurate WGS84 floats; generic/uncertain stops require both latitude and longitude set to `null`.
+    - Mandates party-level budget summation: all amounts in requested trip currency representing the total expenditure for the entire party (`numberOfTravellers`), reconciling scheduled food and activity expenses against their respective category allocations.
+    - Prohibits factual hallucinations: financial figures and opening hours are framed as seasonal estimates, not live booking quotes.
+  - **Context Injection (`buildTripContext`):**
+    - Strictly inspects real Mongoose `Trip` model fields: `destination`, `startingLocation`, `departureDate`, `returnDate`, `numberOfTravellers`, `budget`, `currency`, `interests`, and `travelPreferences` (`pace`, `accommodationType`, `transportation`, `dietary`, `notes`), plus optional `title`.
+    - Accepts both Mongoose documents (via `.toObject()`) and plain objects, resolving schema aliases (`startDate`, `endDate`, `totalBudget`, `travellers`).
+    - Enforces boundary rules: `interests` (max 30 items), `travelPreferences.dietary` (max 20 items), duration (strictly 1 to 30 days; rejects inputs exceeding 30 days or inconsistent durationDays). Leaves dates intact.
+  - **Gemini Request Configuration:**
+    - Uses `@google/genai` client singleton: `client.models.generateContent({ model, contents: userPrompt, config: { responseMimeType: 'application/json', responseSchema: geminiItinerarySchema, systemInstruction: SYSTEM_INSTRUCTION, temperature: 0.7 } })`.
+    - Supports optional client dependency injection (`options.client`) for deterministic unit testing without live network calls.
+  - **Error Normalization & Bounded Retries:**
+    - Normalizes empty responses to `GEMINI_EMPTY_RESPONSE` and unparseable JSON to `GEMINI_PARSE_ERROR`.
+    - Normalizes provider error statuses (400, 401/403, 404, 429, 503, network errors) into standardized error codes (`GEMINI_AUTH_FAILED`, `GEMINI_QUOTA_EXCEEDED`, `GEMINI_SERVICE_UNAVAILABLE`, `GEMINI_NETWORK_ERROR`, `GEMINI_CONFIG_ERROR`).
+    - **No Automatic Retries:** Automatic retries on rate limits or service errors are explicitly prohibited to prevent rapid exhaustion of the traveler's free-tier quota (₹0 initial budget). Errors are returned to the caller for user-controlled retry.
+  - **Scope Discipline:**
+    - Zero controllers, routes, or frontend integrations created in Day 26.
+    - MongoDB document persistence is deferred to Day 28.
+- **Rationale:**
+  - Provides a single, clean service interface for travel itinerary generation.
+  - Eliminates prompt duplication and guarantees strict conformance to the Day 25 schema.
+  - Protects user quota and backend credentials while delivering actionable feedback on errors.
+- **Consequences:**
+  - Day 27 prompt validation and Day 28 controllers/routes can consume `generateItinerary` directly.
+
+---
+
+### ADR-015: AI Itinerary Generation Endpoint Architecture & Persistence Boundary
+- **Status:** 🟢 CONFIRMED
+- **Context:**
+  With the AI generation service completed in Day 26 (`server/src/services/aiService.js`), TripMind requires an authenticated REST endpoint allowing travelers to generate multi-day itineraries for their trips. Architectural decisions were required regarding endpoint design, authentication/authorization enforcement, HTTP status mapping for AI errors, and the persistence boundary between generation and saving.
+- **Decision:**
+  1. **Endpoint & Routing:** Implement `POST /api/trips/:id/generate-itinerary` mounted on the existing `trip.routes.js` router and handled by `generateTripItinerary` in `tripController.js`. Avoid introducing separate premature route files (`aiRoutes.js`) to keep single-trip operations cohesive and backwards compatible.
+  2. **Strict Authentication & Anti-Enumeration Ownership:**
+     - Require `authenticateToken` middleware (verifies HttpOnly JWT cookie; attaches verified identity to `req.user.id`).
+     - Validate ObjectId syntax with `validateTripId` (returns 400 `INVALID_ID`).
+     - Retrieve trip via `tripService.getTripById(userId, tripId)` enforcing database query-level ownership (`_id: tripId, userId: user._id`).
+     - Unowned or non-existent trips return identical HTTP 404 `NOT_FOUND` responses with `"Trip not found"` and `details: []`, completely preventing user resource enumeration attacks.
+  3. **Zero Gemini Call Leakage:**
+     - External AI calls to Gemini are dispatched ONLY after authentication, ID validation, ownership verification, and trip context checks pass. Unauthorized, malformed, or nonexistent requests make 0 Gemini calls.
+  4. **AI Error Normalization to HTTP Status Mapping:**
+     - `INVALID_TRIP_CONTEXT` -> HTTP 400 Bad Request
+     - `GEMINI_QUOTA_EXCEEDED` -> HTTP 429 Too Many Requests
+     - `GEMINI_SERVICE_UNAVAILABLE` -> HTTP 503 Service Unavailable
+     - `GEMINI_AUTH_FAILED`, `GEMINI_NETWORK_ERROR`, `GEMINI_EMPTY_RESPONSE`, `GEMINI_PARSE_ERROR` -> HTTP 502 Bad Gateway
+     - `GEMINI_CONFIG_ERROR` / default -> HTTP 500 Internal Server Error
+     - All error responses strictly conform to the standard envelope `{ success: false, error: { code, message, details: [] } }`.
+  5. **Persistence Boundary (Day 27 vs Day 28):**
+     - Day 27 generates and returns the structured itinerary in memory (`{ success: true, data: { tripId, itinerary, meta }, message: "Itinerary generated successfully." }`).
+     - Day 27 explicitly does NOT persist the generated itinerary to MongoDB (`trip.days` remains `[]`).
+     - Database persistence paired with Tier-2 semantic validation is strictly deferred to Day 28.
+- **Rationale:**
+  - Preserves clean separation of concerns: generation preview is verified before persistence.
+  - Aligns with RESTful resource-oriented design (`/api/trips/:id/...`).
+  - Protects external API quotas and prevents unauthorized token depletion.
+- **Consequences:**
+  - Frontend or consumers in Day 27 receive the full itinerary data without database side effects.
+  - Day 28 will implement semantic validation and database update/saving.
+
+---
+
+### ADR-016: Two-Tier Itinerary Validation & Atomic Document Persistence Strategy
+- **Status:** 🟢 CONFIRMED
+- **Context:**
+  With the itinerary generation API endpoint established in Day 27 (`POST /api/trips/:id/generate-itinerary`), TripMind required a robust validation and persistence strategy. AI models can produce syntactically compliant JSON that contradicts real user constraints (e.g. mismatched destinations, dates exceeding requested duration, incorrect currency, or mathematical discrepancies). Furthermore, saving the itinerary must preserve original trip metadata, enforce query-level ownership, prevent partial writes, and establish a clear regeneration policy.
+- **Decision:**
+  1. **Two-Tier Validation Architecture:**
+     - **Tier 1 (Structural Schema Validation):** Handled via `validateItineraryStructure()` (`server/src/schemas/itinerarySchema.js`), validating structural types, required fields, and 12-hour AM/PM formats.
+     - **Tier 2 (Domain Semantic Validation):** Handled via `validateItinerarySemantic()` in a dedicated validator module (`server/src/validators/itineraryValidator.js`). Validates:
+       - *Destination Matching (`areDestinationsConsistent`):* Segment- and token-aware deterministic match. Strictly rejects lexical substring collisions ("York" vs "New York", "Rome" vs "Jerome", "Mali" vs "Somalia") and regional contradictions ("Paris, France" vs "Paris, Texas"). Supports legitimate omitted qualifiers ("Kyoto" vs "Kyoto, Japan", "Paris, France" vs "Paris", "New York" vs "New York, USA") and administrative suffixes ("New York City" vs "New York"). Zero external geocoding API needed for MVP, preserving the ₹0 budget invariant.
+       - *Duration & Day Count Consistency:* Calendar day duration strictly derived from `trip.departureDate` and `trip.returnDate` (1–30 days); itinerary day count must match duration exactly.
+       - *Contiguous Day Numbering & Dates:* Days must start at 1, be strictly contiguous (`1..N`) with zero gaps or duplicates, Day 1 must match `departureDate`, subsequent dates advance sequentially by 1 calendar day, and dates must not extend beyond `returnDate`.
+       - *Currency Consistency:* Strict uppercase equality between `itinerary.budget.currency` and `trip.currency`.
+       - *Budget Reconciliation:* All monetary values must be finite, non-negative numbers. `totalEstimated` must equal the sum of all 6 budget categories within a 1.0 unit tolerance. Scheduled dining costs cannot exceed allocated food category, and scheduled activity admissions cannot exceed allocated activities category. Activity `costBreakdown` is strictly an editorial string description and is never added to numerical sums (zero double-counting). Multi-category activities (`category: 'other'`) are bounded only by `totalEstimated` and never compared against individual category allocations, preventing false rejections.
+       - *Activity Ceilings & Mutual Nullability:* 2–8 activities per day, valid category and timeSlot enums, and WGS84 coordinates that are either both valid finite numbers or both null.
+  2. **Safe Atomic Document Persistence (`tripService.saveTripItinerary`):**
+     - Executes single atomic `Trip.findOneAndUpdate({ _id: tripId, userId: user._id }, { $set: { days, budgetSummary, summary, travelTips } }, { returnDocument: 'after', runValidators: true })`.
+     - Maps AI activity objects (`name` -> `title`, `duration`, `costBreakdown`, `locationName`, `location`, `latitude`, `longitude`, `estimatedCost`, `category`) and items all 6 budget categories into `budgetSummary`.
+     - Original trip fields (`destination`, `startingLocation`, `departureDate`, `returnDate`, `budget`, `currency`, `numberOfTravellers`, `title`, `interests`, `travelPreferences`) remain strictly immutable and unchanged during itinerary persistence.
+  3. **Regeneration Policy:**
+     - Regeneration is fully supported: an authenticated owner may request generation again for a trip that already has saved days.
+     - Existing itineraries in MongoDB are preserved completely if regeneration fails or if the AI output fails validation.
+     - The database update occurs only after full validation passes with zero errors.
+  4. **Fallback & Error Handling (Zero-Cost Discipline):**
+     - Zero automatic Gemini retries: invalid output returns HTTP 422 `ITINERARY_VALIDATION_FAILED` with descriptive error details.
+     - Database persistence failures return HTTP 500 `PERSISTENCE_FAILED`.
+- **Rationale:**
+  - Prevents corrupt, hallucinated, or contradictory travel data from reaching MongoDB.
+  - Guarantees zero credential or quota leakage while protecting existing user data.
+  - Aligns with clean architectural layering: controller handles HTTP, validator handles business rules, service handles domain DB persistence.
+- **Consequences:**
+  - Consumers receive reliable, fully validated itineraries backed by atomic MongoDB persistence.
+  - Day 29 and frontend views can reliably display persisted days and budget summaries without edge-case crashes.
+
+---
+
 ## 2. Pending Decisions (🟡 UNDER EVALUATION)
 
 The following architectural and technical choices are open for evaluation during future implementation planning. **Do not mark pending decisions as confirmed.**
 
 ### Pending-001: Specific LLM Provider & Model Selection
-- **Status:** 🟡 UNDER EVALUATION
-- **Options Under Consideration:**
-  - *Option A: Google Gemini API (e.g., Gemini 1.5 Pro / Flash)* — Large context window, strong structured JSON output support, favorable pricing.
-  - *Option B: OpenAI API (e.g., GPT-4o / GPT-4o-mini)* — Highly reliable JSON schema mode, widespread developer familiarity.
-  - *Option C: Anthropic Claude API (e.g., Claude 3.5 Sonnet)* — Exceptional writing quality and nuanced travel descriptions.
-- **Next Step:** Evaluate based on user's existing API keys, structured output reliability, and latency targets.
+- **Status:** 🟢 RESOLVED (See ADR-012)
+- **Options Evaluated:**
+  - *Option A: Google Gemini API (gemini-3.5-flash-lite via @google/genai)* — Generous free tier (₹0 budget), low latency, official Google SDK.
+  - *Option B: OpenAI API (e.g., GPT-4o-mini)* — Requires paid billing credits.
+  - *Option C: Anthropic Claude API (e.g., Claude 3.5 Haiku / Sonnet)* — Requires paid billing credits.
+- **Resolution:** Adopted Option A (Google Gemini API using official `@google/genai` SDK and free-tier model `gemini-3.5-flash-lite`). Confirmed as **ADR-012**.
 
 ---
 

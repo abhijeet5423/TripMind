@@ -13,8 +13,13 @@ import { TripContext } from '../context/TripContext.jsx'
  *   loading: boolean,
  *   error: string|null,
  *   isCreating: boolean,
+ *   isUpdating: boolean,
+ *   isDeleting: boolean,
  *   fetchTrips: (params?: Object) => Promise<Array>,
- *   createTrip: (payload: Object) => Promise<Object>
+ *   createTrip: (payload: Object) => Promise<Object>,
+ *   updateTrip: (id: string, payload: Object) => Promise<Object>,
+ *   deleteTrip: (id: string) => Promise<Object>,
+ *   updateTripInState: (id: string, updatedData: Object) => void
  * }}
  */
 export function useTrip() {

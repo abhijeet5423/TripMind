@@ -521,7 +521,7 @@ export function validateGetTrips(req, res, next) {
  * @param {import('express').NextFunction} next
  */
 export function validateTripId(req, res, next) {
-  const { id } = req.params
+  const id = req.params.id || req.params.tripId
 
   if (!id || typeof id !== 'string' || !mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({
@@ -531,7 +531,7 @@ export function validateTripId(req, res, next) {
         message: 'Invalid trip ID format',
         details: [
           {
-            field: 'id',
+            field: req.params.tripId ? 'tripId' : 'id',
             message: 'Trip ID must be a valid 24-character hexadecimal ObjectId',
           },
         ],

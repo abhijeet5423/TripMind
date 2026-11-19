@@ -15,6 +15,7 @@ const activitySchema = new mongoose.Schema(
       trim: true,
       minlength: [1, 'Activity title cannot be empty'],
       maxlength: [150, 'Activity title cannot exceed 150 characters'],
+      alias: 'name',
     },
     description: {
       type: String,
@@ -33,6 +34,12 @@ const activitySchema = new mongoose.Schema(
       trim: true,
       default: '',
       maxlength: [20, 'Time string cannot exceed 20 characters'],
+    },
+    duration: {
+      type: String,
+      trim: true,
+      default: '',
+      maxlength: [50, 'Duration cannot exceed 50 characters'],
     },
     locationName: {
       type: String,
@@ -57,6 +64,12 @@ const activitySchema = new mongoose.Schema(
       min: [0, 'Estimated cost cannot be negative'],
       default: 0,
     },
+    costBreakdown: {
+      type: String,
+      trim: true,
+      maxlength: [200, 'Cost breakdown cannot exceed 200 characters'],
+      default: '',
+    },
     category: {
       type: String,
       enum: {
@@ -66,6 +79,15 @@ const activitySchema = new mongoose.Schema(
       default: 'activity',
       trim: true,
       lowercase: true,
+    },
+    location: {
+      type: {
+        name: { type: String, trim: true, default: '' },
+        latitude: { type: Number, default: null },
+        longitude: { type: Number, default: null },
+        address: { type: String, trim: true, default: '' },
+      },
+      _id: false,
     },
   },
   { _id: true }
@@ -138,6 +160,16 @@ const categoryBreakdownSchema = new mongoose.Schema(
     activities: {
       type: Number,
       min: [0, 'Activities expense cannot be negative'],
+      default: 0,
+    },
+    localTransport: {
+      type: Number,
+      min: [0, 'Local transport expense cannot be negative'],
+      default: 0,
+    },
+    miscellaneous: {
+      type: Number,
+      min: [0, 'Miscellaneous expense cannot be negative'],
       default: 0,
     },
     other: {
@@ -370,6 +402,22 @@ const tripSchema = new mongoose.Schema(
       type: budgetSummarySchema,
       default: () => ({}),
       alias: 'budgetBreakdown',
+    },
+    summary: {
+      type: String,
+      trim: true,
+      maxlength: [2000, 'Trip summary cannot exceed 2000 characters'],
+      default: '',
+    },
+    travelTips: {
+      type: [
+        {
+          type: String,
+          trim: true,
+          maxlength: [500, 'Travel tip cannot exceed 500 characters'],
+        },
+      ],
+      default: [],
     },
   },
   {
