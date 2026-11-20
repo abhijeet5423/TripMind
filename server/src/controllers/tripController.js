@@ -439,4 +439,184 @@ export async function generateTripItinerary(req, res, next) {
   }
 }
 
+/**
+ * Authenticated Activity Partial Update
+ * PATCH /api/trips/:tripId/days/:dayId/activities/:activityId
+ *
+ * Partially updates an existing activity embedded within an itinerary day.
+ * Enforces ownership strictly via req.user.id.
+ * Unowned or non-existent trips return HTTP 404 NOT_FOUND.
+ * Missing days return HTTP 404 DAY_NOT_FOUND.
+ * Missing activities return HTTP 404 ACTIVITY_NOT_FOUND.
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
+export async function updateActivity(req, res, next) {
+  try {
+    const userId = req.user.id
+    const { tripId, dayId, activityId } = req.params
+
+    const result = await tripService.updateTripActivity(
+      userId,
+      tripId,
+      dayId,
+      activityId,
+      req.body
+    )
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Trip not found',
+          details: [],
+        },
+      })
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        activity: result.activity,
+        trip: result.trip,
+      },
+      message: 'Activity updated successfully',
+    })
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        success: false,
+        error: {
+          code: error.code || 'ERROR',
+          message: error.message,
+          details: error.details || [],
+        },
+      })
+    }
+    next(error)
+  }
+}
+
+/**
+ * Authenticated Activity Creation
+ * POST /api/trips/:tripId/days/:dayId/activities
+ *
+ * Appends a new activity subdocument to an itinerary day.
+ * Enforces ownership strictly via req.user.id.
+ * Unowned or non-existent trips return HTTP 404 NOT_FOUND.
+ * Missing days return HTTP 404 DAY_NOT_FOUND.
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
+export async function addActivity(req, res, next) {
+  try {
+    const userId = req.user.id
+    const { tripId, dayId } = req.params
+
+    const result = await tripService.addTripActivity(
+      userId,
+      tripId,
+      dayId,
+      req.body
+    )
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Trip not found',
+          details: [],
+        },
+      })
+    }
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        activity: result.activity,
+        trip: result.trip,
+      },
+      message: 'Activity added successfully',
+    })
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        success: false,
+        error: {
+          code: error.code || 'ERROR',
+          message: error.message,
+          details: error.details || [],
+        },
+      })
+    }
+    next(error)
+  }
+}
+
+/**
+ * Authenticated Activity Deletion
+ * DELETE /api/trips/:tripId/days/:dayId/activities/:activityId
+ *
+ * Removes an existing activity subdocument from an itinerary day.
+ * Enforces ownership strictly via req.user.id.
+ * Unowned or non-existent trips return HTTP 404 NOT_FOUND.
+ * Missing days return HTTP 404 DAY_NOT_FOUND.
+ * Missing activities return HTTP 404 ACTIVITY_NOT_FOUND.
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
+export async function removeActivity(req, res, next) {
+  try {
+    const userId = req.user.id
+    const { tripId, dayId, activityId } = req.params
+
+    const result = await tripService.removeTripActivity(
+      userId,
+      tripId,
+      dayId,
+      activityId
+    )
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Trip not found',
+          details: [],
+        },
+      })
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        trip: result.trip,
+      },
+      message: 'Activity removed successfully',
+    })
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        success: false,
+        error: {
+          code: error.code || 'ERROR',
+          message: error.message,
+          details: error.details || [],
+        },
+      })
+    }
+    next(error)
+  }
+}
+
+
 

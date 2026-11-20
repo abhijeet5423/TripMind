@@ -1,4 +1,6 @@
 import { DollarSign, Info } from 'lucide-react'
+import ExpenseDonutChart from '../budget/ExpenseDonutChart.jsx'
+import BudgetComparisonChart from '../budget/BudgetComparisonChart.jsx'
 
 /**
  * Format a number into currency representation.
@@ -68,9 +70,15 @@ const CATEGORY_CONFIG = [
  * BudgetBreakdown Component
  *
  * Displays the 6 authoritative budget categories itemized by the backend persistence layer.
- * Compares total estimated expenditure against the user's initial target budget.
+ * Compares total estimated expenditure against the user's initial target budget,
+ * displays per-person estimated cost, and calculates budget utilization.
  */
-export default function BudgetBreakdown({ budgetSummary, targetBudget, currency = 'USD' }) {
+export default function BudgetBreakdown({
+  budgetSummary,
+  targetBudget,
+  currency = 'USD',
+  numberOfTravellers = 1,
+}) {
   if (!budgetSummary) return null
 
   const totalEstimated =
@@ -83,6 +91,21 @@ export default function BudgetBreakdown({ budgetSummary, targetBudget, currency 
       : target
       ? Math.max(0, target - totalEstimated)
       : null
+
+  const rawTravellers = Number(numberOfTravellers)
+  const travellers = Number.isFinite(rawTravellers) && rawTravellers > 0 ? Math.floor(rawTravellers) : 1
+  const perPersonCost =
+    typeof budgetSummary.perPersonCost === 'number'
+      ? budgetSummary.perPersonCost
+      : totalEstimated > 0
+      ? Math.round(((totalEstimated / travellers) + Number.EPSILON) * 100) / 100
+      : 0
+  const budgetUtilization =
+    typeof budgetSummary.budgetUtilization === 'number'
+      ? budgetSummary.budgetUtilization
+      : target && target > 0
+      ? Math.round(((totalEstimated / target) * 100 + Number.EPSILON) * 100) / 100
+      : 0
 
   return (
     <div className="bg-white rounded-xl border border-sage p-6 sm:p-7 shadow-[0_2px_8px_rgba(23,61,53,0.04)]">
@@ -98,12 +121,26 @@ export default function BudgetBreakdown({ budgetSummary, targetBudget, currency 
           </h3>
         </div>
 
-        {/* Total Estimated Pill */}
-        <div className="flex items-baseline gap-2 bg-sand-ivory border border-sage/60 px-4 py-2.5 rounded-xl self-start sm:self-auto">
-          <span className="text-xs text-stone font-medium">Total Estimated:</span>
-          <span className="font-serif text-xl sm:text-2xl font-bold text-forest">
-            {formatCurrency(totalEstimated, currency)}
-          </span>
+        {/* Total Estimated & Per-Person Pill */}
+        <div className="flex flex-wrap items-baseline gap-3 sm:gap-4 bg-sand-ivory border border-sage/60 px-4 py-2.5 rounded-xl self-start sm:self-auto">
+          <div>
+            <span className="text-[11px] uppercase tracking-wider text-stone font-medium block">
+              Total Estimated
+            </span>
+            <span className="font-serif text-xl sm:text-2xl font-bold text-forest">
+              {formatCurrency(totalEstimated, currency)}
+            </span>
+          </div>
+          {travellers > 1 && (
+            <div className="pl-3 border-l border-sage/70">
+              <span className="text-[11px] uppercase tracking-wider text-stone font-medium block">
+                Per Person ({travellers})
+              </span>
+              <span className="font-serif text-base sm:text-lg font-bold text-forest/90">
+                {formatCurrency(perPersonCost, currency)}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -128,18 +165,45 @@ export default function BudgetBreakdown({ budgetSummary, targetBudget, currency 
             </span>
           </div>
 
+          <div>
+            <span className="text-stone">Budget Utilization: </span>
+            <span
+              className={`font-semibold ${
+                budgetUtilization <= 100 ? 'text-forest' : 'text-burnt-crimson'
+              }`}
+            >
+              {budgetUtilization}%
+            </span>
+          </div>
+
           <div className="w-full bg-white rounded-full h-2 overflow-hidden border border-sage/40 mt-1">
             <div
               className={`h-full rounded-full transition-all duration-500 ${
                 totalEstimated <= target ? 'bg-forest' : 'bg-burnt-crimson'
               }`}
               style={{
-                width: `${Math.min(100, (totalEstimated / target) * 100)}%`,
+                width: `${Math.min(100, target > 0 ? (totalEstimated / target) * 100 : 0)}%`,
               }}
             />
           </div>
         </div>
       )}
+
+      {/* Recharts Budget Visualizations Grid (Donut Chart & Comparison Chart) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 my-6">
+        <ExpenseDonutChart
+          categories={categories}
+          totalEstimated={totalEstimated}
+          currency={currency}
+        />
+        <BudgetComparisonChart
+          targetBudget={target}
+          totalEstimated={totalEstimated}
+          remaining={remaining}
+          budgetUtilization={budgetUtilization}
+          currency={currency}
+        />
+      </div>
 
       {/* Categorical Breakdown Grid (6 Categories) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 my-6">

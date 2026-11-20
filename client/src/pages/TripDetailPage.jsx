@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'
 import {
   ArrowLeft,
   Compass,
@@ -16,15 +16,20 @@ import {
   Loader2,
   Clock,
   BookOpen,
+  Plus,
 } from 'lucide-react'
 import Container from '../components/common/Container.jsx'
 import Button from '../components/common/Button.jsx'
 import ActivityCard from '../components/itinerary/ActivityCard.jsx'
 import BudgetBreakdown from '../components/itinerary/BudgetBreakdown.jsx'
 import RegenerateItineraryModal from '../components/itinerary/RegenerateItineraryModal.jsx'
+import EditActivityModal from '../components/itinerary/EditActivityModal.jsx'
+import AddActivityModal from '../components/itinerary/AddActivityModal.jsx'
+import DeleteActivityModal from '../components/itinerary/DeleteActivityModal.jsx'
 import * as tripApi from '../services/api/tripApi.js'
 import { useTrip } from '../hooks/useTrip.js'
 import { mapItineraryError } from '../utils/itineraryErrorHelper.js'
+import { getDestinationPhoto } from '../utils/destinationImages.js'
 
 /**
  * Formats calendar dates into an editorial human-readable range (UTC).
@@ -87,12 +92,15 @@ function formatCurrency(amount, currency = 'USD') {
 export default function TripDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { updateTripInState } = useTrip()
 
-  // Trip Document State
-  const [trip, setTrip] = useState(null)
-  const [loadingTrip, setLoadingTrip] = useState(true)
+  // Trip Document State (pre-populate with state if navigated from trip creation)
+  const initialTripFromState = location.state?.trip || null
+  const [trip, setTrip] = useState(initialTripFromState)
+  const [loadingTrip, setLoadingTrip] = useState(!initialTripFromState)
   const [tripError, setTripError] = useState(null)
+  const [imageError, setImageError] = useState(false)
 
   // Itinerary Generation States
   const [isGenerating, setIsGenerating] = useState(false)
@@ -102,6 +110,22 @@ export default function TripDetailPage() {
 
   // Day Navigation State (1-indexed dayNumber)
   const [selectedDayNumber, setSelectedDayNumber] = useState(1)
+
+  // Activity Editing States (Day 32)
+  const [editingActivity, setEditingActivity] = useState(null)
+  const [isUpdatingActivity, setIsUpdatingActivity] = useState(false)
+
+  // Activity Addition & Deletion States (Day 33)
+  const [isAddingActivity, setIsAddingActivity] = useState(false)
+  const [isCreatingActivity, setIsCreatingActivity] = useState(false)
+  const [deletingActivity, setDeletingActivity] = useState(null)
+  const [isRemovingActivity, setIsRemovingActivity] = useState(false)
+  const [removeActivityError, setRemoveActivityError] = useState(null)
+
+  // Destination Photograph (Task B2)
+  const destinationPhoto = trip?.destination
+    ? getDestinationPhoto(trip.destination, trip.coverImageUrl, true)
+    : null
 
   /**
    * Fetches the complete Trip document from the backend.
@@ -244,6 +268,224 @@ export default function TripDetailPage() {
     }
   }
 
+  /**
+   * Opens the edit activity modal.
+   */
+  const handleOpenEditActivity = (activity) => {
+    setEditingActivity(activity)
+  }
+
+  /**
+   * Saves edited activity fields via PATCH API and updates local and context state.
+   */
+  const handleSaveActivity = async (formData) => {
+    if (!trip?._id || !editingActivity?._id) return
+
+    const targetDay =
+      trip.days?.find((d) => d.activities?.some((a) => a._id === editingActivity._id)) ||
+      (trip.days && trip.days.find((d) => d.dayNumber === selectedDayNumber)) ||
+      trip.days?.[0]
+
+    if (!targetDay?._id) {
+      throw new Error('Could not identify the itinerary day for this activity.')
+    }
+
+    setIsUpdatingActivity(true)
+
+    try {
+      const response = await tripApi.updateActivity(
+        trip._id,
+        targetDay._id,
+        editingActivity._id,
+        formData
+      )
+
+      if (!response?.success) {
+        throw new Error(response?.message || 'Failed to update activity.')
+      }
+
+      const updatedActivity = response?.data?.activity
+      const updatedTrip = response?.data?.trip
+
+      setTrip((prev) => {
+        if (!prev) return prev
+        if (updatedTrip) {
+          if (updateTripInState) {
+            updateTripInState(prev._id, updatedTrip)
+          }
+          return updatedTrip
+        }
+
+        const updatedDays = (prev.days || []).map((day) => {
+          if (day._id === targetDay._id) {
+            return {
+              ...day,
+              activities: (day.activities || []).map((act) =>
+                act._id === editingActivity._id ? { ...act, ...updatedActivity } : act
+              ),
+            }
+          }
+          return day
+        })
+
+        const nextTrip = { ...prev, days: updatedDays }
+        if (updateTripInState) {
+          updateTripInState(prev._id, nextTrip)
+        }
+        return nextTrip
+      })
+
+      setSuccessMessage(
+        `Activity "${formData.title || editingActivity.title}" updated successfully!`
+      )
+    } catch (err) {
+      const message =
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        'Failed to update activity. Please try again.'
+      throw new Error(message, { cause: err })
+    } finally {
+      setIsUpdatingActivity(false)
+    }
+  }
+
+  /**
+   * Adds a new activity to the selected day via POST API and updates state.
+   */
+  const handleSaveNewActivity = async (payload) => {
+    const targetDay =
+      (trip?.days && trip.days.find((d) => d.dayNumber === selectedDayNumber)) ||
+      trip?.days?.[0]
+
+    if (!trip?._id || !targetDay?._id) return
+
+    setIsCreatingActivity(true)
+
+    try {
+      const response = await tripApi.addActivity(
+        trip._id,
+        targetDay._id,
+        payload
+      )
+
+      if (!response?.success) {
+        throw new Error(response?.message || 'Failed to add activity.')
+      }
+
+      const newActivity = response?.data?.activity
+      const updatedTrip = response?.data?.trip
+
+      setTrip((prev) => {
+        if (!prev) return prev
+        if (updatedTrip) {
+          if (updateTripInState) {
+            updateTripInState(prev._id, updatedTrip)
+          }
+          return updatedTrip
+        }
+
+        const updatedDays = (prev.days || []).map((day) => {
+          if (day._id === targetDay._id) {
+            return {
+              ...day,
+              activities: [...(day.activities || []), newActivity],
+            }
+          }
+          return day
+        })
+
+        const nextTrip = { ...prev, days: updatedDays }
+        if (updateTripInState) {
+          updateTripInState(prev._id, nextTrip)
+        }
+        return nextTrip
+      })
+
+      setSuccessMessage(
+        `Activity "${payload.title}" added to Day ${targetDay.dayNumber}!`
+      )
+    } catch (err) {
+      const message =
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        'Failed to add activity. Please try again.'
+      throw new Error(message, { cause: err })
+    } finally {
+      setIsCreatingActivity(false)
+    }
+  }
+
+  /**
+   * Confirms and deletes an activity via DELETE API and updates state.
+   */
+  const handleConfirmDeleteActivity = async () => {
+    if (!trip?._id || !deletingActivity?._id) return
+
+    const targetDay =
+      trip.days?.find((d) => d.activities?.some((a) => a._id === deletingActivity._id)) ||
+      (trip.days && trip.days.find((d) => d.dayNumber === selectedDayNumber)) ||
+      trip.days?.[0]
+
+    if (!targetDay?._id) return
+
+    setIsRemovingActivity(true)
+    setRemoveActivityError(null)
+
+    try {
+      const response = await tripApi.deleteActivity(
+        trip._id,
+        targetDay._id,
+        deletingActivity._id
+      )
+
+      if (!response?.success) {
+        throw new Error(response?.message || 'Failed to remove activity.')
+      }
+
+      const updatedTrip = response?.data?.trip
+
+      setTrip((prev) => {
+        if (!prev) return prev
+        if (updatedTrip) {
+          if (updateTripInState) {
+            updateTripInState(prev._id, updatedTrip)
+          }
+          return updatedTrip
+        }
+
+        const updatedDays = (prev.days || []).map((day) => {
+          if (day._id === targetDay._id) {
+            return {
+              ...day,
+              activities: (day.activities || []).filter(
+                (a) => a._id !== deletingActivity._id
+              ),
+            }
+          }
+          return day
+        })
+
+        const nextTrip = { ...prev, days: updatedDays }
+        if (updateTripInState) {
+          updateTripInState(prev._id, nextTrip)
+        }
+        return nextTrip
+      })
+
+      const actTitle = deletingActivity.title || deletingActivity.name || 'Activity'
+      setSuccessMessage(`Activity "${actTitle}" removed from Day ${targetDay.dayNumber}.`)
+      setDeletingActivity(null)
+    } catch (err) {
+      const message =
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        'Failed to remove activity. Please try again.'
+      setRemoveActivityError(message)
+    } finally {
+      setIsRemovingActivity(false)
+    }
+  }
+
   // Active selected day object
   const days = useMemo(() => trip?.days || [], [trip?.days])
   const selectedDay = useMemo(() => {
@@ -338,22 +580,24 @@ export default function TripDetailPage() {
             </span>
           </div>
 
-          {/* Journey Header Banner Card */}
+          {/* Journey Header Banner Card with Editorial Photograph (Task B2 & B3) */}
           <div className="bg-white rounded-2xl border border-sage p-6 sm:p-8 shadow-[0_2px_8px_rgba(23,61,53,0.04)] flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div>
+            <div className="flex-1 space-y-4">
               {/* Destination & Title */}
-              <div className="flex flex-wrap items-center gap-3 mb-2">
-                <h1 className="font-serif text-3xl sm:text-4xl font-bold text-forest">
-                  {trip.destination}
-                </h1>
-                <span className="px-3 py-0.5 rounded-full text-xs font-semibold bg-sand-ivory text-stone border border-sage capitalize">
-                  {trip.status || 'Draft'}
-                </span>
-              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-3 mb-2">
+                  <h1 className="font-serif text-3xl sm:text-4xl font-bold text-forest">
+                    {trip.destination}
+                  </h1>
+                  <span className="px-3 py-0.5 rounded-full text-xs font-semibold bg-sand-ivory text-stone border border-sage capitalize">
+                    {trip.status || 'Draft'}
+                  </span>
+                </div>
 
-              {trip.title && trip.title !== `Trip to ${trip.destination}` && (
-                <p className="text-sm text-stone italic mb-3">"{trip.title}"</p>
-              )}
+                {trip.title && trip.title !== `Trip to ${trip.destination}` && (
+                  <p className="text-sm text-stone italic">"{trip.title}"</p>
+                )}
+              </div>
 
               {/* Trip Metadata Strip */}
               <div className="flex flex-wrap items-center gap-y-2 gap-x-4 text-xs sm:text-sm text-stone">
@@ -384,35 +628,77 @@ export default function TripDetailPage() {
                   </div>
                 )}
               </div>
+
+              {/* Action Button: Generate / Regenerate Itinerary (Task B3 Enhanced Visibility) */}
+              <div className="pt-2">
+                <Button
+                  variant={hasItinerary ? 'primary' : 'accent'}
+                  size="lg"
+                  onClick={handleActionClick}
+                  disabled={isGenerating}
+                  className={`gap-2.5 font-semibold text-sm sm:text-base px-6 py-3.5 shadow-md hover:shadow-lg focus-visible:ring-2 focus-visible:ring-offset-2 transition-all cursor-pointer ${
+                    hasItinerary
+                      ? 'bg-forest hover:bg-forest-dark text-sand-ivory border-forest focus-visible:ring-forest'
+                      : 'bg-terracotta hover:bg-terracotta-dark text-white border-terracotta focus-visible:ring-terracotta'
+                  }`}
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin text-sand-ivory" />
+                      <span>Curating Itinerary with AI...</span>
+                    </>
+                  ) : hasItinerary ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 text-terracotta" />
+                      <span>Regenerate Itinerary</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5 text-sand-ivory" />
+                      <span>Generate Itinerary with AI</span>
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
 
-            {/* Action Button: Generate / Regenerate Itinerary */}
-            <div className="shrink-0 flex items-center gap-3">
-              <Button
-                variant={hasItinerary ? 'secondary' : 'accent'}
-                size="lg"
-                onClick={handleActionClick}
-                disabled={isGenerating}
-                className="gap-2 shadow-sm w-full sm:w-auto"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin text-terracotta" />
-                    <span>Curating Itinerary...</span>
-                  </>
-                ) : hasItinerary ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 text-terracotta" />
-                    <span>Regenerate Itinerary</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    <span>Generate Itinerary with AI</span>
-                  </>
-                )}
-              </Button>
-            </div>
+            {/* Visual Destination Photograph Plate (Task B2) */}
+            {destinationPhoto && (
+              <div className="w-full lg:w-72 xl:w-80 shrink-0 overflow-hidden rounded-xl border border-sage/80 shadow-xs bg-sand-ivory relative group select-none">
+                <div className="aspect-[16/10] sm:aspect-[16/9] lg:aspect-[4/3] w-full overflow-hidden relative">
+                  {!imageError ? (
+                    <img
+                      src={destinationPhoto.src}
+                      alt={destinationPhoto.alt || `Photograph of ${trip.destination}`}
+                      loading="lazy"
+                      decoding="async"
+                      onError={() => setImageError(true)}
+                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-sage/35 via-sand-ivory to-sage/20 flex flex-col items-center justify-center p-4 text-center">
+                      <Compass className="w-8 h-8 text-forest/70 mb-1" />
+                      <span className="font-serif text-xs font-bold text-forest">{trip.destination}</span>
+                    </div>
+                  )}
+                  <div
+                    className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none"
+                    aria-hidden="true"
+                  />
+                  <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between text-[11px] text-white">
+                    <span className="font-medium truncate drop-shadow-sm flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-terracotta shrink-0" />
+                      <span>{trip.destination}</span>
+                    </span>
+                    {destinationPhoto.photographer && (
+                      <span className="text-[9px] text-sand-ivory/80 truncate ml-2 drop-shadow-xs">
+                        Photo: {destinationPhoto.photographer}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Alert: Generation In Progress Banner */}
@@ -515,9 +801,9 @@ export default function TripDetailPage() {
                 variant="accent"
                 size="lg"
                 onClick={handleActionClick}
-                className="gap-2 shadow-sm"
+                className="gap-2.5 shadow-md hover:shadow-xl px-8 py-4 text-base font-bold bg-terracotta hover:bg-terracotta-dark text-white border-terracotta focus-visible:ring-2 focus-visible:ring-terracotta focus-visible:ring-offset-2 transition-all cursor-pointer"
               >
-                <Sparkles className="w-4 h-4" />
+                <Sparkles className="w-5 h-5 text-white" />
                 <span>Generate Itinerary with AI</span>
               </Button>
             </div>
@@ -570,6 +856,7 @@ export default function TripDetailPage() {
                 budgetSummary={trip.budgetSummary}
                 targetBudget={trip.budget}
                 currency={trip.currency || 'USD'}
+                numberOfTravellers={trip.numberOfTravellers}
               />
 
               {/* Day-Wise Navigation Section */}
@@ -637,14 +924,27 @@ export default function TripDetailPage() {
                         </p>
                       )}
 
-                      <div className="mt-4 pt-3 border-t border-sage/50 flex items-center gap-2 text-xs text-stone">
-                        <Clock className="w-3.5 h-3.5 text-forest" />
-                        <span>
-                          {selectedDay.activities?.length || 0}{' '}
-                          {(selectedDay.activities?.length || 0) === 1
-                            ? 'scheduled stop'
-                            : 'scheduled stops'}
-                        </span>
+                      <div className="mt-4 pt-3 border-t border-sage/50 flex flex-wrap items-center justify-between gap-3 text-xs text-stone">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3.5 h-3.5 text-forest" />
+                          <span>
+                            {selectedDay.activities?.length || 0}{' '}
+                            {(selectedDay.activities?.length || 0) === 1
+                              ? 'scheduled stop'
+                              : 'scheduled stops'}
+                          </span>
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setIsAddingActivity(true)}
+                          className="gap-1.5 py-1 px-3 text-xs font-semibold bg-white hover:bg-sand-ivory border-sage text-forest hover:text-forest-dark cursor-pointer shadow-2xs"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-terracotta" />
+                          <span>Add Activity</span>
+                        </Button>
                       </div>
                     </div>
 
@@ -652,17 +952,48 @@ export default function TripDetailPage() {
                     <div className="space-y-4">
                       {Array.isArray(selectedDay.activities) &&
                       selectedDay.activities.length > 0 ? (
-                        selectedDay.activities.map((act, actIdx) => (
-                          <ActivityCard
-                            key={act._id || act.id || actIdx}
-                            activity={act}
-                            currency={trip.currency || 'USD'}
-                            index={actIdx}
-                          />
-                        ))
+                        <>
+                          {selectedDay.activities.map((act, actIdx) => (
+                            <ActivityCard
+                              key={act._id || act.id || actIdx}
+                              activity={act}
+                              currency={trip.currency || 'USD'}
+                              index={actIdx}
+                              onEdit={handleOpenEditActivity}
+                              onDelete={(targetAct) => {
+                                setRemoveActivityError(null)
+                                setDeletingActivity(targetAct)
+                              }}
+                            />
+                          ))}
+
+                          {/* Add Another Activity Action Button */}
+                          <div className="pt-2 flex justify-center sm:justify-start">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="md"
+                              onClick={() => setIsAddingActivity(true)}
+                              className="gap-2 bg-white hover:bg-sand-ivory border-sage text-forest font-semibold cursor-pointer shadow-xs hover:border-forest/40"
+                            >
+                              <Plus className="w-4 h-4 text-terracotta" />
+                              <span>Add Activity to Day {selectedDay.dayNumber}</span>
+                            </Button>
+                          </div>
+                        </>
                       ) : (
-                        <div className="bg-white rounded-xl border border-sage p-8 text-center text-xs text-stone">
-                          No scheduled activities recorded for Day {selectedDay.dayNumber}.
+                        <div className="bg-white rounded-xl border border-sage p-8 text-center text-xs text-stone space-y-3">
+                          <p>No scheduled activities recorded for Day {selectedDay.dayNumber}.</p>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setIsAddingActivity(true)}
+                            className="gap-2 bg-sand-ivory hover:bg-sand-ivory/80 border-sage text-forest font-semibold cursor-pointer"
+                          >
+                            <Plus className="w-4 h-4 text-terracotta" />
+                            <span>Add First Activity to Day {selectedDay.dayNumber}</span>
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -682,6 +1013,48 @@ export default function TripDetailPage() {
         isGenerating={isGenerating}
         destination={trip.destination}
         existingDayCount={days.length}
+      />
+
+      {/* Activity Editing Modal (Day 32) */}
+      {editingActivity && (
+        <EditActivityModal
+          key={editingActivity._id || 'edit-activity-modal'}
+          isOpen={Boolean(editingActivity)}
+          onClose={() => {
+            if (!isUpdatingActivity) {
+              setEditingActivity(null)
+            }
+          }}
+          activity={editingActivity}
+          onSave={handleSaveActivity}
+          isSaving={isUpdatingActivity}
+          currency={trip?.currency || 'USD'}
+        />
+      )}
+
+      {/* Add Activity Modal (Day 33) */}
+      <AddActivityModal
+        isOpen={isAddingActivity}
+        onClose={() => setIsAddingActivity(false)}
+        onSave={handleSaveNewActivity}
+        isSaving={isCreatingActivity}
+        currency={trip?.currency || 'USD'}
+        dayNumber={selectedDay?.dayNumber || selectedDayNumber}
+      />
+
+      {/* Delete Activity Confirmation Modal (Day 33) */}
+      <DeleteActivityModal
+        isOpen={Boolean(deletingActivity)}
+        onClose={() => {
+          if (!isRemovingActivity) {
+            setDeletingActivity(null)
+            setRemoveActivityError(null)
+          }
+        }}
+        onConfirm={handleConfirmDeleteActivity}
+        isDeleting={isRemovingActivity}
+        activity={deletingActivity}
+        serverError={removeActivityError}
       />
     </div>
   )

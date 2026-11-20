@@ -33,6 +33,347 @@
 
 ## 2. Session History
 
+### [2026-11-20] — Day 31 Fetch & Query Optimization Audit (Week 5 Reconciliation)
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Perform a focused, evidence-based audit of Day 31 — Fetch Itinerary by Trip ID (`GET /api/trips/:id`), reconciling original query optimization, Mongoose population, embedded subdocument architecture, and ownership protection requirements to bring Week 5 to a definitive, verified close.
+- **Scope Boundaries:** Audit and gap-closure only. No new feature development; no Week 6 work. Strict Git safety: zero staging (`git add`), zero commits, zero pushes.
+
+#### 1. Files Created / Modified
+- `scratch/test_day31_query_explain.mjs` — Diagnostic script executing MongoDB `explain("executionStats")` on `Trip.findOne({ _id: tripId, userId: user._id })` to verify stage, key examination, doc examination, and runtime latency.
+- `scratch/test_day31_fetch_and_query_optimization.mjs` — Comprehensive 48-assertion test suite validating authenticated owner retrieval, cross-user 404 anti-enumeration isolation, unauthenticated 401, non-existent 404, malformed ID 400 rejection, empty/rich itinerary handling, optional fields preservation, and index selectivity.
+- `ARCHITECTURE.md` — Added Section 3.8 documenting itinerary retrieval lifecycle, ownership protection, why Mongoose `populate()` is not used for embedded subdocuments, and index selectivity findings.
+- `DEVELOPMENT_LOG.md` — Appended Day 31 audit session entry.
+
+#### 2. Key Implementation Details & Concepts
+- **End-to-End Fetch Flow:** Traced and verified from `TripDetailPage.jsx` -> `tripApi.getTrip(id)` -> Express router -> `authenticateToken` middleware -> `validateTripId` (Mongoose `isValidObjectId()`) -> `getTripById` controller -> `tripService.getTripById(userId, tripId)` -> `Trip.findOne({ _id: tripId, userId: user._id })`.
+- **Query-Level Multi-Tenant Protection & Anti-Enumeration:** Multi-tenant ownership is enforced at the database query level (`userId: user._id`). Cross-user requests yield `null` from MongoDB, which translates directly to HTTP 404 `NOT_FOUND`, preventing ID enumeration attacks.
+- **Population vs. Embedded Architecture:** Proved that Mongoose `populate()` is neither used nor appropriate. In TripMind's document model, `days` and `activities` are embedded subdocuments stored directly in the `trips` collection BSON document. Calling `populate()` on embedded subdocuments causes schema errors; reading the entire embedded tree in 1 atomic BSON read avoids multi-collection `$lookup` joins and network roundtrips.
+- **Query Optimization & Explain Diagnostics:** Explain plan verified stage `FETCH` with `IXSCAN` on primary index `_id_`, examining exactly 1 key and 1 document in 0 ms. In-memory `userId` predicate evaluation is instantaneous. No extra indexes or `.lean()` refactoring needed.
+- **Zero Code Changes Decision:** The existing Day 31 implementation is completely correct, secure, and optimal. In strict compliance with audit guidelines, zero unnecessary code changes were introduced.
+
+#### 3. Verification & Testing Performed
+- **Day 31 Test Suite (`test_day31_fetch_and_query_optimization.mjs`):** 48/48 passed (100% success rate across 10 scenarios).
+- **Explain Diagnostics (`test_day31_query_explain.mjs`):** Confirmed `stage: FETCH`, `index: _id_`, `totalKeysExamined: 1`, `totalDocsExamined: 1`, `executionTimeMillis: 0 ms`.
+- **Full Week 5 Regression Suite:**
+  - `test_day35_budget_visualization.mjs`: 94/94 passed.
+  - `test_day34_budget_service.mjs`: 134/134 passed.
+  - `test_day33_add_remove_activity.mjs`: 48/48 passed.
+  - `test_day32_edit_activity.mjs`: 32/32 passed.
+  - `test_day29_1_pinboard_and_ui.mjs`: 59/59 passed.
+  - `test_day29_frontend_itinerary.mjs`: 106/106 passed.
+  - `test_day30_e2e_qa.mjs`: 86/86 passed.
+  - Combined automated tests: 607 passed, 0 failed.
+- **ESLint & Build:** Verified client linting clean; production build compiled cleanly.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- None. Day 31 audit reconciliation and all Week 5 milestones are 100% complete, fully verified, and ready for Week 6.
+
+---
+
+### [2026-11-20] — Day 35: Budget Visualization with Recharts
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement responsive, accessible, editorial budget visualizations using Recharts (`recharts@3.11.0`), powered exclusively by the backend budget calculations completed on Day 34. Implement Visualization A: Expense Category Donut Chart (`ExpenseDonutChart.jsx`) displaying the 6 canonical categories, and Visualization B: Budget Comparison Bar Chart (`BudgetComparisonChart.jsx`) displaying Target Budget, Total Estimated, and Remaining Buffer with over-budget highlighting. Integrate both charts into `BudgetBreakdown.jsx`.
+- **Scope Boundaries:** Pure visual presentation layer. Backend financial calculations and MongoDB models strictly preserved. Zero Git staging, commits, or pushes.
+
+#### 1. Files Created / Modified
+- `client/package.json` & `client/package-lock.json` — Added `recharts@^3.11.0` dependency.
+- `client/src/components/budget/constants.js` — Defined `CANONICAL_BUDGET_CATEGORIES`, `formatCurrency`, and pure presentation data transformation helpers (`transformCategoryChartData`, `transformComparisonChartData`).
+- `client/src/components/budget/ExpenseDonutChart.jsx` — Implemented responsive Recharts Donut Chart (`ResponsiveContainer`, `PieChart`, `Pie`, `Cell`, `Tooltip`) with centered total, responsive legend, WCAG screen-reader summary (`sr-only`), and empty-state placeholder.
+- `client/src/components/budget/BudgetComparisonChart.jsx` — Implemented responsive Recharts horizontal Bar Chart (`ResponsiveContainer`, `BarChart`, `Bar`, `XAxis`, `YAxis`, `Tooltip`, `Cell`) with Target vs Estimated vs Remaining bars, over-budget headroom badge, Burnt Crimson (`#B33A3A`) alert fill, and non-negative remaining buffer guarantee.
+- `client/src/components/itinerary/BudgetBreakdown.jsx` — Integrated both charts in a responsive 2-column grid (`grid-cols-1 lg:grid-cols-2`) above the 6-category cards.
+- `scratch/test_day35_budget_visualization.mjs` — Comprehensive test suite covering all 12 Day 35 testing requirements (94 passed, 0 failed).
+- `scratch/run_browser_day35.mjs` — Automated headless Edge browser verification capturing desktop, tablet, mobile, and over-budget screenshots.
+- `ARCHITECTURE.md` — Updated Section 4.1 and added Section 4.4 documenting Recharts budget visualization architecture.
+- `DECISIONS.md` — Updated ADR-008 marking Day 35 implementation confirmed.
+- `UI_DESIGN_SYSTEM.md` — Updated Section 5.5 Chart Theming with canonical category colors and comparison tokens.
+- `MVP_SCOPE.md` — Updated Section 3.6 to mark Recharts visual chart integration completed.
+- `DEVELOPMENT_LOG.md` — Appended Day 35 session log.
+
+#### 2. Key Implementation Details & Concepts
+- **Strict 6-Category Data Contract:** Charts exclusively iterate over `CANONICAL_BUDGET_CATEGORIES`. Never iterates over `Object.keys(categories)` or `Object.entries(categories)`. The legacy `other` alias is completely omitted, guaranteeing zero double-counting.
+- **Over-Budget Discipline:** Remaining buffer is strictly clamped to 0 (`Math.max(0, remaining)`), never negative. When estimated expenses exceed target budget, an over-budget status pill appears and the estimated bar turns Burnt Crimson (`#B33A3A`).
+- **Mobile First & Responsive:** Uses `ResponsiveContainer width="100%" height={220}` with numeric heights to avoid zero-height warnings. Horizontal bar layout ensures long labels never clip on 375px mobile viewports.
+- **Accessibility:** Accompanied by ARIA region roles (`role="region"` and `aria-label`) and hidden `sr-only` semantic lists detailing exact amounts and percentages for screen readers.
+
+#### 3. Verification & Testing Performed
+- **Day 35 Test Suite (`test_day35_budget_visualization.mjs`):** 94/94 passed (100% success rate).
+- **Regression Suites:**
+  - `test_day34_budget_service.mjs`: 134/134 passed.
+  - `test_day33_add_remove_activity.mjs`: 48/48 passed.
+  - `test_day32_edit_activity.mjs`: 32/32 passed.
+  - `test_day29_1_pinboard_and_ui.mjs`: 59/59 passed.
+  - `test_day29_frontend_itinerary.mjs`: 106/106 passed.
+  - `test_day30_e2e_qa.mjs`: 86/86 passed.
+  - **Combined Automated Tests:** 559 passed, 0 failed.
+- **ESLint:** 0 errors across newly created and modified budget components (`npx eslint src/components/budget/`, `npx eslint src/components/itinerary/BudgetBreakdown.jsx`).
+- **Production Build:** `npm run build` compiled cleanly into production bundle in 1.18s.
+- **Browser Visual Verification:** Captured 4 high-resolution screenshots via headless Edge:
+  - `browser_day35_budget_desktop.png` (1280x900)
+  - `browser_day35_budget_tablet.png` (768x1024)
+  - `browser_day35_budget_mobile.png` (375x812)
+  - `browser_day35_budget_overbudget.png` (1280x900)
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- None. Day 35 and Week 5 are 100% complete, verified, and release-ready.
+
+---
+
+### [2026-11-20] — Pre-Day 35 Budget Integration Audit
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Perform a focused diagnostic audit and architectural hardening of the Day 34 Budget Calculation Service before starting Day 35 Recharts chart implementation. Verify local transport support end-to-end, inspect the `other` backward-compatibility alias for double-counting and chart suitability, and audit AI-generated budget initialization in `saveTripItinerary()` to guarantee backend-authoritative calculation.
+- **Scope Boundaries:** Strictly diagnostic audit and backend hardening. Recharts visualizations deferred to Day 35. Zero staging (`git add`), commits, or pushes to Git.
+
+#### 1. Files Created / Modified
+- `server/src/services/budgetService.js` — Added pure domain function `calculateAIBudgetSummary(trip, itineraryBudget, days)` that authoritatively calculates `totalEstimated` from category sums (or days fallback), rejects AI-hallucinated total overrides, computes `remaining`, `perPersonCost`, and `budgetUtilization`, and guarantees `other === miscellaneous`.
+- `server/src/services/tripService.js` — Imported and re-exported `calculateAIBudgetSummary`; refactored `saveTripItinerary()` to delegate inline budget mapping directly to `calculateAIBudgetSummary`.
+- `scratch/test_day34_budget_service.mjs` — Extended test suite with Part 4 (Pre-Day 35 Integration Audit Verification), validating local transport rejection in activityValidator, category sum reconciliation, alias isolation, and end-to-end MongoDB AI initialization via `saveTripItinerary` (expanded from 101 to 134 tests).
+- `ARCHITECTURE.md` — Updated Section 3.7 with two-tier category paradigm documentation, local transport architectural boundary, canonical Day 35 chart consumption rules, and AI budget initialization contract.
+- `DEVELOPMENT_LOG.md` — Added audit session entry.
+
+#### 2. Key Diagnostic Findings & Architectural Resolutions
+- **Concern A (Local Transport Support):**
+  - Traced end-to-end: UI modals (`AddActivityModal.jsx`, `EditActivityModal.jsx`) and `activityValidator.js` enforce `VALID_CATEGORIES = ['stay', 'food', 'transit', 'activity', 'other']`. `Trip.js` schema enforces the identical 5-item enum.
+  - `localTransport` exists exclusively as an AI macro allocation category in `budgetSummary.categories.localTransport` (ADR-013).
+  - All scheduled activity-level transport (trains, subway, buses) uses `transit`, which maps to `transportation` in `budgetService.js`.
+  - Smallest architecture-consistent resolution: Do NOT alter the activity category enum. Preserve `transit` $\rightarrow$ `transportation`, and document `localTransport` as an itinerary-level macro allocation seeded during AI generation.
+- **Concern B (Backward Compatibility Alias):**
+  - In `budgetService.js`, `categories` exports `{ accommodation, food, transportation, activities, localTransport, miscellaneous, other: categories.miscellaneous }`.
+  - `totalEstimated` is derived strictly from `BUDGET_CATEGORIES` (or activity sums) and never sums `other`. Zero double-counting exists.
+  - UI consumer `BudgetBreakdown.jsx` maps over `CATEGORY_CONFIG` (6 items) and never accesses `other`.
+  - Day 35 Chart Representation Contract: Recharts components must consume the canonical 6-item array `BUDGET_CATEGORIES` (or `CATEGORY_CONFIG`). Visualizations must **never** enumerate `Object.keys(categories)` or `Object.entries(categories)`.
+- **Concern C (AI-Generated Budget Initialization):**
+  - Identified defect in previous `saveTripItinerary()` inline logic: it accepted `itineraryData.budget.totalEstimated` directly from AI output (risking hallucinations overriding calculated totals) and set `other = localTransport + miscellaneous` instead of mirroring `miscellaneous`.
+  - Centralized calculation into `calculateAIBudgetSummary()` in `budgetService.js`: `totalEstimated` is authoritatively derived as $\sum \text{categories}$ (or activity fallback). Hallucinated totals are rejected. `other` consistently mirrors `miscellaneous`. `trip.budget` remains untouched.
+
+#### 3. Verification & Testing Performed
+- **`scratch/test_day34_budget_service.mjs`:** 134/134 passed (0 failed) across unit calculations, boundary edge cases, activity CRUD operations, and end-to-end AI initialization via `saveTripItinerary`.
+- **Regression Suites:**
+  - `test_day33_add_remove_activity.mjs`: 48/48 passed.
+  - `test_day32_edit_activity.mjs`: 32/32 passed.
+  - `test_day29_1_pinboard_and_ui.mjs`: 59/59 passed.
+  - `test_day29_frontend_itinerary.mjs`: 106/106 passed.
+  - `test_day30_e2e_qa.mjs`: 86/86 passed.
+- **Total Invariant Tests:** 465 passed, 0 failed (100% success rate).
+- **Git State:** 0 files staged. All uncommitted work preserved.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- None. Day 34 backend budget calculation service is 100% verified, hardened, and ready for Day 35 Recharts chart implementation.
+
+---
+
+### [2026-11-20] — Day 34: Backend Budget Calculation Service
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Audit, strengthen, and finalize TripMind's backend budget calculation system. Extract and centralize all financial calculations into a dedicated pure domain service (`server/src/services/budgetService.js`), establishing backend-authoritative calculations for total estimated cost, remaining budget, 6-category breakdown, per-person estimated cost, and budget utilization percentage. Enforce strict mathematical reconciliation, prevent double-counting of `costBreakdown` strings, handle zero/missing traveller counts and budgets without `Infinity` or `NaN`, guard against negative or invalid numerical inputs, and synchronize calculations across AI generation, activity addition, partial edits, and deletions.
+- **Scope Boundaries:** Embedded subdocuments inside `Trip.budgetSummary`. Zero staging, commits, or pushes to Git. Recharts charts deferred to Day 35.
+
+#### 1. Files Created / Modified
+- [`server/src/services/budgetService.js`](./server/src/services/budgetService.js) — *Created.* Dedicated pure calculation service providing `calculateTripBudget` (pure function calculating `totalEstimated`, `remaining`, `perPersonCost`, `budgetUtilization`, and canonical 6-category breakdown), `recalculateTripBudgetSummary` (in-place mutator for Mongoose documents and POJOs), `roundCurrency` (financial rounding to 2 decimal places), `normalizeActivityCategory` (mapping `stay` -> `accommodation`, `food` -> `food`, `transit` -> `transportation`, `activity` -> `activities`, `localtransport` -> `localTransport`, `other` -> `miscellaneous`), `CATEGORY_MAP`, and `BUDGET_CATEGORIES`.
+- [`server/src/models/Trip.js`](./server/src/models/Trip.js) — *Modified.* Extended `budgetSummarySchema` to include `perPersonCost` (`{ type: Number, min: 0, default: 0 }`) and `budgetUtilization` (`{ type: Number, min: 0, default: 0 }`).
+- [`server/src/services/tripService.js`](./server/src/services/tripService.js) — *Modified.* Re-exported calculation functions from `budgetService.js`, updated `saveTripItinerary` to populate `perPersonCost` and `budgetUtilization`, and removed redundant duplicate inline calculation logic.
+- [`client/src/components/itinerary/BudgetBreakdown.jsx`](./client/src/components/itinerary/BudgetBreakdown.jsx) — *Modified.* Enhanced component to accept `numberOfTravellers`, displaying per-person estimated cost in the header pill and budget utilization percentage badge in the target budget comparison card.
+- [`client/src/pages/TripDetailPage.jsx`](./client/src/pages/TripDetailPage.jsx) — *Modified.* Passed `numberOfTravellers={trip.numberOfTravellers}` into `<BudgetBreakdown />`.
+- [`scratch/test_day34_budget_service.mjs`](./scratch/test_day34_budget_service.mjs) — *Created.* Comprehensive 101-assertion verification suite testing category mapping, currency rounding, empty itineraries, multi-day/multi-activity totals, decimal precision, over-budget scenarios, zero/invalid travellers, zero/invalid budgets, negative/NaN/infinite cost inputs, costBreakdown isolation, Mongoose document persistence, and activity lifecycle recalculations.
+- [`scratch/run_browser_day34.mjs`](./scratch/run_browser_day34.mjs) — *Created.* Automated headless Edge CDP test script capturing visual evidence of rendered budget metrics ($400 total, $200 per-person, 25% utilization, $1,200 remaining), live recalculation upon adding an activity ($600 total, $300 per-person, 37.5% utilization, $1,000 remaining), and persistence across hard page reloads.
+
+#### 2. Key Implementation Details & Concepts
+- **Pure Calculation Architecture:** Extracted financial arithmetic into `budgetService.js` without database or Express coupling, enabling fast, isolated unit testing across all edge cases.
+- **Mathematical Reconciliation:** $\sum \text{categories} \equiv \text{totalEstimated}$ is strictly enforced to 2 decimal places, preventing penny drift or divergence between category pills and total estimated pills.
+- **Zero-Division & Floating Invariant Guards:** Safe defaults (`travellers = Math.max(1, rawTravellers || 1)`) guarantee that `perPersonCost` and `budgetUtilization` never evaluate to `Infinity`, `-Infinity`, or `NaN`.
+- **Double-Counting Prevention:** `costBreakdown` is verified as an explanatory narrative note, never parsed or added to financial sums.
+- **Target Budget Immutability:** User-defined `trip.budget` is strictly preserved and never overwritten by estimated expenses.
+
+#### 3. Verification & Testing Performed
+- `node scratch/test_day34_budget_service.mjs` — 101 passed, 0 failed.
+- `node scratch/test_day33_add_remove_activity.mjs` — 48 passed, 0 failed.
+- `node scratch/test_day32_edit_activity.mjs` — 32 passed, 0 failed.
+- `node scratch/test_day29_1_pinboard_and_ui.mjs` — 59 passed, 0 failed.
+- `node scratch/test_day29_frontend_itinerary.mjs` — 106 passed, 0 failed.
+- `node scratch/test_day30_e2e_qa.mjs` — 86 passed, 0 failed.
+- Total automated tests passing: 432 assertions.
+- `npx --prefix client eslint client/src/components/itinerary/BudgetBreakdown.jsx client/src/pages/TripDetailPage.jsx` — 0 errors, 0 warnings.
+- `npm --prefix client run build` — Production Vite build succeeded in 1.05s.
+- `node scratch/run_browser_day34.mjs` — Headless Edge browser automation verified live rendering, dynamic recalculation, and hard reload persistence, capturing 3 screenshots (`browser_day34_budget_initial.png`, `browser_day34_budget_updated.png`, `browser_day34_persisted_reload.png`).
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Day 34 Budget Calculation Service is 100% complete and verified.
+- Day 35 will implement Recharts visual budget charts (donut and bar visualizations) consuming these authoritative figures.
+
+### [2026-11-20] — Day 33: Add and Remove Itinerary Activities
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement full-stack capability allowing authenticated travelers to add new activities to specific itinerary days and remove existing activities, with immediate frontend UI updates, atomic MongoDB embedded subdocument persistence, anti-enumeration ownership enforcement, and centralized dynamic budget recalculation across all additions, updates, and removals.
+- **Scope Boundaries:** Embedded subdocuments strictly maintained within `Trip.days[].activities[]`. No external Activity collection. No staging, committing, or pushing to Git.
+
+#### 1. Files Created / Modified
+- [`server/src/validators/activityValidator.js`](./server/src/validators/activityValidator.js) — *Modified & Extended.* Added `validateDayParams` (validating `:tripId` and `:dayId` as 24-character hexadecimal ObjectIds) and `validateAddActivity` (requiring non-empty `title`/`name`, rejecting empty payloads, rejecting client-injected protected fields `_id`, `userId`, `tripId`, etc., rejecting arbitrary unrecognized fields, validating `category` and `timeSlot` enums, validating non-negative cost, and enforcing mutual coordinate nullability). Preserved existing `validateActivityParams` and `validateUpdateActivity`.
+- [`server/src/services/tripService.js`](./server/src/services/tripService.js) — *Modified.* Centralized financial calculation into `recalculateTripBudgetSummary(trip)` (handling zero-activity and over-budget states). Implemented `addTripActivity(userId, tripId, dayId, activityData)` using `day.activities.push(...)` and `removeTripActivity(userId, tripId, dayId, activityId)` using `day.activities.pull({ _id: activity._id })`. Refactored `updateTripActivity` to reuse the centralized calculation method.
+- [`server/src/controllers/tripController.js`](./server/src/controllers/tripController.js) — *Modified.* Added `addActivity(req, res, next)` returning HTTP 201 Created with `{ success: true, data: { activity, trip }, message }` and `removeActivity(req, res, next)` returning HTTP 200 OK with `{ success: true, data: { trip }, message }`.
+- [`server/src/routes/trip.routes.js`](./server/src/routes/trip.routes.js) — *Modified.* Registered `POST /:tripId/days/:dayId/activities` and `DELETE /:tripId/days/:dayId/activities/:activityId` with authentication, param validation, and payload validation middlewares.
+- [`client/src/services/api/tripApi.js`](./client/src/services/api/tripApi.js) — *Modified.* Exported `addActivity(tripId, dayId, activityData)` using `apiClient.post` and `deleteActivity(tripId, dayId, activityId)` using `apiClient.delete`.
+- [`client/src/components/itinerary/ActivityCard.jsx`](./client/src/components/itinerary/ActivityCard.jsx) — *Modified.* Added `onDelete` prop and accessible trash button (`title="Remove activity"`, `aria-label="Remove {title}"`) with crimson hover styles.
+- [`client/src/components/itinerary/AddActivityModal.jsx`](./client/src/components/itinerary/AddActivityModal.jsx) — *Created.* Editorial modal dialog for adding activities with category selection pills, time slot dropdown, location, cost, breakdown, description inputs, client-side validation, server error alerts, loading state, duplicate submission prevention, and Escape/backdrop dismissal.
+- [`client/src/components/itinerary/DeleteActivityModal.jsx`](./client/src/components/itinerary/DeleteActivityModal.jsx) — *Created.* Accessible confirmation dialog conforming to WAI-ARIA `role="alertdialog"` standards with explicit activity details, warning description, server error alert, and loading indicators to prevent accidental deletions.
+- [`client/src/pages/TripDetailPage.jsx`](./client/src/pages/TripDetailPage.jsx) — *Modified.* Added state hooks for add/delete modal visibility, wired "Add Activity" triggers (in day canvas header, activity list footer, and empty day state), wired delete button to `DeleteActivityModal`, implemented `handleSaveNewActivity` and `handleConfirmDeleteActivity`, updated local React state, and synchronized `TripContext` without page reloads.
+- [`scratch/test_day33_add_remove_activity.mjs`](./scratch/test_day33_add_remove_activity.mjs) — *Created.* 48-assertion end-to-end integration test suite verifying authentication, anti-enumeration authorization, parameter validation, payload validation, functional addition, subdocument ObjectId generation, sibling preservation, functional deletion, budget recalculations across zero-activity and over-budget states, and frontend component static contracts.
+- [`scratch/run_browser_day33.mjs`](./scratch/run_browser_day33.mjs) — *Created.* Automated headless Edge CDP test script verifying visual rendering of Add and Delete modals, form submission, dynamic DOM card insertion and removal, and persistence across hard page reloads.
+
+#### 2. Key Implementation Details & Concepts
+- **Embedded Subdocument Manipulation:** `day.activities.push(...)` atomically creates a subdocument with a Mongoose ObjectId; `day.activities.pull({ _id: activity._id })` cleanly erases the targeted activity without re-indexing or disturbing sibling activities.
+- **Centralized Budget Normalization:** Single authoritative `recalculateTripBudgetSummary(trip)` method shared across add, update, and delete service methods ensures mathematical consistency across all financial totals and categories.
+- **Anti-Enumeration Security:** Database query-level ownership checks (`Trip.findOne({ _id: tripId, userId: user._id })`) return uniform HTTP 404 responses for non-existent and unowned journeys, preventing resource discovery attacks.
+- **Accessible Confirmation Dialogs:** Deleting activities requires explicit confirmation via a WAI-ARIA `alertdialog` displaying activity title, cost, and category to prevent unintended data loss.
+
+#### 3. Verification & Testing Performed
+- `node scratch/test_day33_add_remove_activity.mjs` — 48 passed, 0 failed.
+- `node scratch/test_day32_edit_activity.mjs` — 32 passed, 0 failed.
+- `node scratch/test_day29_1_pinboard_and_ui.mjs` — 59 passed, 0 failed.
+- `node scratch/test_day29_frontend_itinerary.mjs` — 106 passed, 0 failed.
+- `node scratch/test_day30_e2e_qa.mjs` — 86 passed, 0 failed.
+- Total automated tests passing: 331 assertions.
+- `npx --prefix client eslint client/src/components/itinerary/AddActivityModal.jsx client/src/components/itinerary/DeleteActivityModal.jsx client/src/components/itinerary/ActivityCard.jsx client/src/pages/TripDetailPage.jsx client/src/services/api/tripApi.js` — 0 errors, 0 warnings.
+- `npm --prefix client run build` — Production Vite build succeeded in 997ms.
+- `node scratch/run_browser_day33.mjs` — Headless Edge browser automation verified modal rendering, activity addition, activity deletion, and persistence across hard page reload, capturing 6 screenshots (`browser_day33_itinerary_initial.png`, `browser_day33_add_modal_open.png`, `browser_day33_activity_added.png`, `browser_day33_delete_modal_open.png`, `browser_day33_activity_deleted.png`, `browser_day33_persisted_after_refresh.png`).
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Day 33 Add and Remove activities is 100% complete and fully verified.
+- Day 34 will proceed with itinerary reordering / drag-and-drop or map visualization according to roadmap.
+
+### [2026-11-20] — Day 32: Edit Existing Itinerary Activities
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement full-stack capability allowing authenticated users to edit existing scheduled activities within saved itineraries. Enforces strict query-level ownership, subdocument lookup via stable ObjectIds, payload validation (whitelisted fields, length caps, category/timeSlot enums, mutual coordinate nullability, protected field rejection), partial updates without accidental field clobbering, automated dynamic budget recalculation (updating `totalEstimated`, `remaining`, and categorical breakdowns across all days when costs or categories change), and responsive editorial UI editing via `EditActivityModal` and `ActivityCard`.
+
+#### 1. Files Created / Modified
+- [`server/src/validators/activityValidator.js`](./server/src/validators/activityValidator.js) — *Created.* Middleware providing `validateActivityParams` (enforcing valid 24-character hexadecimal MongoDB ObjectIds for `tripId`, `dayId`, `activityId`) and `validateUpdateActivity` (rejecting empty bodies, rejecting protected/unrecognized fields, validating whitelisted fields `title`/`name`, `description`, `timeSlot`, `time`, `duration`, `locationName`, `category`, `estimatedCost`, `costBreakdown`, `latitude`, `longitude`, and enforcing mutual coordinate nullability).
+- [`server/src/services/tripService.js`](./server/src/services/tripService.js) — *Modified.* Implemented `updateTripActivity(userId, tripId, dayId, activityId, updateData)` enforcing query-level ownership (`Trip.findOne({ _id: tripId, userId: user._id })`), subdocument lookup via `trip.days.id(dayId)` and `day.activities.id(activityId)`, field mutation with preservation of untouched attributes, embedded `location` synchronization, dynamic budget recalculation, and atomic persistence.
+- [`server/src/controllers/tripController.js`](./server/src/controllers/tripController.js) — *Modified.* Added `updateActivity(req, res, next)` extracting authenticated `req.user.id`, delegating to service, and returning standardized HTTP 200 `{ success: true, data: { activity, trip }, message }` or mapped errors.
+- [`server/src/routes/trip.routes.js`](./server/src/routes/trip.routes.js) — *Modified.* Registered `PATCH /:tripId/days/:dayId/activities/:activityId` with `authenticateToken`, `validateActivityParams`, `validateUpdateActivity`, and `updateActivity`.
+- [`client/src/services/api/tripApi.js`](./client/src/services/api/tripApi.js) — *Modified.* Exported `updateActivity(tripId, dayId, activityId, activityData)` using `apiClient.patch`.
+- [`client/src/components/itinerary/ActivityCard.jsx`](./client/src/components/itinerary/ActivityCard.jsx) — *Modified.* Added `onEdit` prop and accessible edit trigger button (`<button aria-label="Edit {title}" title="Edit activity">`).
+- [`client/src/components/itinerary/EditActivityModal.jsx`](./client/src/components/itinerary/EditActivityModal.jsx) — *Created.* Editorial modal dialog pre-populating existing activity values, providing client-side validation, error alert for API failures, duplicate submission prevention, loading spinner, and keyboard/backdrop dismissal.
+- [`client/src/pages/TripDetailPage.jsx`](./client/src/pages/TripDetailPage.jsx) — *Modified.* Connected `ActivityCard` edit trigger to `EditActivityModal`, implemented `handleSaveActivity` calling `tripApi.updateActivity`, updating React state with updated trip/days/budgetSummary, synchronizing `TripContext` via `updateTripInState`, and displaying success notifications.
+- [`scratch/test_day32_edit_activity.mjs`](./scratch/test_day32_edit_activity.mjs) — *Created.* 32-assertion end-to-end integration test suite verifying authentication, anti-enumeration authorization, parameter validation, payload validation, partial updating, field preservation, budget recalculation, and database persistence.
+- [`scratch/run_browser_day32.mjs`](./scratch/run_browser_day32.mjs) — *Created.* Automated headless Edge CDP test script capturing visual evidence of itinerary activity cards, modal opening with pre-populated fields, and successful submission.
+
+#### 2. Key Implementation Details & Concepts
+- **Stable Subdocument Identification:** `activitySchema` and `itineraryDaySchema` in `Trip.js` both have `{ _id: true }`, ensuring MongoDB assigns stable, persistent `_id` ObjectIds without requiring schema redesign.
+- **Query-Level Anti-Enumeration Ownership:** `Trip.findOne({ _id: tripId, userId: user._id })` ensures that unauthorized access attempts return HTTP 404 `NOT_FOUND` identical to non-existent trips, preventing cross-user ID scanning.
+- **Partial Field Mutation Invariant:** Only fields explicitly present in the request payload are modified; untouched fields (`description`, `category`, `time`, `location`, etc.) are strictly preserved.
+- **Automatic Financial Synchronization:** Modifying an activity's `estimatedCost` or `category` automatically recalculates `trip.budgetSummary.totalEstimated`, `trip.budgetSummary.remaining`, and category breakdowns across all days before calling `trip.save()`.
+- **Zero-Effect State Initialization in React:** `EditActivityModal` is keyed by `editingActivity._id` in `TripDetailPage`, eliminating cascading renders and satisfying React 19 compiler guidelines without `useEffect` state syncing.
+
+#### 3. Verification & Testing Performed
+- `node scratch/test_day32_edit_activity.mjs` — 32 passed, 0 failed.
+- `node scratch/test_day29_1_pinboard_and_ui.mjs` — 59 passed, 0 failed.
+- `node scratch/test_day29_frontend_itinerary.mjs` — 106 passed, 0 failed.
+- `node scratch/test_day30_e2e_qa.mjs` — 86 passed, 0 failed.
+- `npx --prefix client eslint client/src/components/itinerary/ActivityCard.jsx client/src/components/itinerary/EditActivityModal.jsx client/src/pages/TripDetailPage.jsx client/src/services/api/tripApi.js` — 0 errors, 0 warnings.
+- `npm --prefix client run build` — Vite production build passed in 1.12s.
+- `node scratch/run_browser_day32.mjs` — Headless Edge CDP browser automation verified modal rendering, field pre-population, and state updates, capturing 3 screenshots (`browser_day32_itinerary_page.png`, `browser_day32_edit_modal_open.png`, `browser_day32_activity_updated.png`).
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Day 32 Activity Editing is 100% complete and fully verified.
+- Day 33 will implement adding new activities and deleting existing activities from saved itineraries.
+
+### [2026-11-20] — Day 29.1: UI Refinement & Dashboard Pinboard Experience
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Refine TripMind's frontend UI based on manual testing findings. Transform the authenticated Dashboard (`/dashboard`) into a tactile, memorable physical travel-planning board (warm corkboard texture, walnut wooden frame, brass header plaque, paper trip sheets with desktop rotation angles, 3D SVG pushpins across an expanded 10-color heritage palette with deterministic hashing, destination photography plates, and a blank "Pin a New Journey" note). Eliminate navbar redundancies by clearly separating primary workspace navigation from account actions, establish strict mobile drawer ordering (1. User Profile, 2. Sign Out, 3. My Journal), implement seamless trip-creation navigation flow (redirecting directly to the itinerary generation workspace at `/trips/:id`), integrate destination photographs and high-contrast primary action buttons into the itinerary detail page, mount a unified navbar on the dashboard, and introduce a desktop user profile hover flyout menu with a safe transit buffer. Strictly isolate all physical pinboard styling to the dashboard, preserving the dedicated visual identities of Home, Login, Signup, and Itinerary pages.
+
+#### 1. Files Created / Modified
+- [`client/src/utils/pinPalette.js`](./client/src/utils/pinPalette.js) — *Created.* Defines a rich 10-color heritage palette (`terracotta`, `forest`, `brass`, `crimson`, `cobalt`, `amber`, `sage`, `plum`, `slate`, `copper`) suited to warm cork and parchment, paired with a 32-bit FNV-1a deterministic hashing strategy (`getStablePinColor`) that assigns stable, uniform pushpin colors based on trip identity (`trip._id`, title, or destination) without database changes.
+- [`client/src/utils/destinationImages.js`](./client/src/utils/destinationImages.js) — *Created.* Curated destination photography registry mapping popular destinations (Kyoto, Swiss Alps, Bali, Manali, Varanasi, Amalfi Coast) to verified local WebP assets with open-license photographer attribution; provides fallback helper `getDestinationPhoto()` returning high-resolution mountain lake artwork for uncurated custom destinations without broken images or external image APIs.
+- [`client/src/components/dashboard/PushPin.jsx`](./client/src/components/dashboard/PushPin.jsx) — *Created & Enhanced.* Realistic 3D SVG thumbtack component featuring multi-stop spherical radial gradients, specular highlight reflection, recessed metallic collar, sharp steel pin, and realistic contact drop shadow across the 10 heritage colorways.
+- [`client/src/components/dashboard/PinnedTripCard.jsx`](./client/src/components/dashboard/PinnedTripCard.jsx) — *Created & Enhanced.* Physical paper travel note card (`bg-[#FAF7EE]`, warm paper grain, multilayered drop shadow, washi tape accent, desktop rotation angles `lg:-rotate-1.5` to `lg:rotate-1.5`, 3D pushpin mounted at top center using `getStablePinColor`, printed destination photograph plate with Polaroid border, dates/origin/party/budget metadata, status badge, prominent "Open Itinerary" action, and Edit/Delete controls).
+- [`client/src/components/dashboard/AddTripPinCard.jsx`](./client/src/components/dashboard/AddTripPinCard.jsx) — *Created.* Pinned blank parchment note (`border-2 border-dashed border-[#C5B396]`) with coordinated burnished brass pushpin and accessible "Pin a New Journey" action triggering the existing 4-step `CreateTripModal.jsx` wizard.
+- [`client/src/components/dashboard/CorkBoard.jsx`](./client/src/components/dashboard/CorkBoard.jsx) — *Created.* Physical travel pinboard canvas featuring walnut wood frame (`bg-[#543820]`), multi-stop radial lighting over warm cork foundation (`#BA8950`), micro-fleck texture, brass header plaque ("Travel Planning Pinboard • X journeys pinned"), top action bar, loading state, error retry state, empty welcome note state, and populated responsive card grid.
+- [`client/src/components/layout/Navbar.jsx`](./client/src/components/layout/Navbar.jsx) — *Modified.* Eliminated navigation redundancies: removed duplicate "Dashboard" link from desktop `navLinks`, removed duplicate standalone "Sign Out" button from header bar, established "My Journal" as the singular primary workspace button, consolidated account actions into the User Profile Flyout (with 250ms clearance buffer and full keyboard accessibility), and restructured the mobile hamburger drawer into the strict required order: 1. User Profile card, 2. Sign Out button, 3. My Journal button, followed by clean section links.
+- [`client/src/pages/DashboardPage.jsx`](./client/src/pages/DashboardPage.jsx) — *Modified.* Mounted unified `<Navbar />` (Task C1), replaced legacy card grid with `<CorkBoard />` (Task A), updated `handleTripCreated` to redirect directly to `/trips/${tripId}` with newly created trip state (Task B1), and applied `overflow-x-hidden` to prevent viewport scrollbars.
+- [`client/src/pages/TripDetailPage.jsx`](./client/src/pages/TripDetailPage.jsx) — *Modified.* Integrated destination photograph plate into Journey Header Banner with fallback and attribution (Task B2), and elevated primary itinerary action button visibility, contrast, and states (`bg-terracotta text-white shadow-md hover:shadow-lg focus-visible:ring-terracotta`, loading spin, disabled states) (Task B3).
+- [`client/src/index.css`](./client/src/index.css) — *Modified.* Added `@keyframes fadeIn` and `.animate-fadeIn` utilities for transient status alerts and dropdown flyouts.
+- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — *Modified.* Added Section 5.13 documenting CorkBoard surface, pinned paper anatomy, 10-color heritage pushpins, deterministic FNV-1a hashing strategy, destination photography, blank add-trip note, clean navigation hierarchy, profile hover interactions, itinerary button contrast, and strict page isolation boundaries.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Documented Day 29.1 implementation, verification metrics, browser screenshots, and blocker resolutions.
+- [`scratch/test_day29_1_pinboard_and_ui.mjs`](./scratch/test_day29_1_pinboard_and_ui.mjs) — *Created & Expanded.* Comprehensive 59-assertion unit and integration test suite verifying destination photo resolver, 10-color PushPin palette, FNV-1a deterministic stability, PinnedTripCard structure, CorkBoard states, Navbar redundancy cleanup, mobile drawer strict ordering, trip navigation redirect, and page isolation.
+- [`scratch/run_browser_verification.mjs`](./scratch/run_browser_verification.mjs) — *Created & Enhanced.* Headless Edge browser automation suite executing end-to-end browser verification and capturing 9 verification screenshots.
+
+#### 2. Key Implementation Details & Concepts
+- **Navbar Redundancy Elimination & Hierarchy (Task 1):**
+  - *Identified Redundancies in Baseline:*
+    1. `/dashboard` was linked 3 separate times on desktop: as "Dashboard" in nav links, as "My Journal" button in header, and as "My Journal" in the profile dropdown.
+    2. "Sign Out" appeared twice simultaneously side-by-side on desktop: as a standalone ghost button and inside the user profile dropdown.
+    3. Mobile drawer rendered "Dashboard" link in addition to "My Journal" button.
+  - *Clean Role Separation:*
+    - **Primary Navigation (Editorial):** Destinations (`/#destinations`), Itineraries (`/#itineraries`), Budget Planner (`/#budget`), About (`/#about`).
+    - **Primary Workspace Action:** Singular prominent button `<Button variant="primary">My Journal</Button>` linking to `/dashboard`.
+    - **Account Actions:** Consolidated inside User Profile Trigger (`user?.name`, avatar, chevron) opening the Profile Flyout on hover (user identity, role badge, session security indicator, Explore Destinations, and Sign Out).
+  - *Strict Mobile Drawer Order (Task 1 & Task 3):*
+    1. **Item 1: User Profile Card** (Traveler avatar, name, email, role badge).
+    2. **Item 2: Sign Out Button** (Destructive outline button with `LogOut` icon).
+    3. **Item 3: My Journal Button** (Primary workspace button linking to `/dashboard`).
+    Followed by clean section navigation links with zero duplicate "Dashboard" link.
+- **PushPin Palette Expansion & Deterministic Assignment Strategy (Task 2):**
+  - Replaced the initial 4-color repeating sequence with an expanded 10-color heritage palette suited to warm cork (`#BA8950`), walnut wood (`#543820`), and parchment paper (`#FAF7EE`):
+    - `terracotta` (`#D97757`), `forest` (`#1B4D3E`), `brass` (`#C28B38`), `crimson` (`#B33232`), `cobalt` (`#2E5E8A`), `amber` (`#D49028`), `sage` (`#557A5E`), `plum` (`#783A5D`), `slate` (`#4F656F`), `copper` (`#BD683A`).
+  - Implemented 32-bit FNV-1a deterministic hashing (`getStablePinColor`) based on stable trip identity (`trip._id`, title, or destination). Guarantees that each trip receives a visually distinct pin color that remains 100% stable across rerenders, date sorting, or filtering.
+  - Add Trip note uses a dedicated, coordinated burnished brass thumbtack (`color="brass"`).
+- **Strict Page Isolation Boundary:**
+  - The physical travel pinboard design is contained strictly within `DashboardPage.jsx` and its subcomponents (`CorkBoard.jsx`, `PinnedTripCard.jsx`, `AddTripPinCard.jsx`, `PushPin.jsx`).
+  - Home (`/`), Login (`/login`), Register (`/register`), and Itinerary Detail (`/trips/:id`) retain their dedicated layouts, night-sky backdrops, and clean editorial styles with 0 global style leakage.
+- **Physical Corkboard Surface & Lighting:**
+  - Walnut wood frame (`#543820`) with 24px border radius and deep drop shadow simulates a physical board mounted to a gallery wall.
+  - Multi-stop radial gradients overlaid on cork brown (`#BA8950`) provide natural spotlighting and corner vignetting.
+  - Micro-fleck texture generated via pure CSS radial gradients eliminates external paid image dependencies.
+- **Pinned Papers & Controlled Rotation Geometry:**
+  - Paper cards use tactile linen tones (`#FAF7EE`), multi-layer drop shadows, washi tape accent strips, and 3D pushpins.
+  - Organic angles (`lg:-rotate-1.5` to `lg:rotate-1.5`) are scoped strictly to large desktop displays (`lg:` $\ge 1024\text{px}$). On hover, cards smoothly return to upright (`hover:rotate-0`).
+  - Mobile and tablet displays (`< 1024\text{px}`) render at 0deg rotation, completely eliminating subpixel horizontal scrollbar overflow.
+- **Seamless Trip Selection & Generation Flow (Task B1):**
+  - Upon successful trip creation in `CreateTripModal.jsx`, `DashboardPage.jsx`'s `handleTripCreated` callback triggers `navigate(`/trips/${newTrip._id}`, { state: { trip: newTrip } })`.
+  - `TripDetailPage.jsx` immediately consumes `location.state?.trip`, enabling instantaneous rendering while background API synchronization completes.
+- **Desktop Profile Hover Interaction & Safe Transit Buffer (Task C2):**
+  - Solved common premature collapse issue when cursor traverses the gap between trigger and flyout by introducing a 250ms clearance timeout (`profileTimeoutRef`).
+  - Full keyboard accessibility: toggles via `Enter` / `Space`, closes via `Escape`, closes on outside clicks, and retains full touch support on mobile.
+- **"My Journal" Route Status:**
+  - Audited codebase and verified no separate `/journal` route or component exists. In `Navbar.jsx`, "My Journal" consistently links to `/dashboard` (which serves as the traveler's personal trip journal and pinboard).
+
+#### 3. Verification & Testing Performed
+- **Production Build:**
+  - Command: `npm --prefix client run build`
+  - Output: Built cleanly in **1.07s** (2,191 modules transformed, 0 errors, 0 warnings).
+- **ESLint Code Quality:**
+  - Command: `npx --prefix client eslint client/src/utils/pinPalette.js client/src/utils/destinationImages.js client/src/components/dashboard/ client/src/components/layout/Navbar.jsx client/src/pages/DashboardPage.jsx client/src/pages/TripDetailPage.jsx`
+  - Output: **0 errors, 0 warnings** across all 9 inspected files.
+- **Automated Day 29.1 Test Suite (`scratch/test_day29_1_pinboard_and_ui.mjs`):**
+  - **59 of 59 assertions passed (100%)**:
+    - Group 1: Destination Image Resolver & Fallback Logic (9/9 passed).
+    - Group 2: Physical Pinboard & PushPin Palette Architecture (19/19 passed).
+    - Group 3: Navigation Redundancy Cleanup & Mobile Strict Ordering (10/10 passed).
+    - Group 4: Itinerary Workspace Enhancements & Button Visibility (7/7 passed).
+    - Group 5: Strict Page Isolation Boundary Enforcement (4/4 passed).
+- **Automated Regression Suites:**
+  - `scratch/test_day30_e2e_qa.mjs`: **86 of 86 assertions passed (100%)**.
+  - `scratch/test_day29_frontend_itinerary.mjs`: **106 of 106 assertions passed (100%)**.
+  - Total automated assertions verified: **251 passed, 0 failed**.
+- **Browser-Level Verification via Headless Edge (`scratch/run_browser_verification.mjs`):**
+  - Stage 1: Verified Home page preserves Hero video/poster and destination cards without pinboard styling (`scratch/browser_home.png`).
+  - Stage 2: Verified Login page preserves night-sky backdrop and authentication card without corkboard styling (`scratch/browser_login.png`).
+  - Stage 3: Verified authenticated Dashboard mounts CorkBoard with wooden frame, brass plaque, welcome note, and "Pin a New Journey" card (`scratch/browser_dashboard_empty.png`).
+  - Stage 4: Verified desktop user profile hover dropdown displays identity and Sign Out, with no duplicate "Dashboard" link and no duplicate standalone Sign Out button in header (`scratch/browser_profile_hover.png`).
+  - Stage 5: Verified trip creation wizard creates journey and immediately navigates to Itinerary Detail page at `/trips/:id`.
+  - Stage 6: Verified Itinerary page displays destination photograph plate and high-contrast primary action button (`scratch/browser_itinerary_detail.png`).
+  - Stage 7: Verified populated Dashboard renders pinned trip cards with 3D pushpin, photograph plate, metadata, and actions (`scratch/browser_dashboard_populated.png`).
+  - Stage 8: Verified responsive layouts:
+    - Tablet (768 x 1024): Horizontal scrollbar overflow: **NO (CLEAN)** (`scratch/browser_dashboard_tablet.png`).
+    - Mobile (390 x 844): Horizontal scrollbar overflow: **NO (CLEAN)** (`scratch/browser_dashboard_mobile.png`).
+    - Mobile hamburger drawer renders exact strict order: 1. User Profile card, 2. Sign Out button, 3. My Journal button (`scratch/browser_hamburger_menu.png`).
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None. Both navbar redundancy findings and pushpin palette color assignment resolved and verified.
+- **Next Steps:** None. Release-ready state achieved.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None. All manual testing findings and design requirements implemented and verified.
+- **Next Steps:** None. Release-ready state achieved.
+
+---
+
 ### [2026-11-19] — Day 30: End-to-End Quality Assurance & Release Readiness
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Perform a comprehensive quality-assurance audit of TripMind's existing MVP. Verify the complete end-to-end user journey (Authentication, Trip CRUD, AI Itinerary Generation, Refresh/Navigation Persistence, and Regeneration Invariants), evaluate AI itinerary quality across multiple representative destinations and budgets (Kyoto, Japan; New Delhi, India; Manali, India), test error handling and edge cases under simulated provider and network failures, and verify that existing functionality has not regressed.

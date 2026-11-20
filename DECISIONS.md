@@ -123,14 +123,18 @@
 ---
 
 ### ADR-008: Recharts for Budget Visualizations
-- **Status:** 🟢 CONFIRMED
-- **Context:** Travelers need to visualize categorical spending (stay, dining, transit, activities) and monitor total expenditure against their budget cap.
-- **Decision:** Adopt **Recharts** for rendering categorical breakdowns and budget allocation charts.
+- **Status:** 🟢 CONFIRMED (Implemented Day 35)
+- **Context:** Travelers need to visualize categorical spending (stay, dining, transit, activities, local transit, miscellaneous) and monitor total expenditure against their budget cap.
+- **Decision:** Adopt **Recharts** (`recharts@3.11.0`) for rendering categorical breakdowns and budget allocation charts.
+- **Architecture & Implementation (`client/src/components/budget/`):**
+  - **Visualization A (`ExpenseDonutChart.jsx`):** Responsive donut chart displaying the 6 canonical categories (`CANONICAL_BUDGET_CATEGORIES`). Strictly omits the legacy `other` alias to prevent duplicate slices or double-counting. Features centered total summary, responsive legend, and custom tooltips with currency formatting.
+  - **Visualization B (`BudgetComparisonChart.jsx`):** Responsive horizontal comparison bar chart comparing Target Budget, Total Estimated Expenses, and Remaining Buffer based strictly on backend-persisted figures. Over-budget trips are highlighted with Burnt Crimson (`#B33A3A`) while remaining buffer is strictly clamped to 0 (never negative).
+  - **Pure Transformers (`constants.js`):** Decoupled data transformation functions (`transformCategoryChartData`, `transformComparisonChartData`) allow comprehensive unit testing without DOM overhead.
 - **Rationale:**
-  - Native React integration with declarative SVG components.
+  - Native React integration with declarative SVG components and React 19 compatibility.
   - Highly customizable to seamlessly accept custom theme colors matching the editorial palette.
-  - Lightweight and responsive out of the box.
-- **Consequences:** Visual customization requires configuring SVG fills and stroke properties aligned with [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md).
+  - Lightweight, responsive out of the box (`ResponsiveContainer`), and accessible (ARIA regions and `sr-only` summaries).
+- **Consequences:** Visual customization requires configuring SVG fills and stroke properties aligned with [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md). Frontend components consume authoritative server metrics rather than computing their own math.
 
 ---
 
@@ -369,6 +373,70 @@
 - **Consequences:**
   - Consumers receive reliable, fully validated itineraries backed by atomic MongoDB persistence.
   - Day 29 and frontend views can reliably display persisted days and budget summaries without edge-case crashes.
+
+---
+
+### ADR-017: Subdocument Identification, Partial Mutation, Anti-Enumeration Ownership, and Dynamic Budget Recalculation for Activity Updates
+- **Status:** 🟢 CONFIRMED
+- **Context:** Week 5, Day 32 requires allowing authenticated travelers to edit individual activities embedded within an itinerary day. Because activities are subdocuments embedded within `days[].activities[]` in MongoDB rather than standalone documents in their own collection, an architectural strategy was required for identifying target activities, enforcing ownership securely without leaking resource existence to attackers, partially updating fields without clobbering untouched properties, and keeping financial budget totals synchronized.
+- **Decision:**
+  1. **Subdocument Identification:** Both `itineraryDaySchema` and `activitySchema` in `Trip.js` have `{ _id: true }` enabled. Mongoose and MongoDB assign stable, unique 24-character hexadecimal ObjectIds to every day and activity subdocument. Subdocuments are addressed directly using Mongoose subdocument methods: `trip.days.id(dayId)` and `day.activities.id(activityId)` under route `PATCH /api/trips/:tripId/days/:dayId/activities/:activityId`.
+  2. **Anti-Enumeration Ownership Model:** Ownership is verified strictly at the query level: `Trip.findOne({ _id: tripId, userId: user._id })`. An attempt to modify or probe another user's trip yields `null` and returns HTTP 404 `NOT_FOUND` (identical to non-existent trips), preventing cross-user ID scanning or timing attacks.
+  3. **Strict Whitelisted Partial Updates:** Only explicitly submitted fields are modified. Subdocument mutation directly assigns only provided values, leaving unmentioned fields (`description`, `category`, `time`, `location`, etc.) 100% intact. Protected fields (`_id`, `userId`, `tripId`, `dayId`, `activityId`, `createdAt`, `updatedAt`, `__v`) and arbitrary unrecognized keys are rejected with HTTP 400 `VALIDATION_ERROR`.
+  4. **Dynamic Budget Summary Recalculation:** If an activity's `estimatedCost` or `category` changes, `tripService.updateTripActivity` iterates across all activities across all days in memory before `trip.save()`, re-tallying `trip.budgetSummary.totalEstimated`, `trip.budgetSummary.remaining`, and all 6 categorical totals (`accommodation`, `food`, `transportation`, `activities`, `localTransport`, `miscellaneous`).
+  5. **Standardized Response Envelope:** The endpoint returns `{ success: true, data: { activity, trip }, message: "Activity updated successfully" }`, allowing the client to update both the activity card and budget breakdown modules in state immediately.
+- **Rationale:**
+  - Preserves the embedded document architecture established in MVP scope without introducing multi-collection joins or normalization overhead.
+  - Guarantees zero data loss during partial edits.
+  - Prevents financial state drift between activity cards and Recharts budget breakdown visualizations.
+  - Zero leakage of resource existence to unauthorized callers.
+- **Consequences:**
+  - Clients must supply valid 24-character hexadecimal ObjectIds for `:tripId`, `:dayId`, and `:activityId`.
+  - Adding or deleting activities (Day 33) will follow this established subdocument mutation pattern.
+
+---
+
+### ADR-018: Itinerary Activity Creation & Deletion via Subdocument Array Mutation and Centralized Financial Recalculation
+- **Status:** 🟢 CONFIRMED
+- **Context:** Following Day 32 activity editing, Day 33 requires allowing authenticated travelers to dynamically add new activities to specific itinerary days and delete unwanted activities, persisting changes to MongoDB and immediately updating the UI and budget metrics without full page reloads.
+- **Decision:**
+  1. **Embedded Subdocument Array Operations:** Preserve the embedded document architecture (`Trip.days[].activities[]`). Use `day.activities.push(...)` for creation (generating Mongoose `_id` ObjectIds) and `day.activities.pull({ _id: activity._id })` for atomic removal by unique identifier. Do NOT introduce an external `Activity` collection.
+  2. **Dedicated RESTful Endpoints:**
+     - Add Activity: `POST /api/trips/:tripId/days/:dayId/activities` (returns HTTP 201 Created with `{ success: true, data: { activity, trip }, message }`).
+     - Remove Activity: `DELETE /api/trips/:tripId/days/:dayId/activities/:activityId` (returns HTTP 200 OK with `{ success: true, data: { trip }, message }`).
+  3. **Ownership & Anti-Enumeration:** Enforce authorization at the query level `Trip.findOne({ _id: tripId, userId: user._id })`, returning HTTP 404 `NOT_FOUND` if the trip does not exist or belongs to another user.
+  4. **Strict Payload Sanitization:** `validateAddActivity` requires `title`/`name`, validates enums (`category`, `timeSlot`), enforces non-negative cost and coordinate mutual nullability, and rejects empty payloads, client-injected protected fields (`_id`, `userId`, etc.), and unrecognized keys.
+  5. **Centralized Financial Recalculation:** Centralize budget calculation into `recalculateTripBudgetSummary(trip)` in `tripService.js`. Recompute `totalEstimated`, `remaining` (`Math.max(0, budget - total)`), and all 6 categories across all days whenever activities are added, updated, or removed. Safely handle zero-activity and over-budget states.
+  6. **Accessible Frontend Dialogs:** Implement `AddActivityModal.jsx` with category pills and loading locks, and `DeleteActivityModal.jsx` with `role="alertdialog"` confirmation semantics to prevent accidental deletions.
+- **Rationale:**
+  - Guarantees zero orphaned records and zero cross-collection cascades.
+  - Sibling activities on the same day and activities on other days remain 100% untouched.
+  - Centralizing financial calculation eliminates divergence between add, update, and remove paths.
+- **Consequences:**
+  - Removing an activity safely reallocates remaining budget in real time.
+  - Future budget charts (Day 35) consume a consistent, authoritative server budget summary.
+
+---
+
+### ADR-019: Centralized Backend Budget Calculation Service with Pure Functional Architecture
+- **Status:** 🟢 CONFIRMED
+- **Context:** Budget figures must remain authoritative, consistent, and mathematically sound across all activity lifecycle operations (AI generation, manual additions, edits, and deletions) without client-side calculation drift or duplicate logic across services.
+- **Decision:**
+  1. **Dedicated Service Module (`server/src/services/budgetService.js`):** Extract and centralize all financial computation into pure, stateless functions (`calculateTripBudget`, `recalculateTripBudgetSummary`, `roundCurrency`, `normalizeActivityCategory`).
+  2. **Authoritative Backend Calculations:**
+     - `totalEstimated`: sum of all finite positive `estimatedCost` values across all itinerary days.
+     - `remaining`: `Math.max(0, budget - totalEstimated)` (strictly non-negative).
+     - `perPersonCost`: `totalEstimated / max(1, numberOfTravellers)` (safe from zero-division, `Infinity`, `NaN`).
+     - `budgetUtilization`: `(totalEstimated / budget) * 100` when `budget > 0`, otherwise `0%`.
+  3. **Precision & Reconciliation:** Standardize on 2-decimal financial rounding (`roundCurrency`) with exact reconciliation ensuring $\sum \text{categories} \equiv \text{totalEstimated}$.
+  4. **Category Normalization:** Map activity categories (`stay`, `food`, `transit`, `activity`, `localtransport`, `other`) to canonical budget breakdown categories (`accommodation`, `food`, `transportation`, `activities`, `localTransport`, `miscellaneous`).
+  5. **Schema Integration:** Extended `budgetSummarySchema` in `Trip.js` with `perPersonCost` and `budgetUtilization`, persisted upon every itinerary mutation.
+- **Rationale:**
+  - Decoupling pure mathematical calculation from Mongoose queries allows extensive unit testing across complex edge cases without database overhead.
+  - Guarantees 100% synchronization between backend database storage and frontend presentation.
+  - Prepares the data layer for Recharts visual charts in Day 35.
+- **Consequences:**
+  - Frontend components (`BudgetBreakdown.jsx`) consume authoritative server metrics rather than computing their own math.
 
 ---
 

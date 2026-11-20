@@ -282,6 +282,122 @@ erDiagram
 2. **Dot-Notation Path Updates for Embedded Subdocuments:** Partial updates to `travelPreferences` are flattened into dot-notation paths (`'travelPreferences.pace'`, etc.) before applying `$set`. This preserves unmentioned sibling subdocument fields (`accommodationType`, `transportation`, `dietary`, `notes`) without full-object replacement.
 3. **Array Ceilings:** To prevent unbounded document growth, `interests` is capped at 30 items and `travelPreferences.dietary` is capped at 20 items at both the request validator and Mongoose schema levels.
 
+### 3.5 Itinerary Activity Modification Architecture (Day 32)
+1. **Endpoint Specification:** `PATCH /api/trips/:tripId/days/:dayId/activities/:activityId`
+2. **Identification Strategy:**
+   - Both `itineraryDaySchema` and `activitySchema` are embedded subdocuments with `{ _id: true }` enabled in `server/src/models/Trip.js`.
+   - Mongoose automatically assigns stable, globally unique 24-character hexadecimal `_id` ObjectIds upon itinerary creation.
+   - Subdocuments are addressed directly using Mongoose subdocument methods: `trip.days.id(dayId)` and `day.activities.id(activityId)`.
+3. **Anti-Enumeration Ownership Model:**
+   - Authorization is enforced at the database query level: `Trip.findOne({ _id: tripId, userId: user._id })`.
+   - If an unauthorized user attempts to query or modify an activity belonging to another traveler's trip, the query yields `null`, returning HTTP 404 `NOT_FOUND` (identical to non-existent trips), entirely eliminating ID enumeration or scanning attack vectors.
+4. **Partial Subdocument Update Behavior:**
+   - Request payloads are validated by `validateUpdateActivity` in `server/src/validators/activityValidator.js`.
+   - Protected fields (`_id`, `userId`, `tripId`, `dayId`, `activityId`, `createdAt`, `updatedAt`, `__v`) and arbitrary unrecognized keys are rejected with HTTP 400 `VALIDATION_ERROR`.
+   - Permitted fields (`title`, `name`, `description`, `timeSlot`, `time`, `duration`, `locationName`, `category`, `estimatedCost`, `costBreakdown`, `latitude`, `longitude`) are partially applied to the target activity subdocument.
+   - Unsupplied fields are strictly preserved in their existing state.
+   - The embedded `activity.location` subdocument (`name`, `latitude`, `longitude`) is synchronized automatically with `locationName` and provided coordinates.
+5. **Dynamic Budget Summary Recalculation:**
+   - If `estimatedCost` or `category` is modified, `updateTripActivity` in `server/src/services/tripService.js` delegates to `recalculateTripBudgetSummary(trip)` across all days within the trip to recalculate:
+     - `trip.budgetSummary.totalEstimated`: sum of all activities' `estimatedCost`.
+     - `trip.budgetSummary.remaining`: `Math.max(0, trip.budget - totalEstimated)`.
+     - `trip.budgetSummary.categories`: re-tallied per category (`accommodation`, `food`, `transportation`, `activities`, `localTransport`, `miscellaneous`).
+   - The updated document is persisted via `await trip.save()` and returned in the standardized response envelope `{ success: true, data: { activity, trip }, message }`.
+
+### 3.6 Itinerary Activity Creation & Deletion Architecture (Day 33)
+1. **Endpoint Specifications:**
+   - Add Activity: `POST /api/trips/:tripId/days/:dayId/activities`
+   - Remove Activity: `DELETE /api/trips/:tripId/days/:dayId/activities/:activityId`
+2. **Identification & Subdocument Addressing:**
+   - Parameter validation enforces 24-character hexadecimal ObjectIds (`validateDayParams` and `validateActivityParams`).
+   - Target day is located using Mongoose subdocument helper: `const day = trip.days.id(dayId)`.
+   - For deletion, target activity is located using `const activity = day.activities.id(activityId)`.
+3. **Subdocument Array Mutation Mechanics:**
+   - **Adding an Activity:** `day.activities.push(activityData)` creates a new embedded subdocument with a unique Mongoose-generated `_id` ObjectId. Sibling activities within the day and all other days remain untouched.
+   - **Removing an Activity:** `day.activities.pull({ _id: activity._id })` performs an atomic in-memory subdocument removal targeting the unique ObjectId. Sibling activities in the array are preserved without re-indexing artifacts.
+4. **Validation & Protection:**
+   - Add activity payload is sanitized via `validateAddActivity`.
+   - Title is strictly required and non-empty.
+   - Client-supplied protected keys (`_id`, `userId`, `tripId`, `dayId`, etc.) and unrecognized fields are rejected with HTTP 400.
+   - Validates category (`stay`, `food`, `transit`, `activity`, `other`) and timeSlot (`morning`, `afternoon`, `evening`, `night`) enums.
+   - Enforces non-negative `estimatedCost` and coordinate mutual nullability.
+5. **Centralized Financial Recalculation:**
+   - All mutations delegate to `recalculateTripBudgetSummary(trip)` before `await trip.save()`.
+   - Handles edge cases:
+     - Zero activities: `totalEstimated: 0`, `remaining: trip.budget`, all category totals reset to `0`.
+     - Over-budget: `remaining: Math.max(0, trip.budget - totalEstimated)` clamped safely to `0`.
+6. **Frontend Integration:**
+   - `AddActivityModal.jsx`: accessible modal dialog with field validation, category pills, and duplicate submission locking.
+   - `DeleteActivityModal.jsx`: accessible alertdialog (`role="alertdialog"`) with explicit confirmation details and loading indicators.
+   - `TripDetailPage.jsx`: updates local React state and synchronizes `TripContext` without page reloads.
+
+### 3.7 Budget Calculation Service Architecture (Day 34 & Pre-Day 35 Integration)
+1. **Centralized Service Isolation:**
+   - All budget calculation logic is consolidated inside `server/src/services/budgetService.js` and re-exported through `tripService.js`.
+   - Strictly decoupled from Express `req`/`res` objects, enabling pure unit testing and eliminating code duplication.
+   - Provides pure domain calculation functions: `calculateTripBudget`, `recalculateTripBudgetSummary`, `calculateAIBudgetSummary`, `roundCurrency`, and `normalizeActivityCategory`.
+2. **Authoritative Calculation Formulas:**
+   - **Total Estimated Cost:** $\sum \text{activity.estimatedCost}$ across all days and activities. Only finite positive numbers are summed; invalid, negative, NaN, or non-numeric inputs are discarded.
+   - **Remaining Budget:** $\max(0, \text{trip.budget} - \text{totalEstimated})$. Clamped to 0 in over-budget scenarios.
+   - **Per-Person Cost:** $\text{totalEstimated} / \max(1, \text{trip.numberOfTravellers})$. Safely handles 0, missing, or negative traveller counts without `Infinity` or `NaN`.
+   - **Budget Utilization (%):** $(\text{totalEstimated} / \text{trip.budget}) \times 100$ when $\text{trip.budget} > 0$, otherwise $0\%$.
+   - **Financial Rounding:** All currency amounts are rounded using `roundCurrency(val) = Math.round((val + Number.EPSILON) * 100) / 100` to eliminate IEEE-754 precision drift.
+3. **Category Architecture & Reconciliation:**
+   - **Two-Tier Category Paradigm:**
+     - **Activity-Level Categories (5 enums):** `stay`, `food`, `transit`, `activity`, `other` (defined in `activitySchema` in `Trip.js` and enforced by `activityValidator.js`).
+     - **Budget Summary Categories (6 canonical keys):** `accommodation`, `food`, `transportation`, `activities`, `localTransport`, `miscellaneous`.
+   - **Mapping Rules:**
+     - `stay` $\rightarrow$ `accommodation`
+     - `food` $\rightarrow$ `food`
+     - `transit` $\rightarrow$ `transportation` (scheduled transit stops, flights, and long-distance trains)
+     - `activity` $\rightarrow$ `activities`
+     - `other` $\rightarrow$ `miscellaneous`
+   - **Local Transport Architecture:** `localTransport` in `budgetSummary` represents an AI-generated macro allocation for unitemized city transit passes (IC cards, metro tokens, local taxis). Activity-level transit items use `transit` and map to `transportation`. The activity enum is strictly preserved (5 enums).
+   - **Canonical Day 35 Chart Consumption Contract:**
+     - `BUDGET_CATEGORIES = ['accommodation', 'food', 'transportation', 'activities', 'localTransport', 'miscellaneous']`.
+     - An `other` key is attached to `categories` solely as a backward-compatibility alias mirroring `miscellaneous`.
+     - Day 35 Recharts visualizations must consume the canonical 6-item `BUDGET_CATEGORIES` (or `CATEGORY_CONFIG`) and must **never** enumerate `Object.keys(categories)` or `Object.entries(categories)` to prevent duplicate slices or double-counting.
+   - $\sum_{c \in \text{BUDGET\_CATEGORIES}} c \equiv \text{totalEstimated}$ is strictly guaranteed.
+   - `costBreakdown` is treated as a narrative editorial string and is never parsed or added to financial totals, preventing double-counting.
+4. **AI Budget Initialization via `calculateAIBudgetSummary`:**
+   - In `saveTripItinerary()`, raw AI-generated allocations and activity costs are treated strictly as inputs.
+   - `totalEstimated` is derived authoritatively: if category breakdown is supplied, `totalEstimated = \sum \text{categories}`. If empty or zero, falls back to summing scheduled activity costs across days.
+   - AI-supplied `itineraryData.budget.totalEstimated` is never trusted blindly and cannot override calculated totals.
+   - Safely computes `remaining`, `perPersonCost`, and `budgetUtilization`.
+   - The traveler's original `trip.budget` target is strictly read-only and preserved in MongoDB.
+5. **Subdocument Persistence & Frontend Sync:**
+   - Extended `budgetSummarySchema` in `server/src/models/Trip.js` with `perPersonCost` and `budgetUtilization`.
+   - `BudgetBreakdown.jsx` consumes the authoritative backend metrics to display total estimated, target comparison, per-person costs, and utilization percentage.
+
+### 3.8 Itinerary Retrieval & Query Optimization Architecture (Day 31 Reconciliation)
+1. **Endpoint Specification:** `GET /api/trips/:id`
+2. **Complete Request-Response Lifecycle:**
+   - **Client Detail View (`TripDetailPage.jsx`):** Dispatches `loadTrip()` on mount or `:id` route change.
+   - **API Client Layer (`tripApi.js`):** Invokes `getTrip(id)` via Axios instance with HttpOnly cookie credentials.
+   - **Routing & Middleware Chain (`trip.routes.js`):**
+     - `authenticateToken`: Verifies JWT cookie, extracts subject identifier, attaches trusted `req.user = { id: decoded.sub }`.
+     - `validateTripId`: Inspects `req.params.id` using Mongoose `isValidObjectId()`. Rejects non-hex/malformed IDs with HTTP 400 `INVALID_ID` before any database roundtrip.
+   - **Controller (`tripController.js`):** `getTripById` extracts sanitized `userId` and `tripId`, delegates to domain service, and wraps results in the standardized API envelope `{ success: true, data: { trip }, message: "Trip retrieved successfully" }`.
+   - **Domain Service (`tripService.js`):** `getTripById(userId, tripId)` executes database query with compound owner filter: `Trip.findOne({ _id: tripId, userId: user._id })`.
+3. **Ownership Protection & Anti-Enumeration Defense:**
+   - Multi-tenant isolation is enforced at the database query level via `userId: user._id`.
+   - Cross-user access attempts (User A requesting User B's valid `tripId`) return `null` from MongoDB.
+   - The controller translates `null` directly into HTTP 404 `NOT_FOUND` ("Trip not found"), identical to queries for non-existent IDs.
+   - This prevents ID enumeration attacks, leaking neither the existence of private itineraries nor user ID associations.
+4. **Mongoose Population vs. Embedded Subdocuments:**
+   - **Architectural Fit:** Days (`itineraryDaySchema`) and activities (`activitySchema`) are embedded subdocuments stored directly inside the BSON document of the `Trip` model (`server/src/models/Trip.js`).
+   - **Why `populate()` is Not Used:** Mongoose `populate()` is explicitly designed for referenced documents across foreign collections (such as `userId` referencing `User`). Invoking `populate()` on embedded subdocuments is an architectural antipattern that causes schema lookup errors in Mongoose.
+   - **Single Atomic Read:** In MongoDB, an entire embedded document hierarchy is read in a single sequential disk block operation ($O(1)$ disk seek). Normalizing days and activities into separate collections to enable `populate()` would require 2–3 database roundtrips or `$lookup` aggregation joins, adding significant latency, connection overhead, and transaction complexity.
+5. **Index Selectivity & Query Optimization Findings:**
+   - **Primary Key Point Lookup:** `Trip.findOne({ _id: tripId, userId: user._id })` leverages the unique primary key index `_id_`.
+   - **Explain Diagnostics (`executionStats`):** Execution plan uses stage `FETCH` with index scan `IXSCAN` on `_id_`:
+     - `totalKeysExamined: 1`
+     - `totalDocsExamined: 1`
+     - `executionTimeMillis: 0 ms`
+   - **Index Selectivity:** The `_id` index is uniquely selective (cardinality 1:1). Evaluating the in-memory `userId` predicate on the single retrieved document occurs in 0 ms.
+   - **Compound Index Coverage:** The existing compound index `{ userId: 1, createdAt: -1 }` covers multi-trip dashboard listing and pagination. Introducing an additional compound index `{ _id: 1, userId: 1 }` would be redundant overhead since `_id` alone provides maximal selectivity.
+   - **`.lean()` Evaluation:** For a typical 5–25 KB trip document, Mongoose hydration overhead is negligible (<1 ms). Keeping standard Mongoose hydration preserves document methods, subdocument casting, and critical schema virtual aliases (`startDate`, `endDate`, `totalBudget`, `travellers`).
+
 ---
 
 ## 4. Frontend Architecture (React + Vite + Tailwind CSS v4)
@@ -293,8 +409,8 @@ client/src/
 ├── components/
 │   ├── common/         # Generic UI primitives: Button, Input, Modal, Card, Badge
 │   ├── layout/         # Shell, Navbar, Footer, Sidebar, PageContainer
-│   ├── itinerary/      # DaySelector, ActivityTimeline, ActivityCard, AddActivityModal
-│   ├── budget/         # BudgetBarChart, ExpenseBreakdownTable, MetricCard
+│   ├── itinerary/      # DaySelector, ActivityTimeline, ActivityCard, AddActivityModal, EditActivityModal, DeleteActivityModal, BudgetBreakdown
+│   ├── budget/         # ExpenseDonutChart, BudgetComparisonChart, constants
 │   ├── map/            # LeafletMapContainer, ActivityMarker, BoundsController
 │   └── discovery/      # DestinationCard, DestinationGrid, FilterPills
 ├── context/            # AuthContext, TripContext (cross-cutting application state)
@@ -327,6 +443,19 @@ All backend network calls must be routed through dedicated API modules in `clien
   - **`CreateTripModal.jsx`:** 3-step guided wizard + review capturing required and optional fields with step-by-step validation.
   - **`EditTripModal.jsx`:** Tabbed editorial editing interface (`Trip Basics`, `Budget & Party`, `Preferences & Style`) prepopulating existing values (converting ISO dates to `YYYY-MM-DD` inputs). Calculates client-side diff deltas to send partial updates containing only modified fields to `PATCH /api/trips/:id`. Preserves all entered values upon submission failure and directs the traveler to the earliest tab containing validation errors.
   - **`DeleteTripModal.jsx`:** Accessible confirmation dialog (`role="alertdialog"`) explicitly identifying the destination, origin, dates, and budget of the targeted trip. Warns of permanent subdocument eradication, focuses the Cancel action by default to prevent accidental deletion, displays an inline error banner if deletion fails, and prevents double-submissions during deletion.
+
+### 4.4 Budget Visualizations Architecture (Day 35 Recharts Integration)
+- **Component Modularity (`client/src/components/budget/`):**
+  - **`ExpenseDonutChart.jsx`:** Renders a responsive Recharts donut visualization (`ResponsiveContainer`, `PieChart`, `Pie`, `Cell`, `Tooltip`) partitioning expenditure across the 6 canonical categories. Centered summary pill indicates total estimated spending. Custom tooltip formats currency and category proportions.
+  - **`BudgetComparisonChart.jsx`:** Renders a responsive Recharts horizontal bar chart (`ResponsiveContainer`, `BarChart`, `Bar`, `XAxis`, `YAxis`, `Tooltip`, `Cell`) comparing Target Budget, Total Estimated Expenses, and Remaining Buffer. Automatically adapts to over-budget scenarios, turns the estimated bar into Burnt Crimson (`#B33A3A`), and displays an over-budget headroom alert.
+  - **`constants.js`:** Encapsulates the canonical category contracts (`CANONICAL_BUDGET_CATEGORIES`), standard currency formatter (`formatCurrency`), and pure data transformation pipelines (`transformCategoryChartData`, `transformComparisonChartData`).
+- **Data Invariant Discipline:**
+  - Strictly maps over `CANONICAL_BUDGET_CATEGORIES` (6 items). Never iterates over raw `Object.keys(categories)` or `Object.entries(categories)`.
+  - The legacy `other` alias is strictly omitted from chart data, guaranteeing zero double-counting.
+  - All authoritative financial figures (`totalEstimated`, `remaining`, `budgetUtilization`) are derived from the backend Mongoose model (`trip.budgetSummary`) and are never recalculated client-side.
+- **Accessibility & Responsiveness:**
+  - Accompanied by hidden semantic screen-reader summary lists (`sr-only`) and ARIA region roles (`role="region"`).
+  - Clean responsive grid layout (`grid-cols-1 lg:grid-cols-2`) embedded seamlessly within `BudgetBreakdown.jsx` above the 6-category cards, adapting smoothly across mobile (375px), tablet (768px), and desktop (1280px+) screens.
 
 ---
 

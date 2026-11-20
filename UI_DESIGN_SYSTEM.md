@@ -168,13 +168,20 @@ The typographic identity balances literary prestige with modern legibility throu
 - **Mandatory Attribution Overlay:** Prominently display the required OpenStreetMap attribution notice (`© OpenStreetMap contributors`) in the lower corner with clean, legible sans-serif styling adhering to brand neutrals.
 
 ### 5.5 Chart Theming (Recharts)
-- Chart colors must align strictly with the brand tokens:
-  - **Stay / Lodging:** Forest Green (`#173D35`)
-  - **Dining / Food:** Terracotta (`#D97757`)
-  - **Activities / Tours:** Ochre Gold (`#C28B38`)
-  - **Transit / Travel:** Muted Sage (`#8E9E8A`)
-  - **Miscellaneous:** Dark Charcoal (`#242923`)
-- Clean tooltips using white background, muted sage border, and sans-serif typography.
+- Chart colors align strictly with the brand tokens and the 6 canonical categories established in Day 34/35:
+  - **Accommodation:** Sky Blue (`#0284c7`)
+  - **Food & Dining:** Warm Amber (`#d97706`)
+  - **Activities & Tours:** Deep Forest Green (`#173D35`)
+  - **Transportation:** Royal Indigo (`#4f46e5`)
+  - **Local Transit:** Teal (`#0d9488`)
+  - **Miscellaneous:** Warm Slate / Stone (`#686E65`)
+- Comparison Bar Tokens:
+  - **Target Budget Cap:** Forest Green (`#173D35`)
+  - **Total Estimated (On Track):** Terracotta (`#D97757`)
+  - **Total Estimated (Over Budget):** Burnt Crimson (`#B33A3A`)
+  - **Remaining Buffer:** Teal (`#0d9488`) / Muted Stone (`#A8A29E`) when depleted
+- Tooltips: Clean editorial card using white background, muted sage border (`#D8DFD5`), subtle shadow, and sans-serif typography with exact currency and percentage formatting.
+- Accessibility: Hidden screen-reader summary lists (`sr-only`) and ARIA region roles (`role="region" aria-label="..."`) accompanying every chart.
 
 ### 5.6 Editorial Imagery & Performance Conventions
 - **Asset Format & Compression**: Atmospheric photography (Hero backdrops, destination showcase cards) must be delivered in WebP format with high-quality bicubic downsampling (quality ~0.82–0.85), targeting 300–600 KB to balance instantaneous load times with editorial visual fidelity on 4K/Retina displays.
@@ -302,4 +309,108 @@ The typographic identity balances literary prestige with modern legibility throu
   - *Success:* Dismissible green confirmation banner with immediate in-memory rendering.
   - *Failure:* Alert banner with mapped human-readable error from `mapItineraryError`, retry action, and complete preservation of previously displayed itinerary.
 - **Day Navigation Tabs:** Horizontal scrollable day pill tabs allowing rapid navigation between Day 1 through Day N on both mobile touchscreens and desktop viewports.
+
+---
+
+### 5.13 Authenticated Dashboard Physical Travel Pinboard Conventions
+
+#### 1. Board Surface & Spatial Frame (`CorkBoard.jsx`)
+- **Isolation Scope:** The physical travel-planning board is strictly isolated to the authenticated `/dashboard` route. It is never rendered globally or leaked into public routes (`/`, `/login`, `/register`) or itinerary workspaces (`/trips/:id`).
+- **Physical Wall Mount & Frame:**
+  - Outer border: Deep walnut wooden molding (`bg-[#543820]`, rounded-3xl bevel styling, dark outer shadow `shadow-[0_25px_60px_-15px_rgba(0,0,0,0.45)]`).
+  - Ambient board lighting: Multi-stop radial gradients overlaid on a warm cork foundation (`#BA8950`), simulating overhead gallery spotlighting with natural corner vignette (`rgba(0,0,0,0.22)`).
+  - Tactile cork grain: Micro-flecks rendered via repeating radial CSS dot textures without paid external image APIs.
+- **Header Plaque & Workspace Identity:**
+  - Aged brass plaque (`bg-amber-100/90 text-amber-950 border border-amber-300/80 rounded-full px-4 py-1.5`) positioned at top center, reading "Travel Planning Pinboard • X journeys pinned".
+  - Top action bar featuring clear workspace headline ("My Travel Pinboard") and secondary quick-pin action.
+
+#### 2. Pinned Trip Paper Anatomy (`PinnedTripCard.jsx`)
+- **Tactile Paper Construction:**
+  - Foundation: Heavyweight linen paper sheet (`bg-[#FAF7EE]`, text-[#2C2416], rounded-xl).
+  - Shadow & Depth: Multilayered realistic contact shadow (`shadow-[0_12px_28px_rgba(44,36,22,0.22),0_2px_6px_rgba(44,36,22,0.12)]`).
+  - Washi Tape Accent: Translucent paper tape strip (`bg-[#E8DFC8]/80 border-t border-b border-[#D5C9AE]`) taped across the top edge.
+  - Organic Rotations: Subtle rotation angles (`lg:-rotate-1.5` through `lg:rotate-1.5`) applied exclusively on desktop displays (`lg:` $\ge 1024\text{px}$). On hover, smooth transition to upright (`hover:rotate-0 hover:scale-[1.02]`). Rotations are zeroed on mobile and tablet (`< 1024\text{px}`) to guarantee zero horizontal scrollbar overflow.
+- **Physical 3D Pushpin & Expanded Palette (`PushPin.jsx` & `pinPalette.js`):**
+  - Scalable vector thumbtack rendered with multi-stop spherical radial gradients (`radialGradient` with specular highlights).
+  - Physical elements: Polished rounded head, recessed metallic collar, sharp steel pin tip, and realistic angled contact drop shadow (`ellipse` at bottom).
+  - Expanded 10-Color Heritage Palette:
+    - `terracotta`: `#D97757` (Tuscan Terracotta)
+    - `forest`: `#1B4D3E` (Alpine Forest)
+    - `brass`: `#C28B38` (Burnished Brass)
+    - `crimson`: `#B33232` (Vintage Crimson)
+    - `cobalt`: `#2E5E8A` (Maritime Cobalt)
+    - `amber`: `#D49028` (Golden Amber)
+    - `sage`: `#557A5E` (Olive Sage)
+    - `plum`: `#783A5D` (Mulberry Plum)
+    - `slate`: `#4F656F` (Basalt Slate)
+    - `copper`: `#BD683A` (Polished Copper)
+  - Deterministic Color Assignment (`getStablePinColor`):
+    - Uses 32-bit FNV-1a hashing over stable trip identity (`trip._id`, title, or destination) to assign distinct colors uniformly.
+    - Guarantees 100% stability: trip pins never change colors when trips are filtered, reordered, or rerendered. Requires zero schema alterations or backend fields.
+    - The Add Trip note features a coordinated `brass` thumbtack matching the dashed parchment border.
+- **Printed Photograph & Postcard Plate (`destinationImages.js`):**
+  - Polaroid style frame: White border (`p-1.5 bg-white shadow-sm rounded-lg`) with aspect-ratio $16:10$ destination photo plate.
+  - Curated Registry: Verified local WebP assets for iconic destinations (Kyoto, Swiss Alps, Bali, Manali, Varanasi, Amalfi Coast) with open-license photographer attribution.
+  - Graceful Fallback: High-resolution serene mountain landscape fallback (`painting-mountain-lake-with-mountain-background.webp`) for uncurated custom destinations, avoiding broken `<img>` icons or paid external CDNs.
+- **Card Content & Action Hierarchy:**
+  - Destination headline (`font-serif text-xl font-bold tracking-tight text-[#2C2416]`).
+  - Journey metadata: Travel date badge with `Calendar` icon, origin/route badge with `Navigation` icon, traveler count badge with `Users` icon, and formatted total budget pill.
+  - Status indicator: Subtle status chip (`Upcoming`, `Ongoing`, `Completed`).
+  - Primary Action: High-contrast terracotta button ("Open Itinerary" / `bg-terracotta hover:bg-[#C26547] text-white shadow-sm font-medium`).
+  - Auxiliary Controls: Unobtrusive Edit (pencil) and Delete (trash) buttons in card header for full journey lifecycle management.
+
+#### 3. Add Trip Blank Note (`AddTripPinCard.jsx`)
+- **Visual Conception:** Pinned unwritten parchment sheet waiting for travel inspiration.
+- **Styling:** Warm cream paper (`bg-[#FAF7EE]/70 hover:bg-[#FAF7EE]`), dashed brass border (`border-2 border-dashed border-[#C5B396] hover:border-terracotta/70`), and a central polished brass pushpin.
+- **Interaction:** Large accessible button triggering the existing 4-step `CreateTripModal.jsx` wizard without altering validation or API contracts.
+
+#### 4. Navigation & Profile Interactions (`Navbar.jsx`)
+- **Dashboard Visibility:** Unified navigation bar is permanently mounted at the top of `/dashboard`, maintaining brand continuity across public and authenticated states.
+- **Redundancy Elimination & Clear Role Separation:**
+  - *Primary Navigation vs. Account Actions:* Desktop navigation cleanly separates workspace actions from account actions. Main navigation links are editorial (Destinations, Itineraries, Budget Planner, About).
+  - *Singular Workspace CTA:* Removed duplicate "Dashboard" text link from desktop `navLinks`. Authenticated travelers access their workspace via a prominent "My Journal" button (`to="/dashboard"`).
+  - *Singular Sign Out Action:* Removed redundant standalone "Sign Out" button from the desktop header. Account actions (identity, session details, and Sign Out) are consolidated within the User Profile Flyout.
+- **Desktop User Profile Hover Flyout:**
+  - Trigger: Mounted on desktop profile trigger (`hidden md:flex`). Opens on `onMouseEnter`.
+  - Safe Transit Buffer: Implements a 250ms clearance timeout (`profileTimeoutRef`) so moving the cursor from the trigger across any subpixel gap into the flyout menu does not prematurely collapse the dropdown.
+  - Keyboard & Accessibility: Toggles on `Enter` / `Space`, dismisses on `Escape` key, closes on document click-outside, and provides proper ARIA attributes (`aria-expanded`, `aria-haspopup="menu"`).
+  - Content: Traveler name, email address, role badge, session security indicator, links to "Explore Destinations", and "Sign Out".
+- **Mobile Drawer Menu Exact Hierarchy:**
+  - Strict three-item primary order:
+    1. **User Profile Card:** Avatar, traveler name, email address, role badge.
+    2. **Sign Out Button:** Destructive outline button with `LogOut` icon.
+    3. **My Journal Button:** Prominent primary button linking to `/dashboard` with `BookOpen` icon.
+  - Followed by clean section links (Destinations, Itineraries, Budget Planner, About) with zero duplicate "Dashboard" link.
+
+#### 5. Itinerary Primary Button Visibility & Contrast (`TripDetailPage.jsx`)
+- **Hierarchy & Placement:** Positioned prominently within the Journey Header Banner and the Day 1 Overview empty state.
+- **Color & Elevation:** High-contrast Terracotta (`bg-terracotta hover:bg-[#C26547] text-white shadow-md hover:shadow-lg focus-visible:ring-terracotta`) or Forest Green (`bg-forest hover:bg-forest/90 text-sand-ivory border-forest`), delivering $> 4.5:1$ contrast against light and dark backdrops.
+- **Interactive Feedback:** Integrated `Sparkles` icon, dynamic `RefreshCw` spin animation on loading, explicit `isGenerating` disabled state with `cursor-not-allowed opacity-60`, and clear focus rings for keyboard navigation.
+
+### 5.14 Itinerary Activity Editing Experience (Day 32)
+
+#### 1. Activity Card Action Trigger (`ActivityCard.jsx`)
+- **Action Placement:** Positioned immediately adjacent to the category badge in the card header.
+- **Visual Styling:** Unobtrusive, elegant pencil icon (`Edit3`, size 14px) inside a rounded tap target (`p-1 rounded-md text-stone/70 hover:text-forest hover:bg-sand-ivory border border-transparent hover:border-sage transition-all`).
+- **Accessibility:** Accessible `aria-label="Edit {activity.title}"` and `title="Edit activity"`, keyboard focusable with high-visibility focus ring (`focus-visible:ring-2 focus-visible:ring-forest`).
+
+#### 2. Edit Activity Modal Dialog (`EditActivityModal.jsx`)
+- **Editorial Dialog Container:**
+  - Fixed backdrop overlay: `bg-charcoal/50 backdrop-blur-xs` with smooth fade-in animation (`animate-fadeIn`).
+  - Modal canvas: `bg-white rounded-2xl border border-sage shadow-2xl max-w-xl w-full p-6 sm:p-8`.
+  - Header: Terracotta category chip, serif headline (`font-serif text-2xl font-bold text-forest`), dismiss close button (`X`).
+  - Accessibility: `role="dialog"`, `aria-modal="true"`, `aria-labelledby="edit-activity-modal-title"`, Escape key dismiss listener, and backdrop click dismissal (locked during in-flight submission).
+- **Form Anatomy & Layout:**
+  - *Title Input:* Full-width text field with required indicator (`*`).
+  - *Category Selector:* Custom responsive 5-option pill selector (Attraction/Culture, Food & Dining, Accommodation, Transit & Transfer, Other Exploration) with active state highlighting (`bg-forest text-sand-ivory border-forest`).
+  - *Time Slot & Time Row:* Two-column grid matching time slot dropdown (Morning, Afternoon, Evening, Night) with clock-adorned time input.
+  - *Duration & Location Inputs:* Pre-filled estimated duration and venue/location name with `MapPin` icon.
+  - *Estimated Cost & Breakdown Row:* Currency-denominated cost input with `DollarSign` icon alongside qualitative cost breakdown notes.
+  - *Description & Notes:* Multiline narrative textarea for sensory travel details and tips.
+- **State Management & Feedback:**
+  - Zero-Effect Remount Pattern: Keyed by `editingActivity._id` in parent, ensuring clean state initialization without React 19 cascading-render warnings.
+  - Inline Error Validation: Red border highlights (`border-burnt-crimson bg-burnt-crimson/5`) and caption messages beneath invalid fields.
+  - Server Error Banner: Prominent `AlertCircle` notification box if the PATCH API rejects the update.
+  - Submission Lock: Save button displays `Loader2` spinner with disabled state to prevent duplicate submissions.
+
 

@@ -1,6 +1,21 @@
 import mongoose from 'mongoose'
 import User from '../models/User.js'
 import Trip from '../models/Trip.js'
+import {
+  recalculateTripBudgetSummary,
+  calculateTripBudget,
+  calculateAIBudgetSummary,
+  roundCurrency,
+  normalizeActivityCategory,
+} from './budgetService.js'
+
+export {
+  recalculateTripBudgetSummary,
+  calculateTripBudget,
+  calculateAIBudgetSummary,
+  roundCurrency,
+  normalizeActivityCategory,
+}
 
 /**
  * Trip Domain Service
@@ -440,26 +455,12 @@ export async function saveTripItinerary(userId, tripId, itineraryData) {
     })),
   }))
 
-  // 5. Map budgetSummary into Mongoose subdocument format
-  const totalEstimated =
-    typeof itineraryData.budget?.totalEstimated === 'number'
-      ? itineraryData.budget.totalEstimated
-      : 0
-  const cats = itineraryData.budget?.categories || {}
-  const mappedBudgetSummary = {
-    totalEstimated,
-    totalSpent: 0,
-    remaining: Math.max(0, (existingTrip.budget || 0) - totalEstimated),
-    categories: {
-      accommodation: typeof cats.accommodation === 'number' ? cats.accommodation : 0,
-      food: typeof cats.food === 'number' ? cats.food : 0,
-      transportation: typeof cats.transportation === 'number' ? cats.transportation : 0,
-      activities: typeof cats.activities === 'number' ? cats.activities : 0,
-      localTransport: typeof cats.localTransport === 'number' ? cats.localTransport : 0,
-      miscellaneous: typeof cats.miscellaneous === 'number' ? cats.miscellaneous : 0,
-      other: (Number(cats.localTransport) || 0) + (Number(cats.miscellaneous) || 0),
-    },
-  }
+  // 5. Authoritatively calculate and map budgetSummary using centralized budgetService
+  const mappedBudgetSummary = calculateAIBudgetSummary(
+    existingTrip,
+    itineraryData.budget,
+    mappedDays
+  )
 
   // 6. Execute atomic update strictly scoping to { _id: tripId, userId: user._id }
   const updatePayload = {
@@ -479,6 +480,332 @@ export async function saveTripItinerary(userId, tripId, itineraryData) {
     )
 
     return updatedTrip
+  } catch (error) {
+    if (error.name === 'ValidationError' && error.errors) {
+      error.statusCode = 400
+      error.code = 'VALIDATION_ERROR'
+      error.details = Object.keys(error.errors).map((field) => ({
+        field,
+        message: error.errors[field].message,
+      }))
+    }
+    throw error
+  }
+}
+
+/**
+ * Partially updates an existing activity subdocument within an itinerary day.
+ * Enforces ownership, subdocument existence, partial field mutation, and automatic budget recalculation.
+ *
+ * @param {string} userId - Authenticated user's MongoDB ObjectId string.
+ * @param {string} tripId - Target trip's MongoDB ObjectId string.
+ * @param {string} dayId - Target day's MongoDB ObjectId string.
+ * @param {string} activityId - Target activity's MongoDB ObjectId string.
+ * @param {Object} updateData - Validated partial activity attributes.
+ * @returns {Promise<{ activity: Object, trip: import('mongoose').Document }|null>}
+ * @throws {Error} 400 for invalid ID format, 404 for USER_NOT_FOUND, DAY_NOT_FOUND, ACTIVITY_NOT_FOUND.
+ */
+export async function updateTripActivity(userId, tripId, dayId, activityId, updateData) {
+  // 1. Guard against missing or malformed ObjectId format
+  for (const [paramName, id] of Object.entries({ userId, tripId, dayId, activityId })) {
+    if (!id || typeof id !== 'string' || !mongoose.Types.ObjectId.isValid(id)) {
+      const formatError = new Error(`Invalid ${paramName} format`)
+      formatError.statusCode = 400
+      formatError.code = 'INVALID_ID'
+      formatError.details = [{ field: paramName, message: `${paramName} must be a valid 24-character hexadecimal ObjectId` }]
+      throw formatError
+    }
+  }
+
+  // 2. Verify that the authenticated user actually exists
+  const user = await User.findById(userId)
+  if (!user) {
+    const notFoundError = new Error('Authenticated user account no longer exists')
+    notFoundError.statusCode = 404
+    notFoundError.code = 'USER_NOT_FOUND'
+    notFoundError.details = []
+    throw notFoundError
+  }
+
+  // 3. Retrieve existing trip enforcing query-level ownership
+  const trip = await Trip.findOne({ _id: tripId, userId: user._id })
+  if (!trip) {
+    return null
+  }
+
+  // 4. Locate the itinerary day subdocument
+  const day = trip.days.id(dayId) || trip.days.find((d) => d._id?.toString() === dayId.toString())
+  if (!day) {
+    const dayError = new Error('Itinerary day not found')
+    dayError.statusCode = 404
+    dayError.code = 'DAY_NOT_FOUND'
+    dayError.details = [{ field: 'dayId', message: `Day with ID '${dayId}' does not exist on this trip` }]
+    throw dayError
+  }
+
+  // 5. Locate the activity subdocument within the day
+  const activity = day.activities.id(activityId) || day.activities.find((a) => a._id?.toString() === activityId.toString())
+  if (!activity) {
+    const activityError = new Error('Activity not found')
+    activityError.statusCode = 404
+    activityError.code = 'ACTIVITY_NOT_FOUND'
+    activityError.details = [{ field: 'activityId', message: `Activity with ID '${activityId}' does not exist on this itinerary day` }]
+    throw activityError
+  }
+
+  // 6. Apply partial update to permitted activity fields (preserving untouched fields)
+  const allowedFields = [
+    'title',
+    'description',
+    'timeSlot',
+    'time',
+    'duration',
+    'locationName',
+    'category',
+    'estimatedCost',
+    'costBreakdown',
+    'latitude',
+    'longitude',
+  ]
+
+  for (const field of allowedFields) {
+    if (updateData[field] !== undefined) {
+      activity[field] = updateData[field]
+    }
+  }
+
+  // Synchronize embedded location object if present or if coordinates/locationName changed
+  if (updateData.location && typeof updateData.location === 'object') {
+    activity.location = {
+      name: updateData.location.name ?? activity.locationName ?? '',
+      latitude: updateData.location.latitude ?? activity.latitude ?? null,
+      longitude: updateData.location.longitude ?? activity.longitude ?? null,
+      address: updateData.location.address ?? '',
+    }
+  } else {
+    if (!activity.location) {
+      activity.location = {
+        name: activity.locationName || '',
+        latitude: activity.latitude ?? null,
+        longitude: activity.longitude ?? null,
+        address: '',
+      }
+    }
+    if (updateData.locationName !== undefined) {
+      activity.location.name = updateData.locationName
+    }
+    if (updateData.latitude !== undefined) {
+      activity.location.latitude = updateData.latitude
+    }
+    if (updateData.longitude !== undefined) {
+      activity.location.longitude = updateData.longitude
+    }
+  }
+
+  // 7. Recalculate trip budgetSummary if estimatedCost or category was modified
+  if (updateData.estimatedCost !== undefined || updateData.category !== undefined) {
+    recalculateTripBudgetSummary(trip)
+  }
+
+  // 8. Persist the updated Trip document to MongoDB
+  try {
+    const savedTrip = await trip.save()
+    const savedDay = savedTrip.days.id(dayId) || savedTrip.days.find((d) => d._id?.toString() === dayId.toString())
+    const savedActivity = savedDay?.activities?.id(activityId) || savedDay?.activities?.find((a) => a._id?.toString() === activityId.toString())
+
+    return {
+      activity: savedActivity ? savedActivity.toObject() : activity.toObject(),
+      trip: savedTrip,
+    }
+  } catch (error) {
+    if (error.name === 'ValidationError' && error.errors) {
+      error.statusCode = 400
+      error.code = 'VALIDATION_ERROR'
+      error.details = Object.keys(error.errors).map((field) => ({
+        field,
+        message: error.errors[field].message,
+      }))
+    }
+    throw error
+  }
+}
+
+/**
+ * Appends a new activity to a specific itinerary day within a saved trip.
+ * Enforces ownership, subdocument schema validation, and automatic budget recalculation.
+ *
+ * @param {string} userId - Authenticated user's MongoDB ObjectId string.
+ * @param {string} tripId - Target trip's MongoDB ObjectId string.
+ * @param {string} dayId - Target day's MongoDB ObjectId string.
+ * @param {Object} activityData - Sanitized activity payload.
+ * @returns {Promise<{ activity: Object, trip: import('mongoose').Document }|null>}
+ * @throws {Error} 400 for invalid ID format, 404 for USER_NOT_FOUND or DAY_NOT_FOUND.
+ */
+export async function addTripActivity(userId, tripId, dayId, activityData) {
+  // 1. Guard against missing or malformed ObjectId format
+  for (const [paramName, id] of Object.entries({ userId, tripId, dayId })) {
+    if (!id || typeof id !== 'string' || !mongoose.Types.ObjectId.isValid(id)) {
+      const formatError = new Error(`Invalid ${paramName} format`)
+      formatError.statusCode = 400
+      formatError.code = 'INVALID_ID'
+      formatError.details = [{ field: paramName, message: `${paramName} must be a valid 24-character hexadecimal ObjectId` }]
+      throw formatError
+    }
+  }
+
+  // 2. Verify that the authenticated user actually exists
+  const user = await User.findById(userId)
+  if (!user) {
+    const notFoundError = new Error('Authenticated user account no longer exists')
+    notFoundError.statusCode = 404
+    notFoundError.code = 'USER_NOT_FOUND'
+    notFoundError.details = []
+    throw notFoundError
+  }
+
+  // 3. Retrieve trip enforcing query-level ownership (anti-enumeration)
+  const trip = await Trip.findOne({ _id: tripId, userId: user._id })
+  if (!trip) {
+    return null
+  }
+
+  // 4. Locate target day subdocument
+  const day = trip.days.id(dayId) || trip.days.find((d) => d._id?.toString() === dayId.toString())
+  if (!day) {
+    const dayError = new Error('Itinerary day not found')
+    dayError.statusCode = 404
+    dayError.code = 'DAY_NOT_FOUND'
+    dayError.details = [{ field: 'dayId', message: `Day with ID '${dayId}' does not exist on this trip` }]
+    throw dayError
+  }
+
+  // 5. Construct activity subdocument
+  const title = activityData.title || activityData.name || ''
+  const locationName = activityData.locationName || activityData.location?.name || ''
+  const lat = activityData.latitude ?? activityData.location?.latitude ?? null
+  const lng = activityData.longitude ?? activityData.location?.longitude ?? null
+
+  const newActivityDoc = {
+    title,
+    description: activityData.description || '',
+    timeSlot: activityData.timeSlot || 'morning',
+    time: activityData.time || '',
+    duration: activityData.duration || '',
+    locationName,
+    latitude: lat,
+    longitude: lng,
+    estimatedCost: Number(activityData.estimatedCost) || 0,
+    costBreakdown: activityData.costBreakdown || '',
+    category: activityData.category || 'activity',
+    location: {
+      name: locationName,
+      latitude: lat,
+      longitude: lng,
+      address: activityData.location?.address || '',
+    },
+  }
+
+  // 6. Push to day activities array
+  day.activities.push(newActivityDoc)
+  const createdSubdoc = day.activities[day.activities.length - 1]
+
+  // 7. Recalculate trip budgetSummary
+  recalculateTripBudgetSummary(trip)
+
+  // 8. Persist to MongoDB
+  try {
+    const savedTrip = await trip.save()
+    const savedDay = savedTrip.days.id(dayId) || savedTrip.days.find((d) => d._id?.toString() === dayId.toString())
+    const savedActivity = savedDay?.activities?.id(createdSubdoc._id) || savedDay?.activities?.[savedDay.activities.length - 1]
+
+    return {
+      activity: savedActivity ? savedActivity.toObject() : createdSubdoc.toObject(),
+      trip: savedTrip,
+    }
+  } catch (error) {
+    if (error.name === 'ValidationError' && error.errors) {
+      error.statusCode = 400
+      error.code = 'VALIDATION_ERROR'
+      error.details = Object.keys(error.errors).map((field) => ({
+        field,
+        message: error.errors[field].message,
+      }))
+    }
+    throw error
+  }
+}
+
+/**
+ * Removes an existing activity subdocument from an itinerary day.
+ * Enforces ownership, preserves other activities, and recalculates budget totals.
+ *
+ * @param {string} userId - Authenticated user's MongoDB ObjectId string.
+ * @param {string} tripId - Target trip's MongoDB ObjectId string.
+ * @param {string} dayId - Target day's MongoDB ObjectId string.
+ * @param {string} activityId - Target activity's MongoDB ObjectId string.
+ * @returns {Promise<{ trip: import('mongoose').Document }|null>}
+ * @throws {Error} 400 for invalid ID format, 404 for USER_NOT_FOUND, DAY_NOT_FOUND, ACTIVITY_NOT_FOUND.
+ */
+export async function removeTripActivity(userId, tripId, dayId, activityId) {
+  // 1. Guard against missing or malformed ObjectId format
+  for (const [paramName, id] of Object.entries({ userId, tripId, dayId, activityId })) {
+    if (!id || typeof id !== 'string' || !mongoose.Types.ObjectId.isValid(id)) {
+      const formatError = new Error(`Invalid ${paramName} format`)
+      formatError.statusCode = 400
+      formatError.code = 'INVALID_ID'
+      formatError.details = [{ field: paramName, message: `${paramName} must be a valid 24-character hexadecimal ObjectId` }]
+      throw formatError
+    }
+  }
+
+  // 2. Verify that authenticated user exists
+  const user = await User.findById(userId)
+  if (!user) {
+    const notFoundError = new Error('Authenticated user account no longer exists')
+    notFoundError.statusCode = 404
+    notFoundError.code = 'USER_NOT_FOUND'
+    notFoundError.details = []
+    throw notFoundError
+  }
+
+  // 3. Query trip enforcing ownership (anti-enumeration)
+  const trip = await Trip.findOne({ _id: tripId, userId: user._id })
+  if (!trip) {
+    return null
+  }
+
+  // 4. Locate itinerary day
+  const day = trip.days.id(dayId) || trip.days.find((d) => d._id?.toString() === dayId.toString())
+  if (!day) {
+    const dayError = new Error('Itinerary day not found')
+    dayError.statusCode = 404
+    dayError.code = 'DAY_NOT_FOUND'
+    dayError.details = [{ field: 'dayId', message: `Day with ID '${dayId}' does not exist on this trip` }]
+    throw dayError
+  }
+
+  // 5. Locate target activity
+  const activity = day.activities.id(activityId) || day.activities.find((a) => a._id?.toString() === activityId.toString())
+  if (!activity) {
+    const activityError = new Error('Activity not found')
+    activityError.statusCode = 404
+    activityError.code = 'ACTIVITY_NOT_FOUND'
+    activityError.details = [{ field: 'activityId', message: `Activity with ID '${activityId}' does not exist on this itinerary day` }]
+    throw activityError
+  }
+
+  // 6. Pull activity from subdocument array
+  day.activities.pull({ _id: activity._id })
+
+  // 7. Recalculate trip budgetSummary
+  recalculateTripBudgetSummary(trip)
+
+  // 8. Persist updated Trip document
+  try {
+    const savedTrip = await trip.save()
+    return {
+      trip: savedTrip,
+    }
   } catch (error) {
     if (error.name === 'ValidationError' && error.errors) {
       error.statusCode = 400

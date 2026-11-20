@@ -86,5 +86,54 @@ export async function generateItinerary(id, options = {}) {
   return response.data
 }
 
+/**
+ * Partially updates an existing activity embedded within an itinerary day.
+ *
+ * @param {string} tripId - The MongoDB ObjectId of the parent trip.
+ * @param {string} dayId - The MongoDB ObjectId of the itinerary day.
+ * @param {string} activityId - The MongoDB ObjectId of the activity.
+ * @param {Object} activityData - Sanitized partial update payload.
+ * @returns {Promise<Object>} Standardized API response { success: true, data: { activity, trip }, message: string }.
+ */
+export async function updateActivity(tripId, dayId, activityId, activityData) {
+  const response = await apiClient.patch(
+    `/trips/${tripId}/days/${dayId}/activities/${activityId}`,
+    activityData
+  )
+  return response.data
+}
+
+/**
+ * Appends a new activity to an itinerary day within a saved trip.
+ *
+ * @param {string} tripId - The MongoDB ObjectId of the parent trip.
+ * @param {string} dayId - The MongoDB ObjectId of the itinerary day.
+ * @param {Object} activityData - Activity payload.
+ * @returns {Promise<Object>} Standardized API response { success: true, data: { activity, trip }, message: string }.
+ */
+export async function addActivity(tripId, dayId, activityData) {
+  const response = await apiClient.post(
+    `/trips/${tripId}/days/${dayId}/activities`,
+    activityData
+  )
+  return response.data
+}
+
+/**
+ * Removes an existing activity from an itinerary day within a saved trip.
+ *
+ * @param {string} tripId - The MongoDB ObjectId of the parent trip.
+ * @param {string} dayId - The MongoDB ObjectId of the itinerary day.
+ * @param {string} activityId - The MongoDB ObjectId of the activity.
+ * @returns {Promise<Object>} Standardized API response { success: true, data: { trip }, message: string }.
+ */
+export async function deleteActivity(tripId, dayId, activityId) {
+  const response = await apiClient.delete(
+    `/trips/${tripId}/days/${dayId}/activities/${activityId}`
+  )
+  return response.data
+}
+
+
 
 

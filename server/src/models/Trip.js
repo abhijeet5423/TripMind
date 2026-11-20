@@ -203,6 +203,16 @@ const budgetSummarySchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    perPersonCost: {
+      type: Number,
+      min: [0, 'Per person cost cannot be negative'],
+      default: 0,
+    },
+    budgetUtilization: {
+      type: Number,
+      min: [0, 'Budget utilization cannot be negative'],
+      default: 0,
+    },
     categories: {
       type: categoryBreakdownSchema,
       default: () => ({}),

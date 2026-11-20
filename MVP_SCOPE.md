@@ -91,22 +91,23 @@ Stage 5: AI Itinerary, Maps & Budget Analytics
 ### 3.5 Stage 4: Editable Day-Wise Itinerary
 - **Description:** Interactive, sequential day-by-day planner allowing granular customization.
 - **Acceptance Criteria:**
-  - Day selector tabs or accordion view (e.g., "Day 1", "Day 2", etc.).
-  - Chronological activity list per day displaying time slot, title, description, location, estimated cost, and category tag.
-  - User can add a new activity to any day.
-  - User can edit activity details inline or via modal.
-  - User can delete an activity from a day.
-  - Changes persist to MongoDB via backend API endpoints (`client/src/services/api/tripApi.js`) mutating embedded subdocuments in `Trip`.
-- **Current Status:** 🔴 Pending / Not Started
+  - [x] Day selector tabs view (e.g., "Day 1", "Day 2", etc.) with theme and notes *(Completed Day 29)*.
+  - [x] Chronological activity list per day displaying time slot, title, description, location, estimated cost, category tag, and coordinate links *(Completed Day 29)*.
+  - [x] User can add a new activity to any day (`POST /api/trips/:tripId/days/:dayId/activities`, `AddActivityModal.jsx`) *(Completed Day 33)*.
+  - [x] User can edit activity details via modal (`EditActivityModal.jsx` and `PATCH /api/trips/:tripId/days/:dayId/activities/:activityId`) *(Completed Day 32)*.
+  - [x] User can delete an activity from a day (`DELETE /api/trips/:tripId/days/:dayId/activities/:activityId`, `DeleteActivityModal.jsx`) *(Completed Day 33)*.
+  - [x] Changes persist to MongoDB via backend API endpoints (`client/src/services/api/tripApi.js`) mutating embedded subdocuments in `Trip` with automated financial recalculation *(Completed Day 32 & Day 33)*.
+- **Current Status:** 🟢 Completed Day 33 (Activity creation, editing, and deletion fully integrated with embedded subdocument persistence, query-level anti-enumeration, and dynamic budget recalculation)
 
 ### 3.6 Stage 5: Budget Calculation & Breakdown
 - **Description:** Transparent financial summary tracking expenses against the trip's defined budget.
 - **Acceptance Criteria:**
-  - Calculates total estimated expenses from all itinerary activities and stays.
-  - Computes remaining budget or over-budget warning indicator.
-  - Categorical expense breakdown (Accommodation, Dining, Transport, Activities, Miscellaneous).
-  - Visual chart representation using **Recharts** (e.g., Donut or Bar chart) adhering to the editorial color palette.
-- **Current Status:** 🔴 Pending / Not Started
+  - [x] Calculates total estimated expenses from all itinerary activities and stays (`server/src/services/budgetService.js`) *(Completed Day 34)*.
+  - [x] Computes remaining budget with safe over-budget clamping (`Math.max(0, budget - total)`) *(Completed Day 34)*.
+  - [x] Itemized categorical expense breakdown (Accommodation, Dining, Transport, Activities, Local Transport, Miscellaneous) with exact mathematical reconciliation *(Completed Day 34)*.
+  - [x] Computes per-person estimated cost (`totalEstimated / travellers`) and budget utilization percentage (`(totalEstimated / budget) * 100`) with safe zero-division handling *(Completed Day 34)*.
+  - [x] Visual chart representation using **Recharts** (`recharts@3.11.0`): Expense Category Donut Chart (`ExpenseDonutChart.jsx`) and Budget Comparison Bar Chart (`BudgetComparisonChart.jsx`) adhering to the editorial color palette *(Completed Day 35)*.
+- **Current Status:** 🟢 Completed (Backend Budget Calculation Service, category mapping, per-person cost, budget utilization %, live frontend sync completed Day 34; Recharts visual donut and comparison charts completed Day 35)
 
 ### 3.7 Stage 4: Destination Discovery
 - **Description:** Inspiration section allowing users to explore popular or trending destinations.
