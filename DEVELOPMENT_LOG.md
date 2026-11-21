@@ -33,6 +33,31 @@
 
 ## 2. Session History
 
+### [2026-11-21] — Production Vercel API Proxy Configuration
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Configure production Vercel edge reverse proxy routing by replacing the temporary `<RENDER_SERVICE_HOST>` placeholder in `client/vercel.json` with the confirmed live Render backend host (`https://tripmind-0b2x.onrender.com`), verify production builds and API routing behavior, stage approved files, commit, and push to `origin main`.
+- **Scope Boundaries:** Update `client/vercel.json` and document in `DEVELOPMENT_LOG.md` ONLY. Stage and commit only approved files. Zero changes to backend codebase or Atlas database configuration. Zero exposure of credentials or secrets.
+
+#### 1. Files Created / Modified
+- [`client/vercel.json`](./client/vercel.json) — *Modified.* Updated edge rewrite destination from placeholder to live production Render backend: `https://tripmind-0b2x.onrender.com/api/:path*`.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Recorded production proxy configuration, validation results, and Git milestone push.
+
+#### 2. Key Implementation Details & Concepts
+- **Vercel Edge Proxy to Render:** Configured `/api/:path*` to forward directly to `https://tripmind-0b2x.onrender.com/api/:path*` ahead of SPA fallback `/(.*)` -> `/index.html`.
+- **First-Party Cookie & CORS Architecture:** When deployed to Vercel, setting `VITE_API_BASE_URL=/api` ensures all API requests from the frontend are issued same-origin, preserving HTTP-only session cookies and bypassing third-party cookie restrictions across modern browsers.
+- **Backend Health & Atlas Verification:** Pre-verified live Render backend at `https://tripmind-0b2x.onrender.com/api/health` responding with status `ok` and active MongoDB Atlas connection.
+
+#### 3. Verification & Testing Performed
+- **JSON Syntax Validation:** Validated `client/vercel.json` with Node.js parser (`JSON.parse`) — passed with 0 errors.
+- **Frontend Production Build:** Executed `npm --prefix client run build` — 2,607 modules transformed, bundling `client/dist` successfully with 0 errors.
+- **Git State & Diff Checks:** Inspected `git diff --cached` and `git diff --cached --check`, confirming zero whitespace errors, clean diffs, and no untracked or secret files.
+- **Push Verification:** Committed with message `chore: configure production Vercel API proxy` and pushed to `origin main`.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Frontend configuration is committed and pushed to GitHub repository.
+- Next step: Import and deploy frontend repository on Vercel with environment variable `VITE_API_BASE_URL=/api`.
+- Once Vercel assigns the live production frontend domain, update `CLIENT_URL` in the Render dashboard environment settings if direct cross-origin access is needed.
+
 ### [2026-11-21] — Deployment Preparation: Vercel & Render Configuration Implementation
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Implement the two approved deployment-readiness configurations to prepare TripMind for production deployment on Render and Vercel: configure Express to trust Render's upstream reverse proxy, and establish Vercel SPA rewrites with same-origin backend API proxying.

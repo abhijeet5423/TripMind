@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://<RENDER_SERVICE_HOST>/api/:path*"
+      "destination": "https://tripmind-0b2x.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",
