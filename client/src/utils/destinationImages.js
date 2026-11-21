@@ -67,6 +67,48 @@ const CURATED_DESTINATION_MAP = [
 ]
 
 /**
+ * Stable ID/slug to bundled WebP asset mapping for curated destinations.
+ * Ensures that API-driven metadata pairs with the bundled, hashed production asset URL.
+ */
+const DESTINATION_IMAGE_REGISTRY = {
+  'kyoto-japan': kyotoImg,
+  'swiss-alps-switzerland': swissAlpsImg,
+  'bali-indonesia': baliImg,
+  'manali-india': manaliImg,
+  'varanasi-india': varanasiImg,
+  'amalfi-coast-italy': amalfiImg,
+}
+
+/**
+ * Resolves a destination photograph asset from local WebP registry or API payload.
+ *
+ * @param {Object} destination - Destination object from API or state.
+ * @returns {string|null} Resolved image URL or asset.
+ */
+export function resolveDestinationImage(destination) {
+  if (!destination || typeof destination !== 'object') return null
+
+  // 1. Direct match on stable ID or slug against local curated WebP registry
+  const key = destination.id || destination.slug
+  if (key && DESTINATION_IMAGE_REGISTRY[key]) {
+    return DESTINATION_IMAGE_REGISTRY[key]
+  }
+
+  // 2. Keyword fallback matching via getDestinationPhoto
+  const photo = getDestinationPhoto(destination.name || destination.destination)
+  if (photo?.src) {
+    return photo.src
+  }
+
+  // 3. If destination already has an absolute HTTP/HTTPS URL, return it
+  if (typeof destination.image === 'string' && /^https?:\/\//i.test(destination.image)) {
+    return destination.image
+  }
+
+  return null
+}
+
+/**
  * Resolves the most suitable photograph for a destination or trip.
  *
  * @param {string} destination - Trip destination string

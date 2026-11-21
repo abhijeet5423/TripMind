@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   MapPin,
   Landmark,
@@ -7,7 +8,10 @@ import {
   Compass,
   Sparkles,
   Waves,
+  ArrowRight,
 } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext.jsx'
+import { resolveDestinationImage } from '../../utils/destinationImages.js'
 
 /**
  * Thematic icon mapping for curated destination categories
@@ -40,9 +44,11 @@ const ICON_MAP = {
  * @param {string} [props.destination.imageAlt]
  */
 export default function DestinationCard({ destination }) {
+  const { isAuthenticated } = useAuth()
   const [imageError, setImageError] = useState(false)
   const IconComponent = (destination.iconName && ICON_MAP[destination.iconName]) || Compass
-  const hasImage = Boolean(destination.image && !imageError)
+  const displayImage = resolveDestinationImage(destination) || destination.image
+  const hasImage = Boolean(displayImage && !imageError)
 
   return (
     <article className="group bg-white rounded-xl border border-sage overflow-hidden shadow-[0_2px_8px_rgba(23,61,53,0.04)] hover:shadow-[0_8px_24px_rgba(23,61,53,0.08)] transition-all duration-300 flex flex-col h-full">
@@ -54,7 +60,7 @@ export default function DestinationCard({ destination }) {
         {hasImage ? (
           <>
             <img
-              src={destination.image}
+              src={displayImage}
               alt={destination.imageAlt || `${destination.name}, ${destination.country}`}
               loading="lazy"
               decoding="async"
@@ -110,6 +116,23 @@ export default function DestinationCard({ destination }) {
         <p className="mt-2.5 text-sm font-sans text-stone leading-relaxed flex-1">
           {destination.description}
         </p>
+
+        {/* Card Interactive Action Footer */}
+        <div className="pt-4 mt-4 border-t border-sage/60 flex items-center justify-between">
+          <Link
+            to={
+              isAuthenticated
+                ? `/dashboard?destination=${encodeURIComponent(destination.name)}`
+                : `/register?destination=${encodeURIComponent(destination.name)}`
+            }
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-terracotta hover:text-terracotta-dark hover:underline transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta rounded py-1"
+            aria-label={`Plan a journey to ${destination.name}`}
+          >
+            <span>Plan Journey</span>
+            <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1" />
+          </Link>
+          <span className="text-[11px] text-stone font-medium">Curated Guide</span>
+        </div>
       </div>
     </article>
   )

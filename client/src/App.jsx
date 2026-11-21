@@ -6,9 +6,11 @@ import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
 import TripDetailPage from './pages/TripDetailPage.jsx'
+import NotFoundPage from './pages/NotFoundPage.jsx'
 import ProtectedRoute from './components/common/ProtectedRoute.jsx'
 import PublicOnlyRoute from './components/common/PublicOnlyRoute.jsx'
 import { TripProvider } from './context/TripContext.jsx'
+import AssistantLauncher from './components/assistant/AssistantLauncher.jsx'
 
 /**
  * PublicLayout Component
@@ -30,66 +32,71 @@ function PublicLayout({ children }) {
  */
 export default function App() {
   return (
-    <Routes>
-      {/* Editorial Landing Page */}
-      <Route
-        path="/"
-        element={
-          <PublicLayout>
-            <LandingPage />
-          </PublicLayout>
-        }
-      />
+    <>
+      <Routes>
+        {/* Editorial Landing Page */}
+        <Route
+          path="/"
+          element={
+            <PublicLayout>
+              <LandingPage />
+            </PublicLayout>
+          }
+        />
 
-      {/* Guest-Only Authentication Pages */}
-      <Route
-        path="/login"
-        element={
-          <PublicOnlyRoute>
-            <LoginPage />
-          </PublicOnlyRoute>
-        }
-      />
-      <Route
-        path="/register"
-        element={
-          <PublicOnlyRoute>
-            <RegisterPage />
-          </PublicOnlyRoute>
-        }
-      />
+        {/* Guest-Only Authentication Pages */}
+        <Route
+          path="/login"
+          element={
+            <PublicOnlyRoute>
+              <LoginPage />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicOnlyRoute>
+              <RegisterPage />
+            </PublicOnlyRoute>
+          }
+        />
 
-      {/* Protected Traveler Routes */}
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <TripProvider>
-              <DashboardPage />
-            </TripProvider>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/trips/:id"
-        element={
-          <ProtectedRoute>
-            <TripProvider>
-              <TripDetailPage />
-            </TripProvider>
-          </ProtectedRoute>
-        }
-      />
+        {/* Protected Traveler Routes */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <TripProvider>
+                <DashboardPage />
+              </TripProvider>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trips/:id"
+          element={
+            <ProtectedRoute>
+              <TripProvider>
+                <TripDetailPage />
+              </TripProvider>
+            </ProtectedRoute>
+          }
+        />
 
-      {/* Wildcard Fallback */}
-      <Route
-        path="*"
-        element={
-          <PublicLayout>
-            <LandingPage />
-          </PublicLayout>
-        }
-      />
-    </Routes>
+        {/* Wildcard Fallback (404 Not Found) */}
+        <Route
+          path="*"
+          element={
+            <PublicLayout>
+              <NotFoundPage />
+            </PublicLayout>
+          }
+        />
+      </Routes>
+
+      {/* Global AI Assistant Floating Launcher (Available across every page) */}
+      <AssistantLauncher />
+    </>
   )
 }

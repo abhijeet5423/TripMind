@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Plus,
   CheckCircle2,
@@ -28,8 +28,20 @@ export default function DashboardPage() {
   const { user } = useAuth()
   const { trips, loading, error, fetchTrips } = useTrip()
   const navigate = useNavigate()
+  const location = useLocation()
 
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const searchParams = new URLSearchParams(location.search)
+  const initialDestination = searchParams.get('destination') || ''
+
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(Boolean(initialDestination))
+  const [prevInitialDest, setPrevInitialDest] = useState(initialDestination)
+  if (initialDestination !== prevInitialDest) {
+    setPrevInitialDest(initialDestination)
+    if (initialDestination) {
+      setIsCreateModalOpen(true)
+    }
+  }
+
   const [editingTrip, setEditingTrip] = useState(null)
   const [deletingTrip, setDeletingTrip] = useState(null)
   const [updatedSuccessMessage, setUpdatedSuccessMessage] = useState(null)
@@ -160,6 +172,7 @@ export default function DashboardPage() {
       {/* 4. Controlled Modal Dialogs */}
       <CreateTripModal
         isOpen={isCreateModalOpen}
+        initialDestination={initialDestination}
         onClose={() => setIsCreateModalOpen(false)}
         onSuccess={handleTripCreated}
       />

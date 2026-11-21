@@ -26,10 +26,14 @@ import RegenerateItineraryModal from '../components/itinerary/RegenerateItinerar
 import EditActivityModal from '../components/itinerary/EditActivityModal.jsx'
 import AddActivityModal from '../components/itinerary/AddActivityModal.jsx'
 import DeleteActivityModal from '../components/itinerary/DeleteActivityModal.jsx'
+import LeafletMapContainer from '../components/map/LeafletMapContainer.jsx'
+import ActivityMarkers from '../components/map/ActivityMarkers.jsx'
+import AssistantChat from '../components/assistant/AssistantChat.jsx'
 import * as tripApi from '../services/api/tripApi.js'
 import { useTrip } from '../hooks/useTrip.js'
 import { mapItineraryError } from '../utils/itineraryErrorHelper.js'
 import { getDestinationPhoto } from '../utils/destinationImages.js'
+import { getDestinationCoordinates, getPlottableActivities } from '../utils/mapUtils.js'
 
 /**
  * Formats calendar dates into an editorial human-readable range (UTC).
@@ -126,6 +130,16 @@ export default function TripDetailPage() {
   const destinationPhoto = trip?.destination
     ? getDestinationPhoto(trip.destination, trip.coverImageUrl, true)
     : null
+
+  // Destination Map Coordinates (Day 38 Map Foundation)
+  const mapCoordinates = useMemo(() => {
+    return getDestinationCoordinates(trip?.destination)
+  }, [trip?.destination])
+
+  // Plottable Activity Markers with Valid Coordinates (Day 39)
+  const plottableActivities = useMemo(() => {
+    return getPlottableActivities(trip?.days)
+  }, [trip?.days])
 
   /**
    * Fetches the complete Trip document from the backend.
@@ -501,20 +515,94 @@ export default function TripDetailPage() {
   const budgetStr = trip ? formatCurrency(trip.budget, trip.currency) : ''
 
   // ---------------------------------------------------------------------------
-  // Page Render: Loading Initial Trip
+  // Page Render: Loading Initial Trip Skeleton
   // ---------------------------------------------------------------------------
   if (loadingTrip) {
     return (
-      <div className="min-h-screen bg-sand-ivory py-12">
+      <div className="min-h-screen bg-sand-ivory py-8 sm:py-12" role="status" aria-label="Loading journey details">
         <Container>
-          <div className="bg-white rounded-2xl border border-sage p-12 text-center shadow-[0_2px_8px_rgba(23,61,53,0.04)] flex flex-col items-center justify-center min-h-[400px]">
-            <Loader2 className="w-8 h-8 text-forest animate-spin mb-4" />
-            <h3 className="font-serif text-xl font-bold text-forest mb-2">
-              Opening Your Travel Journal...
-            </h3>
-            <p className="text-stone font-sans text-sm max-w-sm">
-              Retrieving your saved journey itinerary and budget configurations.
-            </p>
+          <div className="space-y-8 animate-pulse motion-reduce:animate-none">
+            {/* Back Navigation Bar Skeleton */}
+            <div className="flex items-center justify-between">
+              <div className="h-5 w-32 bg-sage/50 rounded" />
+              <div className="h-4 w-28 bg-sage/40 rounded" />
+            </div>
+
+            {/* Journey Header Card Skeleton */}
+            <div className="bg-white rounded-2xl border border-sage p-6 sm:p-8 shadow-[0_2px_8px_rgba(23,61,53,0.04)] flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div className="flex-1 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-60 bg-sage/50 rounded" />
+                  <div className="h-6 w-16 bg-sage/35 rounded-full" />
+                </div>
+                <div className="flex flex-wrap items-center gap-4 pt-1">
+                  <div className="h-4 w-32 bg-sage/40 rounded" />
+                  <div className="h-4 w-36 bg-sage/40 rounded" />
+                  <div className="h-4 w-24 bg-sage/40 rounded" />
+                  <div className="h-4 w-28 bg-sage/40 rounded" />
+                </div>
+                <div className="pt-2">
+                  <div className="h-11 w-44 bg-forest/20 rounded-lg" />
+                </div>
+              </div>
+
+              {/* Destination Photo Plate Skeleton */}
+              <div className="w-full lg:w-72 xl:w-80 shrink-0 overflow-hidden rounded-xl border border-sage/80 bg-sand-ivory">
+                <div className="aspect-[4/3] w-full bg-sage/40" />
+              </div>
+            </div>
+
+            {/* Map Section Skeleton */}
+            <div className="bg-white rounded-2xl border border-sage p-6 sm:p-8 shadow-[0_2px_8px_rgba(23,61,53,0.04)] space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-sage/60">
+                <div className="h-7 w-52 bg-sage/50 rounded" />
+                <div className="h-5 w-28 bg-sage/35 rounded-full" />
+              </div>
+              <div className="w-full aspect-[21/9] min-h-[260px] bg-sage/25 rounded-xl flex items-center justify-center">
+                <div className="flex items-center gap-2 text-stone/60 font-serif text-sm">
+                  <Compass className="w-5 h-5 text-stone/50 animate-spin" />
+                  <span>Preparing exploration map canvas...</span>
+                </div>
+              </div>
+            </div>
+
+            {/* AI Assistant Module Skeleton */}
+            <div className="bg-white rounded-2xl border border-sage p-5 sm:p-6 shadow-[0_2px_8px_rgba(23,61,53,0.04)] space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-sage/60">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-forest/20" />
+                  <div className="h-5 w-40 bg-sage/50 rounded" />
+                </div>
+                <div className="h-5 w-24 bg-sage/35 rounded" />
+              </div>
+              <div className="h-18 bg-sand-ivory/60 rounded-xl border border-sage/80" />
+            </div>
+
+            {/* Day-by-Day Schedule Skeleton */}
+            <div className="space-y-6 pt-4">
+              <div className="flex items-center justify-between pb-2 border-b border-sage/60">
+                <div className="h-7 w-44 bg-sage/50 rounded" />
+                <div className="flex gap-2">
+                  <div className="h-8 w-20 bg-sage/40 rounded-xl" />
+                  <div className="h-8 w-20 bg-sage/40 rounded-xl" />
+                  <div className="h-8 w-20 bg-sage/40 rounded-xl" />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="bg-white rounded-xl border border-sage p-5 space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="h-4 w-20 bg-sage/40 rounded-full" />
+                      <div className="h-4 w-16 bg-sage/35 rounded" />
+                    </div>
+                    <div className="h-5 w-48 bg-sage/50 rounded" />
+                    <div className="h-3.5 w-full bg-sage/30 rounded" />
+                    <div className="h-3.5 w-3/4 bg-sage/25 rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </Container>
       </div>
@@ -782,30 +870,35 @@ export default function TripDetailPage() {
 
           {/* STATE 1: Empty Itinerary Canvas (No days generated yet) */}
           {!hasItinerary && !isGenerating && (
-            <div className="bg-white rounded-2xl border border-sage p-10 sm:p-16 text-center shadow-[0_2px_8px_rgba(23,61,53,0.04)] flex flex-col items-center justify-center min-h-[420px]">
-              <div className="w-16 h-16 rounded-full bg-sand-ivory border border-sage/80 flex items-center justify-center text-terracotta mb-5">
-                <Compass className="w-8 h-8" />
+            <div className="space-y-8">
+              <div className="bg-white rounded-2xl border border-sage p-10 sm:p-16 text-center shadow-[0_2px_8px_rgba(23,61,53,0.04)] flex flex-col items-center justify-center min-h-[420px]">
+                <div className="w-16 h-16 rounded-full bg-sand-ivory border border-sage/80 flex items-center justify-center text-terracotta mb-5">
+                  <Compass className="w-8 h-8" />
+                </div>
+                <span className="text-xs uppercase tracking-widest text-terracotta font-bold mb-2">
+                  Mindful Travel Design
+                </span>
+                <h2 className="font-serif text-2xl sm:text-3xl font-bold text-forest mb-3">
+                  No Itinerary Curated Yet
+                </h2>
+                <p className="text-stone font-sans text-sm max-w-lg leading-relaxed mb-8">
+                  TripMind curates rich, realistic travel schedules tailored to your departure
+                  dates, traveler count, and target budget. Generate your personalized day-by-day
+                  plan with authentic local recommendations and financial clarity.
+                </p>
+                <Button
+                  variant="accent"
+                  size="lg"
+                  onClick={handleActionClick}
+                  className="gap-2.5 shadow-md hover:shadow-xl px-8 py-4 text-base font-bold bg-terracotta hover:bg-terracotta-dark text-white border-terracotta focus-visible:ring-2 focus-visible:ring-terracotta focus-visible:ring-offset-2 transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-5 h-5 text-white" />
+                  <span>Generate Itinerary with AI</span>
+                </Button>
               </div>
-              <span className="text-xs uppercase tracking-widest text-terracotta font-bold mb-2">
-                Mindful Travel Design
-              </span>
-              <h2 className="font-serif text-2xl sm:text-3xl font-bold text-forest mb-3">
-                No Itinerary Curated Yet
-              </h2>
-              <p className="text-stone font-sans text-sm max-w-lg leading-relaxed mb-8">
-                TripMind curates rich, realistic travel schedules tailored to your departure
-                dates, traveler count, and target budget. Generate your personalized day-by-day
-                plan with authentic local recommendations and financial clarity.
-              </p>
-              <Button
-                variant="accent"
-                size="lg"
-                onClick={handleActionClick}
-                className="gap-2.5 shadow-md hover:shadow-xl px-8 py-4 text-base font-bold bg-terracotta hover:bg-terracotta-dark text-white border-terracotta focus-visible:ring-2 focus-visible:ring-terracotta focus-visible:ring-offset-2 transition-all cursor-pointer"
-              >
-                <Sparkles className="w-5 h-5 text-white" />
-                <span>Generate Itinerary with AI</span>
-              </Button>
+
+              {/* AI Travel Assistant Chat Module (Day 41) */}
+              <AssistantChat trip={trip} />
             </div>
           )}
 
@@ -858,6 +951,63 @@ export default function TripDetailPage() {
                 currency={trip.currency || 'USD'}
                 numberOfTravellers={trip.numberOfTravellers}
               />
+
+              {/* Interactive Map Module (Day 38 Map Foundation & Day 39 Activity Markers) */}
+              <div className="bg-white rounded-2xl border border-sage p-6 sm:p-8 shadow-[0_2px_8px_rgba(23,61,53,0.04)] space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 pb-3 border-b border-sage/60">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-forest/10 text-forest flex items-center justify-center shrink-0 mt-0.5">
+                      <Compass className="w-5 h-5 text-terracotta" />
+                    </div>
+                    <div>
+                      <h3 className="font-serif text-xl sm:text-2xl font-bold text-forest">
+                        Trip Route & Exploration
+                      </h3>
+                      <p className="text-xs sm:text-sm text-stone mt-0.5">
+                        Interactive map of {trip.destination} powered by OpenStreetMap
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sand-ivory border border-sage text-stone text-xs font-sans shrink-0">
+                      <MapPin className="w-3.5 h-3.5 text-terracotta shrink-0" />
+                      <span className="font-medium text-forest">{trip.destination}</span>
+                    </div>
+                    {plottableActivities.length > 0 ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-forest/10 text-forest text-xs font-semibold shrink-0">
+                        <span>{plottableActivities.length}</span>
+                        <span>{plottableActivities.length === 1 ? 'stop mapped' : 'stops mapped'}</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-sand-ivory text-stone text-xs font-medium border border-sage/70 shrink-0">
+                        Destination overview
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <LeafletMapContainer
+                  center={mapCoordinates.center}
+                  zoom={mapCoordinates.zoom}
+                  className="w-full rounded-xl overflow-hidden border border-sage/80 shadow-2xs"
+                  height="400px"
+                  ariaLabel={`Interactive exploration map for ${trip.destination}`}
+                >
+                  <ActivityMarkers
+                    days={trip.days}
+                    currency={trip.currency || 'USD'}
+                  />
+                </LeafletMapContainer>
+
+                {plottableActivities.length === 0 && (
+                  <p className="text-[11px] text-stone italic text-center sm:text-left">
+                    Note: Activity markers appear automatically when scheduled stops include geographical coordinates.
+                  </p>
+                )}
+              </div>
+
+              {/* AI Travel Assistant Chat Module (Day 41) */}
+              <AssistantChat trip={trip} />
 
               {/* Day-Wise Navigation Section */}
               <div className="space-y-6 pt-4">

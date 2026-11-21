@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { ArrowRight, MapPin, Calendar, Compass, Sparkles } from 'lucide-react'
 import Container from '../common/Container.jsx'
 import Button from '../common/Button.jsx'
+import { useAuth } from '../../context/AuthContext.jsx'
 import heroPoster from '../../assets/hero/hero-poster.webp'
 
 const videoModules = import.meta.glob('../../assets/hero video.mp4', {
@@ -19,6 +21,7 @@ const heroVideo = videoModules['../../assets/hero video.mp4'] || null
  * while preserving all editorial typography, calls-to-action, and preview card layout.
  */
 export default function Hero() {
+  const { isAuthenticated } = useAuth()
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
     if (typeof window !== 'undefined' && window.matchMedia) {
       return window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -74,7 +77,7 @@ export default function Hero() {
       <Container className="relative z-10 py-16 sm:py-20 lg:py-28">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
           {/* Left Column: Editorial Narrative & CTAs (7-8 columns on desktop) */}
-          <div className="lg:col-span-7 xl:col-span-8 flex flex-col items-start text-left">
+          <div id="about" className="lg:col-span-7 xl:col-span-8 flex flex-col items-start text-left scroll-mt-24">
             {/* Small Editorial Eyebrow Label */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-sand-ivory/10 border border-sand-ivory/25 text-sand-ivory text-xs font-sans font-semibold tracking-widest uppercase mb-6 backdrop-blur-xs">
               <Sparkles className="w-3.5 h-3.5 text-terracotta" aria-hidden="true" />
@@ -98,8 +101,8 @@ export default function Hero() {
               <Button
                 variant="accent"
                 size="lg"
-                as="a"
-                href="#start"
+                as={Link}
+                to={isAuthenticated ? '/dashboard' : '/register'}
                 className="group shadow-md hover:shadow-lg transition-all"
               >
                 <span>Start Planning</span>
@@ -134,7 +137,7 @@ export default function Hero() {
                   Customizable stops
                 </span>
               </div>
-              <div>
+              <div id="budget" className="scroll-mt-24">
                 <span className="block font-semibold text-sand-ivory uppercase tracking-wider text-[11px]">
                   Budget Clarity
                 </span>

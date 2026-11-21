@@ -5,6 +5,7 @@ import { config } from './config/env.js'
 import healthRoutes from './routes/health.routes.js'
 import authRoutes from './routes/auth.routes.js'
 import tripRoutes from './routes/trip.routes.js'
+import destinationRoutes from './routes/destination.routes.js'
 
 /**
  * Express Application Configuration
@@ -14,6 +15,9 @@ import tripRoutes from './routes/trip.routes.js'
  * Does not initialize port listener or database connections.
  */
 const app = express()
+
+// Trust the first proxy hop (Render reverse proxy).
+app.set('trust proxy', 1)
 
 // 1. Cross-Origin Resource Sharing (CORS)
 app.use(
@@ -33,6 +37,7 @@ app.use(cookieParser())
 app.use('/api', healthRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/trips', tripRoutes)
+app.use('/api/destinations', destinationRoutes)
 
 // 4. 404 Not Found Handler
 app.use((req, res) => {

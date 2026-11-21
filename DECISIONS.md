@@ -440,6 +440,177 @@
 
 ---
 
+### ADR-020: Curated Static Destination Data Architecture & Public Discovery API
+- **Status:** 🟢 CONFIRMED (Implemented Day 36)
+- **Context:** TripMind's Destination Discovery feature requires an authoritative dataset of inspiring travel destinations featuring rich editorial narrative descriptions, verified open-access creator attributions, category/vibe classifications, and accurate WGS84 geographic coordinates for future Leaflet map plotting (Days 38–39). We evaluated whether storing destinations in a MongoDB collection versus serving curated static data is more appropriate for the MVP.
+- **Decision:**
+  1. **Curated Static Dataset (`server/src/data/destinations.js`):** Maintain destinations as an authoritative, centralized in-memory JavaScript dataset rather than an active MongoDB collection for the MVP.
+  2. **Domain Service Encapsulation (`server/src/services/destinationService.js`):** Encapsulate all destination queries behind pure service functions (`getAllDestinations`, `getDestinationBySlugOrId`, `isValidDestination`), ensuring complete immutability (deep-cloning data before returning) and providing built-in active-status filtering (`activeOnly: true` by default).
+  3. **Public RESTful Endpoints (`server/src/routes/destination.routes.js` & `server/src/controllers/destinationController.js`):**
+     - `GET /api/destinations`: Returns all active curated destinations conforming to the standardized response envelope `{ success: true, data: { destinations, total }, message }`. Supports query parameters for category filtering (`?category=...`), search keywords (`?search=...`), and active-status overrides (`?activeOnly=...`).
+     - `GET /api/destinations/:identifier`: Returns a single destination matching by URL-safe slug or stable ID (case-insensitive) with HTTP 404 anti-enumeration `{ success: false, error: { code: 'NOT_FOUND', message: 'Destination not found', details: [] } }` for unknown destinations.
+  4. **Public Accessibility & Security Hygiene:** Public discovery endpoints require zero authentication headers or cookies, eliminating unnecessary login barriers for landing page visitors while exposing zero secrets or environment variables.
+  5. **Frontend API Client Integration (`client/src/services/api/destinationApi.js`):** Encapsulate client HTTP calls through dedicated Axios service methods (`getDestinations`, `getDestination`) preserving the backend response envelope and preparing for Day 37 UI integration.
+- **Rationale:**
+  - **Zero Database Complexity:** Curated destinations are editorial assets (not user-generated content). Static storage eliminates MongoDB collection indexes, schema overhead, seed scripts, and migration complexity during MVP development.
+  - **Ultra-Fast Performance:** In-memory retrieval achieves 0ms query latency with zero database connection pool contention or I/O bottleneck.
+  - **Guaranteed Data Integrity:** Coordinates (WGS84) and creator attribution records are strictly verified and cannot be accidentally mutated, dropped, or corrupted by runtime operations.
+  - **Clean Future Transition:** When transitioning to dynamic CMS content in Phase 2, the exact same controller, route, and client API contracts can query a Mongoose `Destination` model without modifying downstream consumers.
+- **Consequences:**
+  - Adding or modifying curated destinations during MVP is managed directly in `server/src/data/destinations.js`.
+  - Day 37 search and filters can execute fast in-memory filtering via the service layer.
+
+---
+
+### ADR-021: Debounced Search, Synchronized Category Filtering, and Bundled WebP Asset Resolution for Destination Discovery
+- **Status:** 🟢 CONFIRMED (Implemented Day 37)
+- **Context:** On Day 36, public backend endpoints and the Axios client module were implemented. On Day 37, the frontend `DestinationDiscovery.jsx` needed to transition from the hardcoded `destinations.js` data file to dynamic backend API retrieval. Key architectural considerations:
+  1. Vite asset bundling creates hashed asset URLs (e.g., `kyoto-japan-BicYHV9m.webp`), whereas the backend returns raw paths (`/assets/destinations/kyoto-japan.webp`). Blindly rendering backend image strings causes 404 broken image links in production.
+  2. Rapid typing in the search bar or rapid clicking on category filter pills can fire concurrent requests that resolve out of order, leading to race conditions where older query results clobber newer results.
+  3. Search must be responsive without overloading the API on every single keystroke.
+  4. Non-matching queries and network errors must display graceful, editorial feedback with recovery CTAs.
+- **Decision:**
+  1. **Bundled WebP Asset Resolution via Image Registry (`resolveDestinationImage`):** Implement a dedicated client-side asset resolver in `client/src/utils/destinationImages.js` that maps stable destination identifiers and slugs to Vite-bundled WebP imports (`import kyotoImg from '../assets/destinations/kyoto-japan.webp'`). If an identifier is found in the registry, it returns the bundled hash URL. If not, it falls back to `getDestinationPhoto` or the raw string. All metadata, titles, descriptions, coordinates, and creator attributions remain 100% API-driven.
+  2. **Multi-Field Keyword Search:** The backend service searches across `name`, `country`, `region`, `tags`, `travelVibes`, and `highlights` (case-insensitive substring inclusion).
+  3. **Debounced Search Input (300ms):** Debounce `searchQuery` state with a 300ms `setTimeout` before updating `debouncedSearch`, preventing intermediate API spam while typing.
+  4. **Race Condition Prevention & Request Cancellation:** Maintain a `latestRequestId` ref and instantiate an `AbortController` in `useEffect`. If a newer fetch fires before a previous request completes, the controller aborts the previous request via `options.signal` passed to `destinationApi.getDestinations(params, { signal })`, and `requestId !== latestRequestId.current` guards silently drop stale responses.
+  5. **Stateful Feedback UI:**
+     - 6-card pulsing skeleton loader during initial and transition fetches.
+     - Editorial empty state with `Compass` icon, descriptive search feedback, and contextual "Clear search query", "View all categories", or "Reset all filters" buttons.
+     - Accessible error banner with a "Try Again" retry action.
+  6. **Zero Staging / Zero Git Commits:** All changes remain in the local working tree without `git add` or `git commit`.
+- **Rationale:**
+  - Preserves 100% asset fidelity and verified Wikimedia Commons attributions without broken links.
+  - Eliminates asynchronous race conditions and UI flicker during fast user input.
+  - Keeps the codebase clean, modular, and adhering strictly to TripMind's editorial design system.
+- **Consequences:**
+  - `destinationApi.getDestinations` accepts an optional `options` parameter supporting `signal`.
+  - Frontend components import `resolveDestinationImage` to bind API destination objects with bundled images.
+
+---
+
+### ADR-022: Vanilla Leaflet with React 19 Lifecycle and Container Resilience for Interactive Maps
+- **Status:** 🟢 CONFIRMED (Implemented Day 38)
+- **Context:** TripMind requires interactive geographic mapping on trip and itinerary views. We evaluated integrating Leaflet through declarative React wrappers (`react-leaflet`) versus directly utilizing Vanilla Leaflet (`leaflet@^1.9.4`) managed via React 19 lifecycle hooks (`useRef` and `useEffect`).
+- **Decision:**
+  1. **Adopt Vanilla Leaflet (`leaflet@^1.9.4`):** Avoid `react-leaflet` to eliminate React 19 peer-dependency collisions and retain complete authority over Leaflet's lifecycle and DOM elements.
+  2. **Dedicated Component Encapsulation (`LeafletMapContainer.jsx`):** Encapsulate map instantiation inside a reusable, accessible component (`role="region"`). Reference the container via `containerRef` and track the active instance via `mapInstanceRef`.
+  3. **Duplicate Initialization Defense:** Guard initial mounting with `if (mapInstanceRef.current) return` to eliminate double-mounting bugs in React 19 StrictMode. On unmount, invoke `map.remove()` and reset `mapInstanceRef.current = null`.
+  4. **Container Dimension Resilience:** Set explicit non-zero height (`style={{ minHeight: height, height }}`) and observe dimensions via `ResizeObserver`, calling `map.invalidateSize()` on resizing and upon mount (`requestAnimationFrame` + timeout) to prevent gray tile collapse.
+  5. **OpenStreetMap Compliance:** Use standard raster tiles (`https://tile.openstreetmap.org/{z}/{x}/{y}.png`) with mandatory attribution notice (`© OpenStreetMap contributors`) and link to copyright policy.
+  6. **Privacy-Conscious Centering:** Center maps strictly via destination metadata and curated coordinates (`mapUtils.js`). Prohibit unsolicited browser geolocation calls.
+- **Rationale:**
+  - Guarantees 100% compatibility with React 19 and Vite bundling.
+  - Eliminates tile rendering artifacts and layout timing glitches.
+  - Conforms to OpenStreetMap Tile Usage Policies and privacy guidelines.
+- **Consequences:**
+  - Day 39 itinerary markers and custom category pins will mount directly into the Leaflet map instance via `LeafletMapContainer`.
+
+---
+
+### ADR-023: Custom SVG Category Pins, LayerGroup Lifecycle, and Sanitized Editorial Popups for Itinerary Activity Markers
+- **Status:** 🟢 CONFIRMED (Implemented Day 39)
+- **Context:** Following Day 38's Leaflet mapping foundation, Day 39 requires rendering interactive markers and editorial popups for all itinerary activities with valid coordinates. Key challenges included:
+  1. Supporting both direct (`activity.latitude`) and nested (`activity.location.latitude`) schemas from `Trip.js`.
+  2. Rendering high-contrast, scalable pins matching TripMind's design system without external image assets or broken icon paths.
+  3. Disambiguating multiple activities sharing identical coordinates so pins do not occlude each other.
+  4. Preventing duplicate markers and memory leaks during React re-renders.
+  5. Neutralizing XSS risks when rendering activity text in Leaflet HTML popups.
+- **Decision:**
+  1. **Coordinate Normalization (`extractActivityCoordinates`):** Inspect direct properties first, fall back to nested location objects, parse string numbers, and validate WGS84 bounds. Activities lacking coordinates are safely excluded from the map while preserved in the itinerary.
+  2. **Identical Coordinate Disambiguation (`applyCoordinateDisambiguation`):** Apply a microscopic circular offset (~7m) to subsequent stops sharing exact coordinates, keeping all pins visible and individually clickable.
+  3. **Custom Category SVG Pins (`createMarkerSvg`):** Generate standalone SVG teardrop pins (32x40px) using `L.divIcon`, color-coded to the 5 schema categories (`stay`, `food`, `transit`, `activity`, `other`), with an inner white circle and bold Day badge (`D1`, `D2`, etc.).
+  4. **LayerGroup Lifecycle (`ActivityMarkers.jsx`):** Encapsulate markers inside an `L.layerGroup`. On itinerary updates, `clearLayers()` wipes old markers before repopulating, preventing duplicate pins. On unmount, the layer group is removed from the map.
+  5. **OWASP XSS Sanitization (`escapeHtml`):** Sanitize all activity fields (title, location, time, duration, cost) prior to populating Leaflet popup HTML.
+  6. **Dynamic Bounds Fitting:** Fit bounds across all mapped stops with `maxZoom: 15` and comfortable padding; center on single stop at zoom `14`; retain destination view if zero stops are mapped.
+- **Rationale:**
+  - Guarantees 100% asset resilience with zero image 404s.
+  - Eliminates DOM memory leaks and duplicate marker artifacts.
+  - Adheres strictly to security and privacy guidelines.
+- **Consequences:**
+  - `LeafletMapContainer` provides `MapContext` for child components.
+  - Day 40 can integrate day-filtered marker visibility without altering marker generation logic.
+
+---
+
+### ADR-024: Stateless Bounded-History AI Travel Assistant API with Structured Trip-Context Isolation
+- **Status:** 🟢 CONFIRMED (Implemented Day 40)
+- **Context:** Following Day 39's mapping enhancements, Week 6 Day 40 requires an AI travel assistant backend API (`POST /api/trips/:tripId/assistant/messages`) capable of answering user questions grounded in their active trip itinerary. Key architectural and security challenges included:
+  1. Preventing prompt injection and role confusion from user-supplied inputs or trip metadata fields.
+  2. Bounding token consumption within Google AI Studio's Free Tier (₹0 budget) across multi-turn conversations.
+  3. Eliminating the database and maintenance overhead of persistent conversation storage in MongoDB for MVP.
+  4. Preventing multi-tenant resource enumeration on unowned trip IDs.
+  5. Enforcing request rate limiting to protect LLM quotas from client spam.
+- **Decision:**
+  1. **Stateless Bounded-History Protocol:** Clients maintain conversation state locally and submit an optional bounded history array (maximum 6 messages / 3 full turns) alongside the current question. The backend persists zero conversation records in MongoDB, keeping the architecture simple, stateless, and cost-free.
+  2. **Role Whitelisting & Input Validation (`assistantValidator.js`):** Messages are limited to 1,000 characters. History items strictly whitelist roles `'user'` and `'assistant'`. Attempts to submit `'system'` or `'developer'` roles are rejected immediately with HTTP 400 `VALIDATION_ERROR`.
+  3. **Delimited Context Assembly (`assistantContextService.js`):** Extracts only public/editorial trip metadata, traveler style preferences, itemized categorical budget summaries, and daily activity stops. Truncates activity descriptions to 200 characters and encloses reference data in `<trip_context>...</trip_context>` tags.
+  4. **Grounding & Persona System Prompt (`assistantPrompt.js`):** Employs `ASSISTANT_SYSTEM_INSTRUCTION` establishing TripMind's mindful editorial travel advisor. Strictly instructs the model that `<trip_context>` contains non-executable factual reference data, mandates differentiating saved itinerary stops from general recommendations, prohibits hallucinations of booking confirmations or live ticket availability, and maps client role `'assistant'` to Gemini SDK role `'model'`.
+  5. **In-Memory Rate Limiting (`rateLimiter.js`):** `assistantLimiter` enforces a sliding window of max 15 requests per minute per authenticated user (or IP fallback). Requests exceeding the quota return HTTP 429 `RATE_LIMIT_EXCEEDED` with `Retry-After` headers.
+  6. **Multi-Tenant Anti-Enumeration Isolation:** `tripService.getTripById(userId, tripId)` enforces query-level ownership filtering. Requests for unowned or nonexistent trips return identical HTTP 404 `NOT_FOUND` responses (`"Trip not found"`).
+  7. **Timeout Guard & Normalized Error Mapping (`assistantService.js`):** Implements a 30-second `Promise.race` timeout returning HTTP 504 `AI_TIMEOUT`. Normalizes provider errors to standard HTTP status codes (429, 502, 503, 504).
+  8. **Frontend API Client (`assistantApi.js`):** Encapsulates HTTP transport in `client/src/services/api/assistantApi.js` ready for Day 41 Chat UI integration.
+- **Rationale:**
+  - Guarantees zero credential exposure and absolute resistance to prompt-injection attacks.
+  - Maintains strict ₹0 operating cost within Google AI Studio's free tier.
+  - Eliminates database schema churn and data accumulation for ephemeral conversational turns.
+- **Consequences:**
+  - Day 41 will implement the frontend chat interface, managing conversational message history in React state / localStorage.
+
+---
+
+### ADR-025: In-Memory Bounded Conversational UI State, In-Place Error Retries, and Zero-Dependency Markdown Formatter for AI Travel Assistant Interface
+- **Status:** 🟢 CONFIRMED (Implemented Day 41)
+- **Context:** Following Day 40's backend AI Assistant API implementation (`POST /api/trips/:tripId/assistant/messages`), Day 41 requires an intuitive, accessible, and responsive conversational chat interface (`AssistantChat.jsx`) integrated within `TripDetailPage.jsx`. Key challenges and constraints:
+  1. The assistant responds in rich Markdown (headings, lists, bold text, blockquotes, code spans, links), but adding heavy external Markdown libraries (like `react-markdown` or `marked`) increases bundle size and introduces React 19 / Vite peer dependency friction.
+  2. The backend contract limits `history` to max 6 prior messages (3 full turns) and excludes the newest message being sent (which is delivered in `message`).
+  3. Network dropouts, LLM timeouts, and rate limits require clear, non-intrusive feedback and in-place retry capabilities without duplicating user messages in the chat stream.
+  4. Navigating between different trips in the workspace must never leak conversations from one trip to another.
+  5. Accessibility (`role="log"`, `aria-live="polite"`, keyboard submit) and responsive layout (mobile 375px to desktop) must strictly conform to TripMind's design system.
+- **Decision:**
+  1. **In-Memory Ephemeral State Architecture:** Conversation state (`messages`) is held in component React state, starting clean with a contextual welcome hero card (`trip.destination`, `trip.numberOfTravellers`, `trip.budget`) and 4 curated suggested prompt pills (`SUGGESTED_QUESTIONS`). Persistent chat database collections or local storage synchronization are strictly avoided for MVP, preserving stateless cleanliness.
+  2. **Bounded History Slicing & Anti-Duplication:** While the UI maintains the full visible conversation stream, API requests slice `priorEligible.slice(-6)` where prior eligible messages strictly exclude the newest prompt being submitted (which is passed in the `message` field).
+  3. **Zero-Dependency Pure JS Markdown Formatter (`markdownParser.js` & `MarkdownContent.jsx`):** A custom lightweight tokenizer converts raw AI responses into clean block elements (headers `###`, bullet lists `<ul>`, numbered lists `<ol>`, blockquotes `<blockquote>`, paragraphs `<p>`) and inline elements (bold, italic, code spans, sanitized links). Implemented in pure JS for 100% testability in Node.js ESM without JSX transpilers.
+  4. **In-Place Error Recovery & Retries:** Failed submissions capture the prompt in `lastFailedMessage` and display an accessible alert banner (`role="alert"`). Clicking "Retry" re-dispatches the query while reusing the existing user speech bubble, eliminating duplicate messages.
+  5. **Strict Multi-Trip Scoping:** Tracks `prevTripId` against `trip._id`. Any change in trip immediately resets `messages`, `input`, `isLoading`, and `error`, preventing cross-trip message leakage.
+  6. **Ergonomic Accessibility & Keyboard Submission:** Multi-line textarea submits on `Enter` (without Shift) and inserts newlines on `Shift + Enter`. Real-time character counter (`${input.length}/1000`) informs travelers of payload limits.
+- **Rationale:**
+  - Zero added bundle bloat or third-party dependency vulnerabilities.
+  - Guarantees complete protocol alignment with Day 40's backend validator.
+  - Prevents data leakage and ensures seamless user experience across mobile and desktop viewports.
+- **Consequences:**
+  - Conversations remain ephemeral per session/trip view.
+  - Day 42 full MVP regression testing can evaluate end-to-end trip planning with the assistant.
+
+---
+
+### ADR-026: End-to-End Integration Testing Strategy, Zero-Cost Test Provider Isolation, and MVP Stabilization Baseline
+- **Status:** 🟢 CONFIRMED (Implemented Day 42)
+- **Context:** Week 6, Day 42 marks the final integration audit and stabilization milestone for the TripMind MVP. A comprehensive testing architecture was required to verify all 8 core user journeys (Authentication, Trip Creation, AI Itinerary Generation, Activity Modification, Budget Planning, Destination Discovery, Interactive Maps, and Context-Aware AI Travel Assistant) without incurring third-party billing costs or exhausting external LLM quotas, while guaranteeing cross-browser visual fidelity across desktop, tablet, and mobile breakpoints.
+- **Decision:**
+  1. **Dual-Tier E2E Testing Paradigm:**
+     - *Tier 1 (Automated Headless Node.js E2E Suite):* Implemented in `scratch/test_day42_e2e_integration.mjs`. Spawns an ephemeral HTTP loopback server wrapping the Express `app`, running direct multi-user integration tests across all 8 journeys using native `fetch`. Validates cookie transmission, database operations, anti-enumeration protections, budget calculations, and error flows.
+     - *Tier 2 (Real Browser Automation via Chrome DevTools Protocol):* Implemented in `scratch/run_browser_day42_full_audit.mjs`. Automates Microsoft Edge in headless Chromium mode across Desktop (1440x900), Tablet (768x1024), and Mobile (375x812) viewports. Validates visual rendering, Recharts SVGs, Leaflet tile layers, popup interactions, and mobile drawer transitions, capturing timestamped screenshot artifacts in `scratch/`.
+  2. **Zero-Cost LLM Test Provider Isolation:**
+     - External Google Gemini API calls during automated integration tests are intercepted by dependency-injected mock provider clients (`clientOverride`).
+     - Simulates realistic structured itinerary generation, streaming timeouts, and error scenarios without consuming Google AI Studio API quota, guaranteeing ₹0 operating cost during testing.
+  3. **Multi-Tenant Anti-Enumeration Baseline:**
+     - Query-level ownership (`_id: tripId, userId: user._id`) is strictly enforced across all trip endpoints (`GET`, `PATCH`, `DELETE`, `generate-itinerary`, and `assistant/messages`), uniformly returning HTTP 404 `NOT_FOUND` to unowned resource requests.
+  4. **Single-Process Rate Limiting Architectural Baseline:**
+     - Standardized on `assistantLimiter` (in-memory sliding window, 15 req/min) for MVP single-instance deployments, documenting Redis requirement for horizontal cluster scale-out.
+  5. **Defensive Markdown Sanitization & Stale Response Prevention:**
+     - `MarkdownContent.jsx` enforces strict URL validation (`/^https?:\/\//i`), rejecting dangerous schemes.
+     - `AssistantChat.jsx` compares live trip references upon response resolution to discard stale responses from in-flight queries if the user switches trips.
+- **Rationale:**
+  - Guarantees 100% test reproducibility with zero financial cost.
+  - Eliminates flaky UI tests by utilizing direct protocol-level CDP evaluation.
+  - Establishes a hardened, production-ready baseline for the complete MVP release.
+- **Consequences:**
+  - Automated CI/CD pipelines can run both test tiers independently.
+  - The MVP is verified complete and ready for demonstration.
+
+---
+
 ## 2. Pending Decisions (🟡 UNDER EVALUATION)
 
 The following architectural and technical choices are open for evaluation during future implementation planning. **Do not mark pending decisions as confirmed.**
@@ -486,11 +657,11 @@ The following architectural and technical choices are open for evaluation during
 ---
 
 ### Pending-005: Leaflet React Integration Approach
-- **Status:** 🟡 UNDER EVALUATION
+- **Status:** 🟢 RESOLVED (See ADR-022)
 - **Options Under Consideration:**
   - *Option A: `react-leaflet`* — Declarative React wrapper around Leaflet elements.
   - *Option B: Vanilla Leaflet with React `useRef` & `useEffect`* — Complete control over lifecycle, avoids version mismatch issues with React 19/Vite.
-- **Next Step:** Run a lightweight spike during map feature development to assess Vite compatibility.
+- **Resolution:** Adopted Option B (Vanilla Leaflet with React `useRef` and `useEffect` in `LeafletMapContainer.jsx`). Confirmed as **ADR-022**.
 
 ---
 

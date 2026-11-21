@@ -109,13 +109,27 @@ function formatDateRange(departureDate, returnDate) {
  * Step 3: Travel Preferences (Pace Cards, Selectable Chips, Accommodations, Notes)
  * Step 4: Final Confirmation Review
  */
-export default function CreateTripModal({ isOpen, onClose, onSuccess }) {
+export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDestination = '' }) {
   const { createTrip, isCreating } = useTrip()
 
   const [currentStep, setCurrentStep] = useState(1) // 1, 2, 3, or 4 (Review)
-  const [formData, setFormData] = useState(INITIAL_FORM_STATE)
+  const [formData, setFormData] = useState(() => ({
+    ...INITIAL_FORM_STATE,
+    destination: initialDestination || '',
+  }))
   const [errors, setErrors] = useState({})
   const [apiError, setApiError] = useState('')
+
+  const [prevInitialDest, setPrevInitialDest] = useState(initialDestination)
+  if (initialDestination !== prevInitialDest) {
+    setPrevInitialDest(initialDestination)
+    if (initialDestination) {
+      setFormData((prev) => ({
+        ...prev,
+        destination: initialDestination,
+      }))
+    }
+  }
 
   const modalRef = useRef(null)
   const firstInputRef = useRef(null)

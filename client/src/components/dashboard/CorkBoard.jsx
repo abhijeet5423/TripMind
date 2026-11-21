@@ -3,13 +3,67 @@ import {
   Plus,
   RefreshCw,
   AlertCircle,
-  Loader2,
   Sparkles,
 } from 'lucide-react'
 import PinnedTripCard from './PinnedTripCard.jsx'
 import AddTripPinCard from './AddTripPinCard.jsx'
 import PushPin from './PushPin.jsx'
 import Button from '../common/Button.jsx'
+
+const SKELETON_ROTATIONS = ['lg:-rotate-1.5', 'lg:rotate-1.5', 'lg:-rotate-1']
+const SKELETON_PIN_COLORS = ['forest', 'terracotta', 'brass']
+
+/**
+ * PinnedTripCardSkeleton Component
+ * Renders realistic paper document loading skeletons pinned to the corkboard.
+ */
+function PinnedTripCardSkeleton({ index = 0 }) {
+  const rotationClass = SKELETON_ROTATIONS[index % SKELETON_ROTATIONS.length]
+  const pinColor = SKELETON_PIN_COLORS[index % SKELETON_PIN_COLORS.length]
+
+  return (
+    <div className={`relative ${rotationClass}`}>
+      {/* 3D Pushpin */}
+      <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-30">
+        <PushPin color={pinColor} size="md" />
+      </div>
+
+      {/* Washi tape accent */}
+      <div
+        className="absolute -top-2 right-6 w-12 h-4 bg-amber-100/50 border-t border-b border-amber-200/40 rotate-12 z-20 pointer-events-none rounded-xs shadow-xs"
+        aria-hidden="true"
+      />
+
+      {/* Main Paper Sheet Skeleton */}
+      <article className="relative bg-[#FAF7EE] rounded-sm border border-[#E2D8C3] pt-6 pb-5 px-5 sm:px-6 shadow-[0_4px_16px_rgba(40,25,15,0.14)] flex flex-col justify-between min-h-[360px] animate-pulse motion-reduce:animate-none">
+        <div>
+          {/* Polaroid Photo Skeleton */}
+          <div className="mb-4 bg-white p-2 rounded-xs border border-stone-200/60 shadow-2xs">
+            <div className="w-full aspect-[16/10] bg-sage/35 rounded-xs" />
+          </div>
+
+          {/* Destination Title & Status Badge Skeleton */}
+          <div className="flex items-start justify-between gap-2 mb-3">
+            <div className="h-6 w-3/4 bg-sage/45 rounded" />
+            <div className="h-4 w-14 bg-sage/35 rounded-full" />
+          </div>
+
+          {/* Metadata Row Skeletons */}
+          <div className="space-y-2.5 pt-2 border-t border-stone-200/60">
+            <div className="h-3.5 w-1/2 bg-sage/30 rounded" />
+            <div className="h-3.5 w-2/3 bg-sage/30 rounded" />
+            <div className="h-3.5 w-2/5 bg-sage/30 rounded" />
+          </div>
+        </div>
+
+        {/* Action Button Skeleton */}
+        <div className="pt-4 mt-4 border-t border-stone-200/60">
+          <div className="h-9 w-full bg-forest/15 rounded-lg" />
+        </div>
+      </article>
+    </div>
+  )
+}
 
 /**
  * CorkBoard Component
@@ -109,24 +163,18 @@ export default function CorkBoard({
           </div>
 
           {/* --------------------------------------------------------------- */}
-          {/* State 1: Loading State (Pinned Note) */}
+          {/* State 1: Loading State (Pinned Note Skeletons) */}
           {/* --------------------------------------------------------------- */}
           {loading && tripCount === 0 && (
-            <div className="relative py-12 flex items-center justify-center">
-              <div className="relative max-w-md w-full bg-[#FAF7EE] rounded-sm border border-[#E2D8C3] p-8 shadow-[0_8px_24px_rgba(40,25,15,0.2)] text-center sm:-rotate-1">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-30">
-                  <PushPin color="forest" size="md" />
-                </div>
-                <div className="w-12 h-12 rounded-full bg-sand-ivory border border-sage flex items-center justify-center text-forest mx-auto mb-4">
-                  <Loader2 className="w-6 h-6 animate-spin text-forest" />
-                </div>
-                <h3 className="font-serif text-xl font-bold text-forest mb-2">
-                  Gathering Your Pinned Journeys...
-                </h3>
-                <p className="text-stone font-sans text-xs sm:text-sm">
-                  Retrieving your saved travel itineraries from the archive and pinning them to your board.
-                </p>
-              </div>
+            <div
+              className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-9 pt-2"
+              role="status"
+              aria-label="Loading your pinned journeys"
+            >
+              {[0, 1, 2].map((idx) => (
+                <PinnedTripCardSkeleton key={idx} index={idx} />
+              ))}
+              <span className="sr-only">Gathering your pinned journeys...</span>
             </div>
           )}
 

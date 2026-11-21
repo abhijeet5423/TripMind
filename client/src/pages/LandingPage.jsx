@@ -1,4 +1,3 @@
-import React from 'react'
 import Hero from '../components/landing/Hero.jsx'
 import DestinationDiscovery from '../components/landing/DestinationDiscovery.jsx'
 

@@ -30,3 +30,7 @@ yarn-error.log*
 
 # Large master media assets (excluded from Git history)
 /client/src/assets/hero video.mp4
+
+# Temporary test runners, diagnostics, and visual verification artifacts
+scratch/
+

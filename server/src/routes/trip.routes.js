@@ -23,6 +23,7 @@ import {
   validateAddActivity,
 } from '../validators/activityValidator.js'
 import { authenticateToken } from '../middleware/authMiddleware.js'
+import assistantRoutes from './assistant.routes.js'
 
 const router = Router()
 
@@ -53,6 +54,12 @@ router.post('/', authenticateToken, validateCreateTrip, createTrip)
  * @access  Private (Requires valid HttpOnly JWT cookie)
  */
 router.post('/:id/generate-itinerary', authenticateToken, validateTripId, generateTripItinerary)
+
+/**
+ * Assistant Routes
+ * Mounts AI travel assistant endpoints grounded in trip context under /api/trips/:tripId/assistant
+ */
+router.use('/:tripId/assistant', assistantRoutes)
 
 /**
  * @route   POST /api/trips/:tripId/days/:dayId/activities

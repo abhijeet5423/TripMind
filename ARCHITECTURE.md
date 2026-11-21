@@ -153,12 +153,16 @@ server/
 │   │   └── gemini.js      # Reusable GoogleGenAI singleton & model configuration
 │   ├── controllers/       # HTTP request coordinators
 │   │   ├── authController.js # Registration, login, logout & profile handlers
+│   │   ├── destinationController.js # Public destination retrieval handlers
 │   │   └── tripController.js # Trip creation & management handlers
+│   ├── data/              # Centralized static & seed datasets
+│   │   └── destinations.js # Curated destination dataset & WGS84 coordinates
 │   ├── models/            # Mongoose schemas & data models
 │   │   ├── Trip.js        # Trip model with embedded itinerary & budget breakdown
 │   │   └── User.js        # User model with single-point bcrypt hashing
 │   ├── routes/            # Route declarations & endpoint binding
 │   │   ├── auth.routes.js # POST /register, POST /login, POST /logout, GET /me
+│   │   ├── destination.routes.js # GET /api/destinations, GET /api/destinations/:identifier
 │   │   ├── health.routes.js # GET /api/health endpoint
 │   │   └── trip.routes.js # GET/POST /api/trips, GET/PATCH/DELETE /api/trips/:id
 │   ├── middleware/        # Auth guards, validation, error handlers
@@ -170,6 +174,8 @@ server/
 │   ├── services/          # Domain services & business logic
 │   │   ├── aiService.js   # Gemini API mediation, error normalization & connectivity test
 │   │   ├── authService.js # Registration, login & profile domain logic
+│   │   ├── budgetService.js # Authoritative budget math & reconciliation
+│   │   ├── destinationService.js # Destination retrieval, filtering & validation
 │   │   └── tripService.js # Trip creation, retrieval, update, delete & domain operations
 │   ├── validators/        # Input validation schemas
 │   │   ├── authValidator.js # Registration & login payload validation
@@ -398,6 +404,35 @@ erDiagram
    - **Compound Index Coverage:** The existing compound index `{ userId: 1, createdAt: -1 }` covers multi-trip dashboard listing and pagination. Introducing an additional compound index `{ _id: 1, userId: 1 }` would be redundant overhead since `_id` alone provides maximal selectivity.
    - **`.lean()` Evaluation:** For a typical 5–25 KB trip document, Mongoose hydration overhead is negligible (<1 ms). Keeping standard Mongoose hydration preserves document methods, subdocument casting, and critical schema virtual aliases (`startDate`, `endDate`, `totalBudget`, `travellers`).
 
+### 3.9 Destination Discovery Data & API Architecture (Day 36)
+1. **Curated Static Dataset Architecture (`server/src/data/destinations.js`):**
+   - For MVP, destinations are managed as an authoritative, centralized in-memory JavaScript dataset rather than an active MongoDB collection.
+   - Contains 6 curated destinations: Kyoto (Japan), Swiss Alps (Switzerland), Bali (Indonesia), Manali (India), Varanasi (India), and Amalfi Coast (Italy).
+   - Every destination defines:
+     - Stable `id` and URL-safe `slug` (e.g. `'kyoto-japan'`).
+     - Geographic hierarchy: `name`, `country`, and `region`.
+     - Editorial copy: `description` (concise narrative) and `detailedDescription` (in-depth overview).
+     - Visual classification: `category` matching frontend filter pills (`'Culture & Heritage'`, `'Mountain Escape'`, `'Tropical Escape'`, `'Adventure'`, `'Coastal Escape'`) and `iconName` matching Lucide icons.
+     - Verified media: `image` (local WebP path), `imageAlt`, and full open-access `attribution` record (`photographer`, `sourceUrl`, `platform`, `license`).
+     - Map coordinates: WGS84 `coordinates: { latitude, longitude }` and direct `latitude`/`longitude` properties ensuring 100% compatibility with Leaflet and Day 38/39 maps.
+     - Editorial metadata: `travelVibes`, search `tags`, `bestTimeToVisit`, `recommendedDuration`, `estimatedDailyBudget` (`min`, `max`, `currency`), `currency`, `highlights`, `isFeatured`, and `isActive`.
+2. **Storage Approach Evaluation (Static vs MongoDB for MVP):**
+   - **Zero Database Complexity:** Eliminates collection schemas, indexes, seed scripts, and migration complexity for static editorial assets.
+   - **High Performance:** Instant in-memory retrieval (0ms latency) without database connection pool contention.
+   - **Guaranteed Immutability:** Coordinates and verified creator attributions cannot be corrupted by runtime writes.
+   - **Future-Ready Abstraction:** Domain service interface (`destinationService.js`) completely decouples controllers from storage, enabling a transparent transition to a Mongoose `Destination` model in Phase 2 with zero changes to routes or client contracts.
+3. **Public RESTful Endpoints (`server/src/routes/destination.routes.js` & `server/src/controllers/destinationController.js`):**
+   - `GET /api/destinations`: Public endpoint returning available destinations. Standardized response envelope `{ success: true, data: { destinations, total }, message }`. By default filters `isActive === true`. Supports query parameters for category filtering (`?category=...`), keyword search (`?search=...`), and active-status overrides (`?activeOnly=false`).
+   - `GET /api/destinations/:identifier`: Public endpoint returning a single destination by slug or ID. Returns HTTP 200 with `{ success: true, data: { destination }, message }` or HTTP 404 with standardized error envelope `{ success: false, error: { code: 'NOT_FOUND', message: 'Destination not found', details: [] } }`.
+4. **Frontend API Client Integration (`client/src/services/api/destinationApi.js`):**
+   - Dedicated Axios client module providing `getDestinations(params, options)` and `getDestination(identifier, options)` utilizing the shared `apiClient` instance. Forwards `options.signal` directly to Axios to support request cancellation via `AbortController`.
+5. **Frontend Search, Category Filters & Bundled Asset Resolution Architecture (Day 37):**
+   - **Debounced Multi-Field Search (300ms):** `DestinationDiscovery.jsx` debounces user keystrokes by 300ms before transmitting `params.search` to the backend. The backend search matches case-insensitively across `name`, `country`, `region`, `tags`, `travelVibes`, and `highlights`.
+   - **Synchronized Category Filter Pills:** Category filter pills (`All`, `Culture & Heritage`, `Mountain Escape`, `Tropical Escape`, `Adventure`, `Coastal Escape`) dynamically set `params.category`, instantly updating the query.
+   - **Race Condition Prevention & Request Cancellation:** Uses a mutable `latestRequestId` ref and instantiates an `AbortController` in `useEffect`. If a user types rapidly or changes filter pills quickly, the previous request is aborted and stale out-of-order responses are discarded if `requestId !== latestRequestId.current`.
+   - **Bundled WebP Asset Resolution (`client/src/utils/destinationImages.js`):** Bridges Vite hashed asset bundling with backend metadata. `resolveDestinationImage(destination)` matches stable destination IDs or slugs to bundled WebP imports, preserving verified local media and Wikimedia Commons attributions while keeping all metadata API-driven.
+   - **Stateful Feedback UI:** Implements 6-card pulsing skeleton loading, editorial empty states with contextual reset actions, and accessible error banners with retry triggers.
+
 ---
 
 ## 4. Frontend Architecture (React + Vite + Tailwind CSS v4)
@@ -420,6 +455,7 @@ client/src/
 │   └── api/            # Standardized Axios API clients:
 │       ├── apiClient.js    # Base Axios instance, interceptors, error mapping
 │       ├── authApi.js      # Authentication endpoints (login, register, logout)
+│       ├── destinationApi.js # Destination retrieval & discovery endpoints
 │       ├── tripApi.js      # Trip CRUD endpoints
 │       └── aiApi.js        # AI itinerary generation endpoint
 ├── index.css           # Tailwind CSS v4 @import "tailwindcss" and @theme declarations
@@ -456,6 +492,54 @@ All backend network calls must be routed through dedicated API modules in `clien
 - **Accessibility & Responsiveness:**
   - Accompanied by hidden semantic screen-reader summary lists (`sr-only`) and ARIA region roles (`role="region"`).
   - Clean responsive grid layout (`grid-cols-1 lg:grid-cols-2`) embedded seamlessly within `BudgetBreakdown.jsx` above the 6-category cards, adapting smoothly across mobile (375px), tablet (768px), and desktop (1280px+) screens.
+
+### 4.5 Interactive Map & Activity Marker Architecture (Days 38 & 39)
+- **Component Modularity (`client/src/components/map/`):**
+  - **`LeafletMapContainer.jsx`:** Self-contained, responsive mapping component using Vanilla Leaflet (`leaflet@^1.9.4`) and standard OpenStreetMap raster tiles. Implements `useRef` for DOM container attachment, tracks active instance via state, and provides it to children via `<MapContext.Provider>`.
+  - **`ActivityMarkers.jsx`:** Orchestrates map markers and popups. Manages an internal `L.layerGroup` lifecycle. Whenever `trip.days` changes, old markers are cleared and new markers are attached without re-mounting the underlying map.
+  - **`MapContext.jsx` (`client/src/context/`):** Dedicated React 19 Context exporting `MapContext` and `useMap()` custom hook, keeping Leaflet map instance consumption clean and compliant with React Fast Refresh module boundaries.
+- **Coordinate Schema Normalization & Disambiguation (`client/src/utils/mapUtils.js`):**
+  - Inspects both direct properties (`activity.latitude`, `activity.longitude`) and nested properties (`activity.location.latitude`, `activity.location.longitude`), parsing string numbers and validating against WGS84 bounds. Activities lacking coordinates are safely excluded from the map while remaining in the itinerary schedule.
+  - **Micro-Offset Disambiguation (`applyCoordinateDisambiguation`):** When multiple stops share exact coordinates, subsequent activities receive a circular micro-offset (~7m), ensuring all pins remain visible and clickable without occlusion while preserving exact location text in the popup.
+- **Category-Driven Custom SVG Teardrop Pins:**
+  - Standalone SVG generator (`createMarkerSvg()`) builds crisp teardrop pins (32x40px) with drop shadows, category color fills matching the 5 Mongoose schema enums (`stay`, `food`, `transit`, `activity`, `other`), an inner white circle, and bold Day indicator (`D1`, `D2`, etc.).
+  - Anchored at `[16, 40]` with `popupAnchor: [0, -42]`, eliminating external image asset dependencies and broken icon links.
+- **OWASP-Compliant Popup Sanitization:**
+  - All dynamic fields (title, time, location, duration, cost) pass through `escapeHtml()` prior to interpolation into the Leaflet popup HTML, preventing DOM-based XSS attacks.
+- **Intelligent Bounds Fitting:**
+  - Single marker: centers comfortably at neighborhood zoom (`14`).
+  - Multiple markers: executes `map.fitBounds(bounds, { padding: [48, 48], maxZoom: 15 })` to frame all stops without over-zooming.
+  - Zero markers: retains destination overview without errors.
+- **OpenStreetMap Tile Usage & Attribution Discipline:**
+  - Consumes standard raster tiles (`https://tile.openstreetmap.org/{z}/{x}/{y}.png`) with `crossOrigin: true`.
+  - Renders mandatory attribution tag with copyright link (`© OpenStreetMap contributors`).
+  - Prohibits bulk scraping or offline disk caching, adhering strictly to OpenStreetMap Foundation Tile Usage Policies.
+- **Geolocation Privacy Policy:**
+  - Zero unsolicited calls to `navigator.geolocation.getCurrentPosition` or `navigator.geolocation.watchPosition`.
+  - Map centering is completely metadata-driven, respecting traveler privacy without browser permission prompts.
+
+### 4.6 AI Travel Assistant Chat Interface & Homepage Launcher Architecture (Day 41)
+- **Component Modularity (`client/src/components/assistant/`):**
+  - **`AssistantChat.jsx`:** Conversational chat interface integrated directly within `TripDetailPage.jsx` and re-used within `HomepageAssistantLauncher.jsx`. Supports an optional `compact={true}` prop to adapt layout, suppress duplicate outer headers, and optimize vertical heights for popover cards and drawers. Features a contextual welcome hero card displaying destination, travel party size, and estimated budget, paired with 4 curated clickable suggested prompt pills (`SUGGESTED_QUESTIONS`).
+  - **`HomepageAssistantLauncher.jsx`:** Floating action button (FAB) at bottom-right of the homepage (`LandingPage.jsx`) displaying an accessible tooltip (`Ask TripMind AI`). Connects to `AuthContext` and `tripApi.getTrips()`. Seamlessly handles 4 distinct user states without modifying backend endpoints:
+    1. *Logged-out visitor:* Opens a compact informative card explaining the feature and linking to `/login` and `/register`. Zero trips are fetched.
+    2. *Logged-in with multiple trips:* Renders a journey `<select>` dropdown picker allowing seamless trip switching, displaying the active trip's `AssistantChat` in compact mode.
+    3. *Logged-in without trips:* Explains the itinerary grounding requirement and provides a CTA button navigating to `/dashboard` to plan a journey.
+    4. *Loading & Error states:* Handles trip retrieval loading with spinner and network failures with an accessible error banner and retry button. Discards stale out-of-order network responses.
+  - **`MarkdownContent.jsx` & `markdownParser.js`:** Pure JavaScript block and inline tokenizer (`parseMarkdownBlocks`, `tokenizeInline`) paired with a semantic React renderer (`MarkdownContent`). Parses headers (`###`), bold, italics, inline code, links, blockquotes, and ordered/unordered lists without introducing bulky external markdown dependencies, guaranteeing zero-dependency security and seamless unit testability in Node.js ESM.
+  - **`constants.js`:** Encapsulates curated suggestion prompts (`SUGGESTED_QUESTIONS`), unique message ID generator (`generateMessageId`), and locale time formatters (`getCurrentTimeString`), adhering strictly to React Refresh module export boundaries.
+- **Bounded Conversational Protocol & Anti-Duplication:**
+  - While the client maintains the full conversational stream for user viewing, API requests enforce the backend contract established in Day 40: sending `message` (newest query, max 1000 characters) and a strictly bounded `history` array containing at most the latest 6 prior messages (3 turns).
+  - The newest message being sent is strictly excluded from `history` to eliminate turn duplication.
+- **Trip Scoping & Multi-Trip Isolation:**
+  - `AssistantChat` tracks `prevTripId` against incoming `trip._id`. When switching between trips in the workspace, conversation state, message input, in-flight flags, and error states immediately reset, guaranteeing zero cross-trip conversational leakage.
+- **Resilience & In-Place Error Retries:**
+  - If a network error, rate limit, or LLM failure occurs, an accessible alert banner (`role="alert"`) displays a user-friendly error message while preserving the failed prompt in `lastFailedMessage`.
+  - Clicking "Retry" re-transmits the failed prompt without appending redundant duplicate user speech bubbles to the conversational stream.
+- **Accessibility & Keyboard Interactions:**
+  - Conversational log marked with `role="log"` and `aria-live="polite"` for automatic screen reader announcements.
+  - Multi-line textarea supports `Enter` to submit and `Shift + Enter` for newlines.
+  - Real-time character counter (`${input.length}/1000`) alerts travelers before hitting backend payload bounds.
 
 ---
 
@@ -511,6 +595,46 @@ TripMind utilizes JWT for stateless authentication and `bcrypt` for salted passw
       - `GEMINI_AUTH_FAILED`, `GEMINI_NETWORK_ERROR`, `GEMINI_EMPTY_RESPONSE`, `GEMINI_PARSE_ERROR` -> `502 Bad Gateway`
       - `GEMINI_CONFIG_ERROR`, `PERSISTENCE_FAILED` / internal -> `500 Internal Server Error`
     - **Success Envelope:** Returns HTTP 200 with `{ success: true, data: { tripId, itinerary, meta }, message: "Itinerary generated and saved successfully." }`. Optional `?persist=false` query parameter supports preview generation without database mutation.
+
+### 5.5 AI Travel Assistant API Architecture (ADR-024)
+- **Nested Resource Route:** `POST /api/trips/:tripId/assistant/messages` (mounted in `trip.routes.js` via `assistant.routes.js` with `mergeParams: true`).
+- **Processing Pipeline:**
+  1. `authenticateToken`: Validates HttpOnly cookie JWT, attaches `req.user = { id: decoded.sub }`.
+  2. `validateTripId`: Enforces 24-character hexadecimal MongoDB ObjectId format on `req.params.tripId`.
+  3. `assistantLimiter`: In-memory sliding rate limiter allowing max 15 requests/minute per authenticated user (or IP fallback). Exceeded limits return HTTP 429 `RATE_LIMIT_EXCEEDED` with standard `Retry-After` and `X-RateLimit-*` headers.
+     - *Horizontal Scaling & Cluster Topology Note:* The rate limiter relies on a local in-memory Map store scoped to a single Node.js process. In multi-instance or horizontal cluster environments (e.g. Kubernetes pods or multi-worker PM2), each process maintains independent counters. Production cluster scale-out requires swapping the in-memory store with a shared Redis adapter (e.g. `rate-limit-redis`) or API Gateway rate limiting.
+  4. `validateAssistantMessage`: Validates `req.body.message` (non-empty string, 1–1000 characters) and optional bounded `history` (max 6 messages / 3 full conversation turns, strictly whitelisting roles `'user'` and `'assistant'`, rejecting `'system'` or `'developer'`).
+  5. `sendAssistantMessage`: Controller delegates to `assistantService.askAssistant`.
+- **Trip Context Assembly & Sanitization (`server/src/services/assistantContextService.js`):**
+  - Pure extractor `extractTripContext(trip)` pulls only public/editorial trip metadata, traveler style preferences, categorical budget totals, and daily activity stops.
+  - Comprehensive Field Boundary Limits:
+    - `destination`: max 150 characters
+    - `startingLocation`: max 150 characters
+    - `title`: max 200 characters
+    - `theme`: max 150 characters
+    - `locationName`: max 150 characters
+    - `duration`: max 50 characters
+    - `dietary`: max 50 characters per item, max 20 items
+    - `interests`: max 50 characters per item, max 30 items
+    - `accommodationType`: max 100 characters
+    - `transportation`: max 100 characters
+    - `activity.description`: max 200 characters
+    - Daily schedule ceiling: max 30 days, max 8 activities per day. Zero credentials, user emails, or internal hashes are included.
+  - Delimiter isolation `serializeTripContext(context)`: Formats context into structured markdown enclosed in `<trip_context>...</trip_context>` tags with an explicit notice declaring the data as non-executable factual reference material.
+- **Prompt Engineering & Multi-Turn Formatting (`server/src/services/assistantPrompt.js`):**
+  - `ASSISTANT_SYSTEM_INSTRUCTION`: Establishes TripMind's mindful, editorial travel advisor persona. Mandates grounding in `<trip_context>`, prohibits hallucinations of booking confirmations or live ticket availability, requires differentiating planned stops from general recommendations, and strictly instructs the model to ignore prompt-injection attempts inside user messages or trip fields.
+  - Multi-turn mapping: `formatAssistantContents(message, history)` converts client role `'assistant'` to Gemini SDK role `'model'`, creating a valid turn-alternating `contents` array for Google Gemini.
+- **Multi-Tenant Anti-Enumeration Isolation:**
+  - Trip ownership is verified at the database query level via `tripService.getTripById(userId, tripId)`.
+  - Non-existent trips and unowned trips (e.g., User B attempting to query User A's trip) return identical HTTP 404 `NOT_FOUND` responses (`"Trip not found"`), preventing resource enumeration.
+- **Timeout Protection, Socket Cancellation & Error Normalization (`server/src/services/assistantService.js`):**
+  - Employs a 30-second `Promise.race` timeout guard linked to an `AbortController`. If the request exceeds 30 seconds, `abortController.abort()` triggers real socket cancellation on the Gemini SDK stream, eliminating token leakage and hung backend connections while returning HTTP 504 `AI_TIMEOUT`.
+  - Normalizes Gemini SDK errors via `formatGeminiError` to standard HTTP status codes (429 for `GEMINI_QUOTA_EXCEEDED`, 503 for `GEMINI_SERVICE_UNAVAILABLE`, 502 for `GEMINI_AUTH_FAILED` or `GEMINI_EMPTY_RESPONSE`).
+- **Frontend Service Client Layer & UI Integration:**
+  - `client/src/services/api/assistantApi.js` provides `sendAssistantMessage(tripId, message, history)`.
+  - Consumed directly by `AssistantChat.jsx` mounted within `TripDetailPage.jsx` (Section 4.6) and globally via `AssistantLauncher.jsx`.
+  - Safe Markdown Sanitization (`MarkdownContent.jsx`): Strictly validates token URLs with `/^https?:\/\//i`, rejecting dangerous `javascript:` and `data:` schemes.
+  - Multi-Trip Stale Response Prevention: `AssistantChat.jsx` compares the active `tripId` reference on resolution; if the user switched trips while a query was in flight, the resolving response is silently discarded, eliminating cross-trip state corruption.
 
 ---
 

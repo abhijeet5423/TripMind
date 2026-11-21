@@ -33,6 +33,602 @@
 
 ## 2. Session History
 
+### [2026-11-21] — Deployment Preparation: Vercel & Render Configuration Implementation
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement the two approved deployment-readiness configurations to prepare TripMind for production deployment on Render and Vercel: configure Express to trust Render's upstream reverse proxy, and establish Vercel SPA rewrites with same-origin backend API proxying.
+- **Scope Boundaries:** Reverse-proxy trust configuration and Vercel routing configuration ONLY. Zero staging (`git add`), zero commits, zero pushes. Zero modification to authentication, CORS, rate limits, or Gemini model configuration.
+
+#### 1. Files Created / Modified
+- [`server/src/app.js`](./server/src/app.js) — *Modified.* Added `app.set('trust proxy', 1)` immediately following Express initialization to ensure correct client IP detection, protocol resolution (`req.secure`), and proxy header recognition behind Render's load balancer.
+- [`client/vercel.json`](./client/vercel.json) — *Created.* Defined edge routing rewrites routing `/api/:path*` to `https://<RENDER_SERVICE_HOST>/api/:path*` and fallback `/(.*)` to `/index.html` for client-side React Router navigation.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Documented deployment preparation changes and validation results.
+
+#### 2. Key Implementation Details & Concepts
+- **Render Reverse Proxy Trust:** Render terminates SSL at upstream edge proxies and forwards HTTP to the container. Setting `trust proxy` to `1` instructs Express to trust the first proxy hop (`X-Forwarded-Proto`, `X-Forwarded-For`), ensuring protocol awareness and accurate client IP rate limiting.
+- **Same-Origin API Proxy Architecture:** By rewriting `/api/:path*` at Vercel's edge, browser requests to `/api` remain first-party same-origin to the frontend domain (`*.vercel.app`), completely eliminating cross-origin third-party cookie blocking on Safari ITP and modern browsers while avoiding CORS preflight complexity.
+- **Render Hostname Placeholder Requirement:** `client/vercel.json` uses the placeholder `https://<RENDER_SERVICE_HOST>/api/:path*`. This placeholder must be substituted with the user's actual Render service hostname (e.g., `https://tripmind-api.onrender.com`) before triggering production deployment on Vercel.
+- **Gemini Model Invariant:** Kept exact model configuration `GEMINI_MODEL=gemini-3.5-flash-lite` unchanged without consuming live API tokens.
+
+#### 3. Verification & Testing Performed
+- **Vercel JSON Validation:** Evaluated `client/vercel.json` via Node.js JSON parser — confirmed strictly valid JSON.
+- **Backend Syntax Check:** Executed `node --check server/src/app.js` — passed with 0 errors.
+- **Frontend Production Build:** Executed `npm --prefix client run build` — 2,607 modules transformed in 1.27s with 0 errors, bundling `client/dist`.
+- **Git State Verification:** Confirmed 0 files staged; 22 scratch staged deletions preserved; no commits or pushes performed.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Implementation of deployment readiness configuration is complete and locally validated.
+- Deployment candidate is ready for user review and subsequent Git milestone staging/commit.
+
+### [2026-11-21] — Scratch Folder & Repository Hygiene Maintenance
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Exclude auxiliary test artifacts, browser automation scripts, visual regression screenshots, and temporary diagnostic tools located in `scratch/` from Git tracking to protect repository hygiene and prevent binary asset bloat.
+- **Scope Boundaries:** Repository hygiene only. Updated root `.gitignore` to ignore `scratch/` and untracked 22 historical test scripts from the Git index using `git rm --cached -r scratch/`. Zero local scratch files were deleted, moved, or modified. Zero code changes. Zero commits or pushes.
+
+#### 1. Files Created / Modified / Staged
+- [`.gitignore`](./.gitignore) — *Modified.* Appended `scratch/` ignore rule with explanatory comment.
+- `scratch/test_day11_middleware.mjs` through `scratch/test_day30_e2e_qa.mjs` (22 files) — *Untracked (Staged Deletion from Git Index).* Removed from Git index via `git rm --cached`; all files remain intact on local disk.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Documented repository hygiene maintenance and tracking status.
+
+#### 2. Key Implementation Details & Concepts
+- **Index-Only Untracking:** Utilized `git rm --cached -r scratch/` to stage removal from Git index without touching local disk files or deleting historical commits.
+- **Ignore Enforcement:** Verified `git check-ignore -v scratch/` actively matches `.gitignore:35:scratch/`, ensuring future test runs and screenshots cannot be accidentally staged.
+- **Local Artifact Preservation:** Verified that all 361 local scratch files (including 70 screenshots and 77 test suites) remain fully preserved locally for offline testing and diagnostics.
+
+#### 3. Verification & Testing Performed
+- `git ls-files scratch/` — Returned 0 files (verified zero tracked files under `scratch/`).
+- `git check-ignore -v scratch/` — Verified active rule match.
+- `git diff --cached --stat` — Verified exactly 22 scratch file deletions staged in index.
+- Local disk audit — 361 files (33.88 MB) preserved intact on local disk.
+- Zero commits or pushes executed.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Repository hygiene cleanup is staged and ready for the upcoming Week 6 milestone commit.
+- Scratch files are safely excluded from future commits.
+
+### [2026-11-21] — Application-Wide Navigation, Interaction & UI Polish Audit
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Perform a comprehensive application-wide audit and polish of navigation, link fidelity, interactive elements, loading skeletons, smooth micro-interactions, empty/error feedback states, and responsive accessibility across desktop (1440x900), tablet (768x1024), and mobile (375x812) viewports. Eliminate fake/dead anchor links, implement a dedicated 404 Catch-All page, integrate realistic paper note skeletons for the corkboard dashboard and full-page skeletons for the itinerary workspace, enable seamless destination-to-planning card interactivity, and enforce reduced-motion accessibility.
+- **Scope Boundaries:** UI refinement, link hygiene, skeleton implementations, and responsive accessibility polish ONLY. Zero redesign of established visual themes. Zero backend API changes. Zero Git staging (`git add`), zero commits, zero pushes.
+
+#### 1. Files Created / Modified
+- [`client/src/pages/NotFoundPage.jsx`](./client/src/pages/NotFoundPage.jsx) — *Created.* Dedicated editorial 404 Page Not Found component featuring compass insignia, "Lost in Transit" eyebrow, clear narrative explanation, and responsive navigation CTAs ("Return to Home" and "Open My Journal" / "Sign In").
+- [`client/src/App.jsx`](./client/src/App.jsx) — *Modified.* Replaced silent home page catch-all fallback with `<NotFoundPage />` wrapped in `<PublicLayout>`.
+- [`client/src/components/common/Button.jsx`](./client/src/components/common/Button.jsx) — *Modified.* Added tactile micro-interactions (`active:scale-[0.98] transition-all`) and `motion-reduce:active:scale-100` support across all application button variants.
+- [`client/src/components/landing/Hero.jsx`](./client/src/components/landing/Hero.jsx) — *Modified.* Eliminated dead `#start` hash link by wiring "Start Planning" CTA directly to `/register` (guests) or `/dashboard` (authenticated travelers) via `as={Link}`. Assigned valid IDs (`#about` to story narrative, `#budget` to Budget Clarity pillar) matching navbar navigation targets.
+- [`client/src/components/layout/Footer.jsx`](./client/src/components/layout/Footer.jsx) — *Modified.* Removed fake/dead `#features`, `#maps`, `#journal`, `#guides`, `#notes`, `#privacy`, `#terms`, `#attribution` links. Replaced with genuine platform destinations (`/#destinations`, `/#itineraries`, `/#budget`, `/dashboard`), colophon design notes, and external OpenStreetMap attribution (`https://www.openstreetmap.org/copyright`) with secure `rel="noopener noreferrer"`.
+- [`client/src/components/landing/DestinationCard.jsx`](./client/src/components/landing/DestinationCard.jsx) — *Modified.* Transformed static destination showcase card into an actionable entry point with a "Plan Journey" action link navigating to `/dashboard?destination=...` (authenticated) or `/register?destination=...` (guests) with animated arrow micro-interaction and accessible focus states.
+- [`client/src/components/landing/DestinationDiscovery.jsx`](./client/src/components/landing/DestinationDiscovery.jsx) — *Modified.* Added inline loading feedback spinner (`Loader2`) inside the search input during active debounced search requests and smooth opacity transition on the card grid during in-flight filtering.
+- [`client/src/components/dashboard/CorkBoard.jsx`](./client/src/components/dashboard/CorkBoard.jsx) — *Modified.* Replaced legacy centered spinner box with realistic `PinnedTripCardSkeleton` components (paper texture, rotation angles, 3D SVG pushpin in forest/terracotta/brass colorways, Polaroid photo placeholder, metadata lines, and button placeholder) that match the actual card layout and prevent jarring layout shifts.
+- [`client/src/pages/DashboardPage.jsx`](./client/src/pages/DashboardPage.jsx) — *Modified.* Added query parameter listener (`?destination=...`) to automatically open `CreateTripModal` pre-populated with the selected destination when arriving from a destination card.
+- [`client/src/components/common/CreateTripModal.jsx`](./client/src/components/common/CreateTripModal.jsx) — *Modified.* Added `initialDestination` prop and React 19 state synchronization pattern to pre-fill the destination field without cascading renders or ESLint warnings.
+- [`client/src/pages/TripDetailPage.jsx`](./client/src/pages/TripDetailPage.jsx) — *Modified.* Replaced generic spinner box with comprehensive `TripDetailSkeleton` component matching Journey Header banner, destination photograph plate, Leaflet map canvas, Assistant chat module, Budget summary, and day-by-day activity card layout.
+- [`client/src/components/assistant/AssistantChat.jsx`](./client/src/components/assistant/AssistantChat.jsx) — *Modified.* Enhanced assistant typing indicator with animated pulsing terracotta dots and subtle shimmer.
+- [`client/src/index.css`](./client/src/index.css) — *Modified.* Added `.animate-shimmer` utility and global `@media (prefers-reduced-motion: reduce)` accessibility override.
+- [`scratch/test_polish_and_navigation_audit.mjs`](./scratch/test_polish_and_navigation_audit.mjs) — *Created.* 10-step automated browser verification script automating Microsoft Edge via Chrome DevTools Protocol (CDP) across desktop (1440x900), tablet (768x1024), and mobile (375x812) viewports. Captures 7 visual screenshot artifacts under `scratch/`.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Documented polish audit findings, implementations, and verification evidence.
+
+#### 2. Key Implementation Details & Concepts
+- **Authentic Navigation Hygiene:** Eliminated all dummy `#` links. Every interactive element in the navbar, hero, destination discovery cards, and footer now navigates to a valid route, scrolls to a real section ID (`#destinations`, `#itineraries`, `#budget`, `#about`), or opens a secure external resource.
+- **Dedicated 404 Catch-All Flow:** Introduced `NotFoundPage.jsx` ensuring that invalid paths or misspelled URLs present a calm, editorial error state that preserves site layout and offers one-click recovery back to the homepage or journal.
+- **Context-Preserving Skeleton Skeletons:** Skeletons in `CorkBoard.jsx` and `TripDetailPage.jsx` mirror the exact geometry, aspect ratios, and padding of the final populated components (Polaroid photo plates, 3D pushpins, banner headers, and day activity cards), eliminating cumulative layout shifts (CLS) during data hydration.
+- **Tactile Micro-Interactions & Accessibility:** Added subtle `active:scale-[0.98]` tactile press states to `Button.jsx` with automatic suppression under `prefers-reduced-motion`. Enhanced `AssistantChat.jsx` typing indicator with triple pulsing dots. Enforced zero horizontal overflow across all viewports.
+
+#### 3. Verification & Testing Performed
+- **Automated Browser Polish Audit (`node scratch/test_polish_and_navigation_audit.mjs`):** 10/10 steps passed 100%:
+  - Step 4 (Desktop Navigation): Logo points to `/`; all 4 navbar section targets exist (`#destinations`, `#itineraries`, `#budget`, `#about`); Hero "Start Planning" links to `/register`; footer destinations and external OSM link verified with `rel="noopener"`.
+  - Step 5 (404 Catch-All): Navigated to `/lost-in-transit-expedition-999`; verified 404 heading, lost-in-transit description, and "Return to Home" button.
+  - Step 6 (Destination Card Action): Verified all 6 destination cards possess interactive "Plan Journey" action links.
+  - Step 7 (Dashboard Noticeboard): Verified corkboard canvas, brass plaque, and paper sheet layout.
+  - Step 8 (Trip Detail Workspace): Verified trip header, Leaflet map, assistant module, and day-by-day schedule timeline.
+  - Step 9 (Responsive Fidelity): Tablet (768x1024) zero overflow verified; Mobile (375x812) zero overflow verified; mobile menu opens and navigates cleanly.
+  - Step 10 (Accessibility): Verified CSS media `prefers-reduced-motion` rule detected.
+- **Historical Regression Verification:**
+  - `node scratch/test_day42_e2e_integration.mjs` — 36 passed, 0 failed.
+  - `node scratch/test_post_day42_ux.mjs` — 11 passed, 0 failed.
+- **Linting & Production Build:**
+  - `npx eslint` across all modified files — 0 errors, 0 warnings.
+  - Vite production build — 2,607 modules transformed in 1.47s with 0 errors.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Application-wide navigation, interaction, and UI polish audit is 100% complete and fully verified.
+- The application is complete, polished, responsive, and reliable.
+
+### [2026-11-21] — Post Day 42: AI Assistant UX Verification & State Retention Hardening
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Conduct a comprehensive UX verification of the global AI Assistant Launcher (`AssistantLauncher.jsx`) and Assistant Chat across all routes, user states, and viewports. Address conversational state loss during launcher panel close/reopen cycles and optimize entry-point ergonomics on the trip workspace detail view (`/trips/:id`) without duplicating backend endpoints or introducing regressions.
+- **Scope Boundaries:** Frontend UX verification, state retention optimization, and accessibility verification ONLY. Zero backend API modifications. Zero Git staging (`git add`), zero commits, zero pushes.
+
+#### 1. Files Created / Modified
+- [`client/src/components/assistant/AssistantLauncher.jsx`](./client/src/components/assistant/AssistantLauncher.jsx) — *Modified.*
+  1. *State Retention Across Close/Reopen Cycles:* Introduced `hasBeenOpened` state and swapped conditional unmounting (`{isOpen && ...}`) for CSS visibility toggle (`isOpen ? '' : 'hidden'` with `aria-hidden={!isOpen}`). Keeps the inner `<AssistantChat>` component mounted once opened, completely preserving message history, active input text, and stream responses when closing and reopening the launcher panel.
+  2. *Smart Fetch Optimization:* Prevented redundant network refetches of user trips on panel re-open when trips are already loaded (`trips.length === 0` guard in `handleToggleOpen`).
+  3. *Trip Detail Workspace Navigation Refinement:* On `/trips/:id`, replaced redundant self-referencing "Workspace ->" link with a context-aware "In Page" smooth-scroll action button that dismisses the floating panel and smoothly scrolls the user's viewport to the full embedded `<AssistantChat>` section on `TripDetailPage`.
+- [`scratch/test_post_day42_ux.mjs`](./scratch/test_post_day42_ux.mjs) — *Created.* Automated 11-step end-to-end browser verification suite driving Microsoft Edge via Chrome DevTools Protocol (CDP) across desktop (1440x900) and mobile (375x812) viewports. Validates all 3 user states, message dispatch, close/reopen state persistence, route-awareness on `/trips/:id`, mobile bottom drawer docking and backdrop tap dismissal, keyboard Escape key dismissal, and non-regression across Homepage, Dashboard, Itinerary, and Navigation.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Documented Post Day 42 UX verification, findings, state retention fix, and test results.
+
+#### 2. Key Implementation Details & Concepts
+- **Conversational Continuity Invariant:** Unmounting a modal/drawer component in React immediately destroys local hook state (`useState([])`). By retaining the dialog in the DOM after first activation (`hasBeenOpened && (...)`) and hiding it using Tailwind's `.hidden` (`display: none`) and `aria-hidden="true"`, conversational history in `<AssistantChat>` remains intact in memory without polluting global context or local storage.
+- **Ergonomic De-duplication on Workspace Pages:** Resolves the dual entry point challenge on `/trips/:id` (where both the embedded assistant card and the floating launcher FAB are visible). When viewed on `/trips/:id`, the floating panel automatically detects the active route ID, locks to it, and provides an "In Page" quick action that closes the drawer and smoothly scrolls down to the full-size embedded assistant.
+- **Full Viewport Responsive Fidelity:**
+  - *Desktop (1440x900):* Launcher FAB sits at `bottom-6 right-6` outside content gutters. Panel opens as a compact 420px floating card positioned at `bottom-24 right-6`.
+  - *Mobile (375x812):* Launcher FAB sits at `bottom-5 right-5` (52x52px). Panel opens as a full-width bottom sheet docked to `bottom: 0px` (375px width) with an accessible backdrop overlay that dismisses on tap.
+
+#### 3. Verification & Testing Performed
+- **Automated Browser UX Verification (`node scratch/test_post_day42_ux.mjs`):** 11/11 steps passed 100%:
+  - Step 4 (Logged-Out Visitor): FAB present on `/`, `/login`, `/register`; sign-in prompt and CTAs verified.
+  - Step 5 (Auth User Without Trips): FAB present on `/dashboard`; empty journey notice and planning CTA verified.
+  - Step 6 (Auth User With Trips): FAB present on `/dashboard`; dropdown selector populated with 2 user trips; compact chat mounted.
+  - Step 7 (Message Dispatch & State Retention): Sent message via prompt pill; desktop dimensions verified (`420x640px`); closed panel via X button; reopened panel; verified that conversational stream persisted (`hasUserMsg=true`).
+  - Step 8 (Trip Detail Route Awareness): Verified embedded chat and floating FAB coexist without collision; floating panel auto-selected route trip `6b0117c3d6b3fbd60f0d596b`.
+  - Step 9 (Mobile Viewport 375x812): Verified 52px FAB; bottom drawer docked at `bottom: 0px` (375px wide); backdrop overlay present; backdrop tap successfully dismissed drawer.
+  - Step 10 (Accessibility & Escape Key): Verified `role="dialog"`, `aria-modal="true"`, `aria-labelledby`, `aria-expanded`, and `aria-haspopup`; pressing Escape key dismissed panel.
+  - Step 11 (Non-Regression): Verified Homepage Hero, Destination Discovery grid (>=6 cards), Dashboard Pinboard ("Traveler Workspace"), "Plan a Journey" CTA, Itinerary back navigation, Leaflet interactive map, and Recharts budget charts intact.
+- **Code Quality & Build:**
+  - `npx eslint client/src/components/assistant/` — 0 errors, 0 warnings.
+  - Production Vite build — 2,606 modules transformed in 1.20s with 0 errors.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Post Day 42 UX verification is complete and all 8 success criteria are fully met.
+- Application is stable, responsive, secure, and ready for demonstration.
+
+### [2026-11-21] — Week 6, Day 42: Complete MVP Integration, End-to-End Testing and Stabilization
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Execute a comprehensive integration audit and stabilization milestone for the complete TripMind MVP. Verify all 8 core user journeys (Authentication, Trip Creation, AI Itinerary Generation, Activity Modification, Budget Planning, Destination Discovery, Interactive Maps, and Context-Aware AI Travel Assistant). Execute targeted Day 40/41 code hardening (Gemini timeout AbortController socket cancellation, single-process rate limiter architectural notice, bounded context field lengths, markdown URL protocol sanitization, and stale in-flight response protection upon trip switching). Validate cross-browser responsive fidelity across Desktop (1440x900 / 1280x900), Tablet (768x1024), and Mobile (375x812) via CDP in Microsoft Edge. Execute full historical regression test suites and confirm production Vite build.
+- **Scope Boundaries:** Integration correctness, stabilization, security hardening, and comprehensive auditing ONLY. Zero new features outside `MVP_SCOPE.md`. Free-tier cost discipline (₹0 budget, mock AI provider during tests). Strict Git boundary: zero staging (`git add`), zero commits, zero pushes.
+
+#### 1. Files Created / Modified
+- `server/src/services/assistantContextService.js` — *Modified.* Hardened context assembly by adding explicit character ceilings across all trip fields: `destination` (150), `startingLocation` (150), `title` (200), `theme` (150), `locationName` (150), `duration` (50), `timeSlot` (50), `time` (50), `category` (50), `accommodationType` (100), `transportation` (100), `dietary` (50 chars each, max 20), and `interests` (50 chars each, max 30) to prevent prompt token exhaustion.
+- `server/src/services/assistantService.js` — *Modified.* Integrated `AbortController` linked to the 30-second `Promise.race` timeout guard, passing `abortSignal: abortController.signal` into `client.models.generateContent()` and invoking `abortController.abort()` upon timeout to guarantee socket cancellation and prevent token leakage.
+- `server/src/middleware/rateLimiter.js` — *Modified.* Added architectural documentation header detailing the single-process in-memory limitation and noting that horizontal multi-instance production deployments require a shared Redis adapter (e.g. `rate-limit-redis`) or API Gateway rate limiting.
+- `client/src/components/assistant/MarkdownContent.jsx` — *Modified.* Hardened link rendering with an explicit protocol validation check (`const isSafe = token.url && /^https?:\/\//i.test(token.url)`), rejecting dangerous `javascript:` and `data:` URI schemes.
+- `client/src/components/assistant/AssistantChat.jsx` — *Modified.* Added stale response protection comparing live `activeTripIdRef.current` against `requestTripId` upon API response and error resolution, discarding responses from in-flight requests if the user switched trips. Removed render-time ref mutation for strict React 19 / ESLint compliance.
+- `ARCHITECTURE.md` — *Modified.* Updated Section 5.5 documenting rate limiter horizontal cluster scaling, context field ceilings, AbortController cancellation, markdown protocol validation, and multi-trip stale response prevention.
+- `MVP_SCOPE.md` — *Modified.* Updated status of all 10 core MVP features to Completed/Verified.
+- `DECISIONS.md` — *Modified.* Recorded ADR-026 detailing the dual-tier integration testing architecture, zero-cost test provider isolation, and MVP stabilization baseline.
+- `scratch/test_day42_e2e_integration.mjs` — *Created.* 36-assertion automated Node.js integration test suite verifying Journeys A through H with zero live API costs using dependency-injected mock providers and ephemeral HTTP loopback dispatch.
+- `scratch/run_browser_day42_full_audit.mjs` — *Created.* Full end-to-end browser audit script automating Microsoft Edge via Chrome DevTools Protocol across Desktop, Tablet, and Mobile viewports, capturing 9 visual screenshot artifacts in `scratch/`.
+- `DEVELOPMENT_LOG.md` — *Modified.* Documented Day 42 integration audit, test results, and Week 6 completion.
+
+#### 2. Key Implementation Details & Concepts
+- **Dual-Tier E2E Integration Testing:**
+  - *Tier 1 (Automated Node.js Integration Suite):* 36 rigorous assertions covering Authentication (registration, password hashing, HttpOnly cookies, logout), Trip Creation (MongoDB persistence, validation, isolation), AI Itinerary Generation (Tier 1 & Tier 2 validation, anti-enumeration 404), Activity Modification (atomic subdocument add/edit/delete, financial recalculation), Budget Math (exact sums, 6-to-5 category mapping, over-budget zero clamp), Destination Discovery (REST API, filters, search, WebP resolution), Leaflet Map Utilities (WGS84 validation, coordinate disambiguation micro-offsets), and AI Travel Assistant (bounded context, history limits, rate limiting, timeout cancellation).
+  - *Tier 2 (Chrome DevTools Protocol Automation):* Executed headless Edge across 1440x900, 768x1024, and 375x812 viewports. Verified landing page destination cards, floating launcher button, dashboard navigation, trip detail itinerary timeline, Leaflet map rendering with 5 activity markers, popup interaction, Recharts donut and comparison charts, in-trip assistant chat, and mobile bottom-sheet drawer.
+- **Provider Resilience & Socket Cancellation:** Linked 30s timeout guard to `AbortController`, ensuring that timed-out LLM requests are genuinely terminated at the socket level.
+- **Token Budget Protection via Context Ceilings:** Applied `truncate()` to every single field extracted in `assistantContextService.js`, bounding LLM context to safe token boundaries.
+- **Defense-in-Depth Link Sanitization:** Enforced strict `http/https` whitelist on markdown link tokens in `MarkdownContent.jsx`.
+
+#### 3. Verification & Testing Performed
+- **Day 42 E2E Integration Suite (`scratch/test_day42_e2e_integration.mjs`):**
+  - **36 of 36 passed (100%)**:
+    - Journey A (Authentication): 9/9 passed.
+    - Journey B (Trip Creation): 5/5 passed.
+    - Journey C (AI Itinerary Generation): 2/2 passed.
+    - Journey D (Itinerary Modification): 4/4 passed.
+    - Journey E (Budget Planner): 3/3 passed.
+    - Journey F (Destination Discovery): 5/5 passed.
+    - Journey G (Maps): 3/3 passed.
+    - Journey H (AI Assistant): 5/5 passed.
+- **Full Historical Regression Test Suites:**
+  - `test_homepage_assistant_launcher.mjs`: 66 passed, 0 failed.
+  - `test_day41_assistant_chat.mjs`: 92 passed, 0 failed.
+  - `test_day40_assistant_api.mjs`: 118 passed, 0 failed.
+  - `test_day39_activity_markers_and_popups.mjs`: 105 passed, 0 failed.
+  - `test_day38_leaflet_osm_integration.mjs`: 84 passed, 0 failed.
+  - `test_day37_destination_search_and_filters.mjs`: 152 passed, 0 failed.
+  - `test_day36_destination_discovery.mjs`: 317 passed, 0 failed.
+  - **Grand Total across all 8 suites: 970 passed, 0 failed (100%).**
+- **Full Browser CDP Verification Across 3 Viewports:**
+  - Desktop (1440x900): Landing, Discovery cards (6), Dashboard, Trip detail, Leaflet map (5 pins + popup), Recharts charts, Assistant chat verified.
+  - Tablet (768x1024): Workspace layout verified.
+  - Mobile (375x812): Workspace layout and bottom-sheet AI launcher drawer verified.
+  - All 9 visual screenshot artifacts captured in `scratch/`.
+- **Production Build & Lint Verification:**
+  - `npm --prefix client run build`: Production Vite bundle succeeded cleanly in **1.20s** (2,606 modules transformed).
+  - ESLint checks across client assistant components: **0 errors, 0 warnings**.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None. The TripMind MVP is stable, fully integrated, secure, visually verified across all viewports, and 100% demonstration-ready.
+- **Week 6 Progress Tracker:** 100% Complete (Days 36–42).
+- **Next Steps:** Demo presentation and preparation for Phase 1.5 polish.
+
+---
+
+### [2026-11-21] — Homepage AI Assistant Launcher
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement a polished, floating circular AI Assistant launcher (`HomepageAssistantLauncher.jsx`) on the TripMind homepage (`LandingPage.jsx`) that directly reuses the existing itinerary-grounded assistant architecture (Day 40/41) without duplicating backend endpoints or business logic. Add support for compact rendering in `AssistantChat.jsx`, handle logged-out, logged-in with trips, logged-in without trips, and loading/error states, ensure full keyboard accessibility and mobile responsiveness, and verify via CDP in headless Microsoft Edge.
+- **Scope Boundaries:** Homepage launcher and compact assistant integration ONLY. Zero backend API modifications. Zero database conversation persistence added (stateless bounded-turn memory). Free-tier cost discipline (₹0 budget). Strict Git boundary: zero staging (`git add`), zero commits, zero pushes.
+
+#### 1. Files Created / Modified
+- `client/src/components/assistant/HomepageAssistantLauncher.jsx` — *Created.* Floating circular action button (FAB) positioned at `fixed bottom-5 right-5 sm:bottom-6 sm:right-6` styled in forest green and terracotta with accessible tooltip ("Ask TripMind AI"). Opens a responsive drawer (<640px) or desktop popover panel (420px) handling 4 distinct user states (Logged-out, Logged-in with multiple trips + journey selector, Logged-in without trips, and Loading/Error states).
+- `client/src/components/assistant/AssistantChat.jsx` — *Modified.* Added optional `compact={false}` prop allowing the component to adapt into embedded popovers/drawers without duplicate headers and with compact message containers, while preserving 100% backward compatibility for `TripDetailPage.jsx`.
+- `client/src/pages/LandingPage.jsx` — *Modified.* Mounted `<HomepageAssistantLauncher />` cleanly at the bottom-right of the homepage without altering Hero or Destination Discovery sections.
+- `scratch/test_homepage_assistant_launcher.mjs` — *Created.* 59-assertion automated unit/integration test suite verifying launcher design tokens, accessibility attributes, dialog semantics, and conversational state machine across all 4 user states.
+- `scratch/run_browser_homepage_launcher.mjs` — *Created.* Full end-to-end headless browser verification script using Microsoft Edge via Chrome DevTools Protocol (CDP) testing logged-out prompt, logged-in empty journeys, journey selector, interactive message submission, trip switching, and responsive viewports (Desktop, Tablet, Mobile) with screenshot captures.
+- `ARCHITECTURE.md` — *Modified.* Updated Section 4.6 documenting `HomepageAssistantLauncher.jsx` and compact assistant integration.
+- `DEVELOPMENT_LOG.md` — *Modified.* Documented Homepage Assistant Launcher session.
+
+#### 2. Key Implementation Details & Concepts
+- **Direct Architecture Reuse:** Reused `AssistantChat.jsx`, `assistantApi.sendAssistantMessage`, and backend `POST /api/trips/:tripId/assistant/messages` without creating redundant generic AI endpoints or duplicating bounded-history logic.
+- **Comprehensive State Architecture:**
+  - *Logged-out visitor:* Opens a polite editorial invitation explaining that the assistant is grounded in saved itineraries, providing direct links to `/login` and `/register`. Zero trips are fetched.
+  - *Logged-in with multiple trips:* Retrieves trips via `tripApi.getTrips({ limit: 50 })`, renders a clean journey `<select>` dropdown picker with Chevron indicator, and binds the active trip to `AssistantChat`.
+  - *Logged-in without trips:* Informs the traveler that an itinerary must be created first to ground the assistant, with a CTA to `/dashboard` to "Plan a Journey".
+  - *Loading & Error states:* Handles trip fetching with a spinner (`Loader2`), displays an accessible error banner with a "Try Again" button on failure, and discards out-of-order network responses using a request tracking ref.
+- **Multi-Trip Scoping & Isolation:** Changing the selected trip updates `selectedTrip`, triggering `AssistantChat`'s `prevTripId !== tripId` logic, immediately resetting conversation history, active inputs, and retry states with zero cross-trip leak.
+- **Accessibility & Responsive Semantics:** Marked with `role="dialog"`, `aria-modal="true"`, `aria-labelledby`, and `aria-label="Close assistant"`. Listens to `Escape` key to dismiss and restore focus. Adapts into a bottom-docked drawer on mobile viewports (<640px) with tap-to-dismiss backdrop.
+
+#### 3. Verification & Testing Performed
+- **Automated Launcher Suite:** `node scratch/test_homepage_assistant_launcher.mjs` passed 59/59 assertions covering design tokens, accessibility attributes, state machine transitions, and workspace integration.
+- **Regression Test Suites:** Executed all Week 6 test suites across Days 36 to 41 (`test_day36`, `test_day37`, `test_day38`, `test_day39`, `test_day40`, `test_day41`); all passed with exit code 0 and zero regressions.
+- **Real Browser Automation (Headless Edge via CDP):** Executed `scratch/run_browser_homepage_launcher.mjs` with 8/8 verified steps:
+  - Scenario 1: Logged-out visitor saw sign-in prompt and login/register links (`scratch/browser_launcher_logged_out.png`).
+  - Scenario 2: Logged-in user without trips saw empty state and dashboard CTA (`scratch/browser_launcher_logged_in_no_trips.png`).
+  - Scenario 3: Logged-in user with trips saw dropdown selector and compact assistant on Desktop (`scratch/browser_launcher_desktop_with_trips.png`), Tablet (`scratch/browser_launcher_tablet.png`), and Mobile drawer (`scratch/browser_launcher_mobile.png`).
+  - Trip switching reset conversation and switched destination context cleanly.
+  - Scenario 4: TripDetailPage workspace assistant regression passed (`scratch/browser_trip_detail_assistant_regression.png`).
+- **ESLint Validation:** Ran ESLint on all touched files; 0 errors, 0 warnings.
+- **Vite Production Build:** `npm --prefix client run build` transformed 2,606 modules in 1.93s with zero build errors.
+- **Git State Verification:** `git status` confirmed zero staged files (`git add` avoided), zero commits, zero pushes.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None.
+- **Next Steps:** Complete Day 42 full MVP user journey integration, end-to-end cross-feature regression verification, and final deployment readiness.
+
+---
+
+### [2026-11-21] — Day 41: Build Assistant Chat Interface
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Build an accessible, polished, and responsive AI Travel Assistant conversational chat interface (`AssistantChat.jsx`) integrated naturally into `TripDetailPage.jsx` and connected to Day 40's backend API (`POST /api/trips/:tripId/assistant/messages`). Implement initial contextual welcome state with 4 curated prompt pills (`SUGGESTED_QUESTIONS`), custom zero-dependency Markdown formatter (`MarkdownContent.jsx` & `markdownParser.js`), 6-message bounded history slicing with newest-turn anti-duplication, in-place error recovery and retries, and automatic multi-trip conversation scoping without persistent database overhead.
+- **Scope Boundaries:** Frontend UI and integration ONLY. Zero backend API modifications. Zero database conversation persistence or MongoDB models added (stateless bounded-turn conversation memory). Zero third-party markdown packages (built safe zero-dependency tokenizer and renderer). Strict Git boundary: zero staging (`git add`), zero commits, zero pushes.
+
+#### Week 6 Progress Tracker
+- [x] **Day 36 — Destination Discovery Backend & API:** Curated static data architecture, public REST API (`GET /api/destinations`), response envelopes, WGS84 coordinates, and frontend API client layer. *(🟢 Completed)*
+- [x] **Day 37 — Destination Search & Category Filter Integration:** Connect frontend `DestinationDiscovery.jsx` to `destinationApi`, debounced multi-field search, category filter synchronization, WebP image asset resolution, loading/empty/error states. *(🟢 Completed)*
+- [x] **Day 38 — Leaflet & OpenStreetMap Foundation:** Client-side Leaflet rendering container, OSM raster tile layer with mandatory attribution, responsive map controls, and trip itinerary workspace integration. *(🟢 Completed)*
+- [x] **Day 39 — Itinerary Activity Map Markers & Popups:** Plot daily activity coordinates on Leaflet map, custom category pins, editorial popup cards, and active day bounds. *(🟢 Completed)*
+- [x] **Day 40 — Build AI Travel Assistant API:** LLM integration endpoint for travel recommendations, context-aware itinerary assistance, and prompt engineering. *(🟢 Completed)*
+- [x] **Day 41 — Build Assistant Chat Interface:** Conversational UI component, message threading, streaming or optimistic updates, and itinerary action suggestions. *(🟢 Completed)*
+- [ ] **Day 42 — Integrate, Test and Fix Complete MVP:** Full end-to-end user journey audit, cross-feature regression testing, responsive polish, and bug fixes. *(🔴 Scheduled)*
+
+#### 1. Files Created / Modified
+- `client/src/components/assistant/constants.js` — *Created.* Isolated constants and utility helpers (`SUGGESTED_QUESTIONS`, `generateMessageId`, `getCurrentTimeString`) complying with React Refresh module export boundaries and React 19 hook purity rules.
+- `client/src/components/assistant/markdownParser.js` — *Created.* Pure JavaScript block and inline tokenizer (`parseMarkdownBlocks`, `tokenizeInline`) parsing headers (`###`), bold, italics, inline code, links, blockquotes, and ordered/unordered lists for 100% testability in Node.js ESM without JSX transpilers.
+- `client/src/components/assistant/MarkdownContent.jsx` — *Created.* Zero-dependency semantic React element renderer transforming parsed markdown tokens into styled HTML components with accessible external link targets (`rel="noreferrer noopener"`).
+- `client/src/components/assistant/AssistantChat.jsx` — *Created.* Core conversational chat interface with welcome hero state, 4 curated prompt pills, distinct user/assistant speech bubbles, auto-scrolling container (`role="log"`, `aria-live="polite"`), 1000 character countdown, 6-message bounded history slicing, keyboard submission (`Enter` / `Shift+Enter`), in-place retry, and multi-trip scoping reset.
+- `client/src/pages/TripDetailPage.jsx` — *Modified.* Mounted `<AssistantChat trip={trip} />` cleanly within the workspace (between Map and Day Schedule when itinerary exists, and below empty card when draft).
+- `scratch/test_day41_assistant_chat.mjs` — *Created.* 92-assertion automated test suite verifying constants, markdown parser edge cases, AST parsing, component source accessibility, conversational state machine, 6-message bounding, error retries, and TripDetailPage integration.
+- `ARCHITECTURE.md` — *Modified.* Added Section 4.6 documenting AI Travel Assistant Chat Interface Architecture and updated Section 5.5.
+- `MVP_SCOPE.md` — *Modified.* Updated Section 3.10 marking Day 41 Assistant Chat Interface complete.
+- `DECISIONS.md` — *Modified.* Added ADR-025 documenting in-memory bounded conversational state, in-place error retries, and zero-dependency markdown parsing.
+- `DEVELOPMENT_LOG.md` — *Modified.* Logged Day 41 session and updated Week 6 progress tracker.
+
+#### 2. Key Implementation Details & Concepts
+- **Component Modularity & React 19 Compatibility:** Structured into `constants.js`, `markdownParser.js`, `MarkdownContent.jsx`, and `AssistantChat.jsx`. Resolved React 19 Fast Refresh constraints (`react-refresh/only-export-components`), hook purity rules (`react-hooks/purity`), and state synchronization on prop change via `prevTripId` tracking rather than calling `setState` inside `useEffect`.
+- **Zero-Dependency Markdown Engine:** Pure JS block and inline tokenizer capable of parsing headers, bold, italics, code, blockquotes, links, and lists directly in Node without requiring external dependencies (`react-markdown`, `marked`, `DOMPurify`), avoiding bundle bloat and peer dependency collisions.
+- **Protocol & Anti-Duplication Contract:** While maintaining full conversation history for traveler reading, outgoing API requests slice the 6 latest eligible messages as `history` while sending the newest query separately as `message`, preventing prompt duplication and matching Day 40 backend validation constraints.
+- **Trip Scoping & Memory Isolation:** When travelers navigate between different trips, `prevTripId` tracking resets conversation state, active input, and error messages, ensuring zero cross-trip conversation leakage.
+- **In-Place Error Recovery:** API failures (rate limits, network timeout, Gemini errors) display an accessible error alert with a "Retry" button that re-transmits the failed prompt without duplicating user messages in the stream.
+
+#### 3. Verification & Testing Performed
+- **Day 41 Test Suite:** `node scratch/test_day41_assistant_chat.mjs` passed 92/92 assertions covering constants, markdown parsing, component structure, state machine simulation, 6-message history bounding, retry mechanics, and workspace integration.
+- **Days 36–41 Full Regression Suite:** Executed all Week 6 test suites across Days 36 to 41; all passed with exit code 0 and zero regressions.
+- **ESLint Validation:** Ran ESLint on all assistant components and `TripDetailPage.jsx`; 0 errors, 0 warnings.
+- **Vite Production Build:** `npm --prefix client run build` transformed 2,605 modules cleanly in 1.42s with zero build errors.
+- **Git State Verification:** `git status` confirmed zero staged files (`git add` avoided), zero commits, zero pushes.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Unresolved Issues / Blockers:** None. The assistant chat interface is fully operational and integrated.
+- **Next Steps (Day 42):** Integrate, Test and Fix Complete MVP: full end-to-end user journey audit, cross-feature regression testing across authentication, trip CRUD, AI itinerary generation, budget breakdowns, interactive Leaflet mapping, destination discovery, and the AI assistant.
+
+---
+
+### [2026-11-21] — Day 40: Build AI Travel Assistant API
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement the secure backend API foundation for TripMind's context-aware AI travel assistant (`POST /api/trips/:tripId/assistant/messages`). Design pure context extraction and serialization (`assistantContextService.js`), construct master system instructions with prompt injection defenses and multi-turn contents formatting (`assistantPrompt.js`), build input validation enforcing bounded history and role whitelisting (`assistantValidator.js`), implement in-memory sliding rate limiting (`rateLimiter.js`), orchestrate domain service and multi-tenant anti-enumeration verification (`assistantService.js`), map provider errors to standard HTTP status codes, and establish the frontend API client module (`assistantApi.js`) for Day 41 Chat UI readiness.
+- **Scope Boundaries:** Backend API ONLY. Day 41 is reserved for the assistant conversational chat interface. Zero frontend chat UI components created today. Zero persistent chat database models (stateless bounded-turn memory). Free-tier cost discipline (₹0 budget, mock Gemini provider in tests). Strict Git boundary: zero staging (`git add`), zero commits, zero pushes.
+
+#### Week 6 Progress Tracker
+- [x] **Day 36 — Destination Discovery Backend & API:** Curated static data architecture, public REST API (`GET /api/destinations`), response envelopes, WGS84 coordinates, and frontend API client layer. *(🟢 Completed)*
+- [x] **Day 37 — Destination Search & Category Filter Integration:** Connect frontend `DestinationDiscovery.jsx` to `destinationApi`, debounced multi-field search, category filter synchronization, WebP image asset resolution, loading/empty/error states. *(🟢 Completed)*
+- [x] **Day 38 — Leaflet & OpenStreetMap Foundation:** Client-side Leaflet rendering container, OSM raster tile layer with mandatory attribution, responsive map controls, and trip itinerary workspace integration. *(🟢 Completed)*
+- [x] **Day 39 — Itinerary Activity Map Markers & Popups:** Plot daily activity coordinates on Leaflet map, custom category pins, editorial popup cards, and active day bounds. *(🟢 Completed)*
+- [x] **Day 40 — Build AI Travel Assistant API:** LLM integration endpoint for travel recommendations, context-aware itinerary assistance, and prompt engineering. *(🟢 Completed)*
+- [ ] **Day 41 — Build Assistant Chat Interface:** Conversational UI component, message threading, streaming or optimistic updates, and itinerary action suggestions. *(🔴 Scheduled)*
+- [ ] **Day 42 — Integrate, Test and Fix Complete MVP:** Full end-to-end user journey audit, cross-feature regression testing, responsive polish, and bug fixes. *(🔴 Scheduled)*
+
+#### 1. Files Created / Modified
+- `server/src/middleware/rateLimiter.js` — *Created.* In-memory sliding rate limiter middleware (`createRateLimiter` and `assistantLimiter`) allowing max 15 requests/minute per authenticated user/IP with standard `X-RateLimit-*` and `Retry-After` headers and automated cleanup.
+- `server/src/validators/assistantValidator.js` — *Created.* Request validator verifying `message` existence, non-empty trimmed strings (1–1000 chars), and bounded `history` (max 6 messages / 3 full turns), strictly whitelisting roles `'user'` and `'assistant'` and rejecting `'system'` or `'developer'`.
+- `server/src/services/assistantContextService.js` — *Created.* Pure context extractor and serializer (`extractTripContext` and `serializeTripContext`) pulling public/editorial trip metadata, traveler style preferences, itemized categorical budget summaries, and daily activity stops bounded to 200 chars/activity into `<trip_context>...</trip_context>` tags.
+- `server/src/services/assistantPrompt.js` — *Created.* Master system instruction (`ASSISTANT_SYSTEM_INSTRUCTION`), context injector (`buildAssistantSystemInstruction`), and multi-turn contents formatter (`formatAssistantContents`) mapping client `'assistant'` role to Gemini SDK `'model'`.
+- `server/src/services/assistantService.js` — *Created.* Domain service orchestrating trip ownership verification via `tripService.getTripById()`, context assembly, 30-second timeout guard (`AI_TIMEOUT` 504), Gemini SDK generation, and provider error normalization (400, 404, 429, 502, 503, 504).
+- `server/src/controllers/assistantController.js` — *Created.* HTTP controller (`sendAssistantMessage`) parsing authenticated identity, trip ID, and message payloads, and returning standardized JSON envelopes.
+- `server/src/routes/assistant.routes.js` — *Created.* Sub-router with `mergeParams: true` declaring `POST /messages` with `authenticateToken`, `validateTripId`, `assistantLimiter`, and `validateAssistantMessage`.
+- `server/src/routes/trip.routes.js` — *Modified.* Mounted assistant sub-router at `router.use('/:tripId/assistant', assistantRoutes)`.
+- `client/src/services/api/assistantApi.js` — *Created.* Frontend API client service exporting `sendAssistantMessage(tripId, message, history)` with `withCredentials: true` for Day 41 Chat UI integration readiness.
+- `scratch/test_day40_assistant_api.mjs` — *Created.* Comprehensive 118-assertion automated test suite verifying context extraction, serialization, prompt formatting, request validation, rate limiting, service orchestration, anti-enumeration, error normalization, and Express route execution.
+- `ARCHITECTURE.md` — *Modified.* Added Section 5.5 documenting AI Travel Assistant API architecture, pipeline, injection defenses, and error mappings.
+- `MVP_SCOPE.md` — *Modified.* Added Section 3.10 and updated Section 5 & 6 boundary matrices.
+- `DECISIONS.md` — *Modified.* Added ADR-024: Stateless Bounded-History AI Travel Assistant API with Structured Trip-Context Isolation.
+- `DEVELOPMENT_LOG.md` — *Modified.* Appended Day 40 session entry and updated Week 6 progress tracker.
+
+#### 2. Key Implementation Details & Concepts
+- **Delimited Context Assembly & Anti-Prompt-Injection:** `assistantContextService.js` serializes verified trip reference data inside `<trip_context>...</trip_context>` blocks accompanied by an explicit directive instructing the model that reference data contains non-executable factual data. The master system prompt (`assistantPrompt.js`) strictly instructs the model to ignore any attempts within trip fields or user questions to alter instructions, change persona, or leak internal prompts.
+- **Stateless Bounded-History Protocol:** Rather than accumulating unbounded conversational documents in MongoDB, the assistant endpoint accepts an optional bounded history array (max 6 messages / 3 full turns). `assistantValidator.js` enforces strict role whitelisting (`'user'` or `'assistant'`), immediately rejecting malicious attempts to inject `'system'` or `'developer'` instructions.
+- **Role Translation for Google GenAI SDK:** While standard client REST interfaces use `role: 'assistant'`, the Google GenAI SDK (`@google/genai`) expects `role: 'model'`. `formatAssistantContents()` translates roles seamlessly, producing a valid turn-alternating `contents` array ending with the latest user query.
+- **Multi-Tenant Anti-Enumeration Isolation:** Ownership is strictly validated via `tripService.getTripById(userId, tripId)`. Non-existent trips and unowned trips produce identical HTTP 404 `NOT_FOUND` responses (`"Trip not found"`), neutralizing resource enumeration and side-channel sniffing.
+- **Rate Limiting & Provider Protection:** `assistantLimiter` enforces a sliding window of max 15 requests per minute per authenticated user (or IP fallback). Exceeded quotas return HTTP 429 `RATE_LIMIT_EXCEEDED` with `Retry-After` and `X-RateLimit-*` headers.
+- **Timeout Protection & Error Normalization:** A 30-second `Promise.race` timeout guard returns HTTP 504 `AI_TIMEOUT` on hung connections. Provider errors are mapped via `formatGeminiError` to standard status codes (429, 502, 503, 504), preventing unhandled rejections or secret leakage.
+
+#### 3. Verification & Testing Performed
+- **Day 40 Test Suite (`test_day40_assistant_api.mjs`):** 118/118 assertions passed (100% success rate across 9 test sections).
+- **Day 39 Regression Suite (`test_day39_activity_markers_and_popups.mjs`):** 104/104 assertions passed (100% regression pass).
+- **Day 38 Regression Suite (`test_day38_leaflet_osm_integration.mjs`):** 111/111 assertions passed (100% regression pass).
+- **Day 37 Regression Suite (`test_day37_destination_search_and_filters.mjs`):** 139/139 assertions passed (100% regression pass).
+- **Day 36 Regression Suite (`test_day36_destination_discovery.mjs`):** 317/317 assertions passed (100% regression pass).
+- **ESLint Code Quality Verification:** `npx --prefix client eslint client/src/services/api/assistantApi.js` executed with **0 errors and 0 warnings**.
+- **Server Syntax Check:** `node --check` executed across all 8 created/modified server files with **0 syntax errors**.
+- **Production Vite Build:** `npm --prefix client run build` succeeded in **1.21s** (all 2,600 modules transformed cleanly, bundling with code `0`).
+- **Git State Hygiene:** `git status` confirmed zero staged files (`git add` not invoked).
+
+#### 4. Known Limitations, Blockers & Remaining Work for Day 41
+- **Day 40 Scope Discipline:** No frontend chat interface elements were created today. Day 41 is dedicated to building the Assistant Chat Interface (`AssistantChat.jsx`), message bubble rendering, optimistic states, and itinerary action suggestions.
+
+---
+
+### [2026-11-21] — Day 39: Itinerary Activity Map Markers & Popups
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement interactive itinerary activity markers and editorial popups on the TripMind trip workspace map. Build `ActivityMarkers.jsx` using Vanilla Leaflet and React 19 Context (`MapContext`), normalize and validate activity coordinates from both direct and nested location schemas, handle identical-coordinate disambiguation, render custom SVG teardrop pins matching activity categories (`stay`, `food`, `transit`, `activity`, `other`), construct XSS-sanitized popups, and dynamically fit map bounds across multi-day itineraries.
+- **Scope Boundaries:** Activity markers, custom pins, popups, bounds fitting, test suite, and visual browser verification. Zero AI assistant development (Day 40). Zero turn-by-turn navigation or external geocoding APIs. Zero staging (`git add`), zero commits, zero pushes to Git.
+
+#### Week 6 Progress Tracker
+- [x] **Day 36 — Destination Discovery Backend & API:** Curated static data architecture, public REST API (`GET /api/destinations`), response envelopes, WGS84 coordinates, and frontend API client layer. *(🟢 Completed)*
+- [x] **Day 37 — Destination Search & Category Filter Integration:** Connect frontend `DestinationDiscovery.jsx` to `destinationApi`, debounced multi-field search, category filter synchronization, WebP image asset resolution, loading/empty/error states. *(🟢 Completed)*
+- [x] **Day 38 — Leaflet & OpenStreetMap Foundation:** Client-side Leaflet rendering container, OSM raster tile layer with mandatory attribution, responsive map controls, and trip itinerary workspace integration. *(🟢 Completed)*
+- [x] **Day 39 — Itinerary Activity Map Markers & Popups:** Plot daily activity coordinates on Leaflet map, custom category pins, editorial popup cards, and active day bounds. *(🟢 Completed)*
+- [ ] **Day 40 — Build AI Travel Assistant API:** LLM integration endpoint for travel recommendations, context-aware itinerary assistance, and prompt engineering. *(🔴 Scheduled)*
+- [ ] **Day 41 — Build Assistant Chat Interface:** Conversational UI component, message threading, streaming or optimistic updates, and itinerary action suggestions. *(🔴 Scheduled)*
+- [ ] **Day 42 — Integrate, Test and Fix Complete MVP:** Full end-to-end user journey audit, cross-feature regression testing, responsive polish, and bug fixes. *(🔴 Scheduled)*
+
+#### 1. Files Created / Modified
+- `client/src/context/MapContext.jsx` — *Created.* Dedicated React 19 Context providing descendant components direct access to the live Leaflet map instance and exporting the custom hook `useMap()`, complying with React Refresh module boundary rules.
+- `client/src/components/map/ActivityMarkers.jsx` — *Created.* Leaflet marker orchestrator that creates an `L.layerGroup`, synchronizes markers on itinerary changes, renders custom SVG category pins, binds sanitized popups, and manages `fitBounds` calculations.
+- `client/src/utils/mapUtils.js` — *Modified.* Added `extractActivityCoordinates` (normalizing direct vs nested coordinates), `applyCoordinateDisambiguation` (applying micro-offsets to identical coordinates), `getPlottableActivities` (flattening multi-day activities), `escapeHtml` (OWASP sanitization), `ACTIVITY_CATEGORY_CONFIG` (5-category styling tokens), `createMarkerSvg` (SVG teardrop builder), and `buildActivityPopupContent` (popup template builder).
+- `client/src/components/map/LeafletMapContainer.jsx` — *Modified.* Wrapped children inside `<MapContext.Provider value={mapInstance}>` using React state to eliminate ref-access during rendering warnings.
+- `client/src/index.css` — *Modified.* Added custom CSS styling for `.tripmind-custom-pin`, `.leaflet-popup-content-wrapper`, `.leaflet-popup-tip`, and `.leaflet-popup-close-button` adhering to editorial design tokens.
+- `client/src/pages/TripDetailPage.jsx` — *Modified.* Rendered `<ActivityMarkers>` inside `<LeafletMapContainer>`, added `plottableActivities` stop counter badge in the map section header, and added an informative fallback notice when zero stops have coordinates.
+- `scratch/test_day39_activity_markers_and_popups.mjs` — *Created.* Comprehensive 104-assertion automated test suite verifying coordinate extraction, boundary enforcement, identical coordinate disambiguation, category SVG pins, popup sanitization, LayerGroup lifecycle, and TripDetailPage integration.
+- `scratch/run_browser_day39.mjs` — *Created.* Headless Microsoft Edge browser verification script driving Chrome DevTools Protocol (CDP) to verify rendered markers, popup interaction, and responsive viewports.
+- `ARCHITECTURE.md` — *Modified.* Updated Section 4.5 documenting Activity Markers, custom SVG teardrop pins, LayerGroup lifecycle, and XSS sanitization architecture.
+- `MVP_SCOPE.md` — *Modified.* Updated Section 3.8 to check off Day 39 activity markers and popups deliverables.
+- `DECISIONS.md` — *Modified.* Added ADR-023: Custom SVG Category Pins, LayerGroup Lifecycle, and Sanitized Editorial Popups for Itinerary Activity Markers.
+- `DEVELOPMENT_LOG.md` — *Modified.* Appended Day 39 session entry and updated Week 6 progress tracker.
+
+#### 2. Key Implementation Details & Concepts
+- **Activity Coordinate Schema Normalization:** Inspected `server/src/models/Trip.js` and confirmed support for both direct coordinates (`activity.latitude`, `activity.longitude`) and nested location coordinates (`activity.location.latitude`, `activity.location.longitude`). Implemented `extractActivityCoordinates(activity)` in `mapUtils.js` to inspect direct properties first, fall back to nested objects, safely parse string numbers, and validate against WGS84 bounds via `isValidLatLng()`. Activities lacking coordinates are safely excluded from the map while remaining fully visible in the itinerary list.
+- **Identical Coordinate Disambiguation:** When multiple itinerary stops share exact coordinates (e.g., multiple activities at the same temple or hotel), markers would otherwise occlude each other. Implemented `applyCoordinateDisambiguation()` which detects duplicate coordinate keys and applies a microscopic radial offset (~7m) to subsequent stops, ensuring all pins remain individually visible and clickable while preserving exact location text in the popup.
+- **Category-Driven SVG Teardrop Pins:** Engineered a standalone SVG generator (`createMarkerSvg()`) supporting the 5 schema category enums (`stay`, `food`, `transit`, `activity`, `other`). Pins feature a drop-shadowed teardrop shape (32x40px), category color fill, inner white circle, and bold Day indicator (`D1`, `D2`, etc.). Anchored at `[16, 40]` with popup anchor `[0, -42]`, eliminating external image asset dependencies and broken icon links.
+- **OWASP-Compliant XSS Sanitization in Popups:** Implemented `escapeHtml()` to escape `&`, `<`, `>`, `"`, and `'`. In `buildActivityPopupContent()`, every dynamic variable (title, location, time, duration, cost) is sanitized prior to interpolation into the Leaflet popup HTML, completely neutralizing script injection and DOM-based XSS attacks.
+- **LayerGroup Lifecycle & Duplicate Prevention:** `ActivityMarkers.jsx` maintains an `L.layerGroup` stored in a ref. Whenever `trip.days` changes (e.g. after adding, editing, or deleting an activity), `layerGroup.clearLayers()` wipes old markers before repopulating the updated set, preventing duplicate markers across React re-renders. On unmount, the layer group is cleanly detached from the map.
+- **Intelligent Bounds Fitting:** If 1 marker is plotted, the map centers on it at a comfortable neighborhood zoom (`14`). If multiple markers are plotted, `map.fitBounds(bounds, { padding: [48, 48], maxZoom: 15 })` frames all stops without over-zooming on tightly clustered points. If zero markers are present, the map retains its destination overview without breaking.
+
+#### 3. Verification & Testing Performed
+- **Day 39 Test Suite (`test_day39_activity_markers_and_popups.mjs`):** 104/104 assertions passed (100% success rate across 10 test sections).
+- **Day 38 Regression Suite (`test_day38_leaflet_osm_integration.mjs`):** 111/111 assertions passed (100% regression pass).
+- **Day 37 Regression Suite (`test_day37_destination_search_and_filters.mjs`):** 139/139 assertions passed (100% regression pass).
+- **Day 36 Regression Suite (`test_day36_destination_discovery.mjs`):** 317/317 assertions passed (100% regression pass).
+- **ESLint Code Quality Verification:** `npx --prefix client eslint client/src/components/map/LeafletMapContainer.jsx client/src/components/map/ActivityMarkers.jsx client/src/context/MapContext.jsx client/src/utils/mapUtils.js client/src/pages/TripDetailPage.jsx` executed with **0 errors and 0 warnings**.
+- **Production Vite Build:** `npm --prefix client run build` succeeded in **1.20s** (all 2,600 modules transformed cleanly, bundling with code `0`).
+- **Automated Headless Browser Visual Audit (`run_browser_day39.mjs`):**
+  - Verified 5 custom SVG teardrop pins rendered in `.leaflet-container`.
+  - Verified badge in map header: `5 stops mapped`.
+  - Clicked on Tenryu-ji marker and verified popup DOM structure (`Day 1`, `Activity`, `Tenryu-ji Zen Temple Garden`, `09:00 AM (2 hours)`, `Tenryu-ji, Ukyo Ward`, `Est. Cost: USD 20`).
+  - `browser_day39_markers_desktop.png`: 5 markers framed across Kyoto at 1280x900.
+  - `browser_day39_popup_open.png`: Open editorial popup showing formatted activity details.
+  - `browser_day39_markers_tablet.png`: Responsive tablet layout at 768x1024.
+  - `browser_day39_markers_mobile.png`: Responsive mobile layout at 375x812 with touch-friendly popup.
+- **Git State Hygiene:** `git status` confirmed zero staged files (`git add` not invoked).
+
+#### 4. Known Limitations, Blockers & Remaining Work for Day 40
+- **Known Limitations:**
+  - Dynamic day-filtered marker visibility (showing only Day X stops when Day X tab is active) and route polyline connections are scheduled for Day 40.
+- **Remaining Work for Day 40 (Build AI Travel Assistant API):**
+  - Implement LLM integration endpoint for travel recommendations and itinerary assistance.
+  - Establish structured JSON prompts and token budget controls.
+
+---
+
+### [2026-11-21] — Day 38: Leaflet & OpenStreetMap Foundation
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Establish the interactive mapping foundation for TripMind using Leaflet and OpenStreetMap. Create a modular, responsive `LeafletMapContainer.jsx` component using Vanilla Leaflet compatible with React 19 and Vite. Ensure clean React lifecycle handling, duplicate initialization guards, `ResizeObserver` size invalidation resilience, mandatory OpenStreetMap attribution with copyright hyperlink, ergonomic zoom controls, and seamless integration into the populated trip itinerary workspace (`TripDetailPage.jsx`) ready for Day 39 activity markers.
+- **Scope Boundaries:** Reusable map container, map utilities, Leaflet CSS and theme customizations, trip detail page integration, automated testing, and browser visual verification. Zero activity markers, custom category pins, or marker popups (strictly reserved for Day 39). Zero unsolicited geolocation prompts. Zero staging (`git add`), zero commits, zero pushes to Git.
+
+#### Week 6 Progress Tracker
+- [x] **Day 36 — Destination Discovery Backend & API:** Curated static data architecture, public REST API (`GET /api/destinations`), response envelopes, WGS84 coordinates, and frontend API client layer. *(🟢 Completed)*
+- [x] **Day 37 — Destination Search & Category Filter Integration:** Connect frontend `DestinationDiscovery.jsx` to `destinationApi`, debounced multi-field search, category filter synchronization, WebP image asset resolution, loading/empty/error states. *(🟢 Completed)*
+- [x] **Day 38 — Leaflet & OpenStreetMap Foundation:** Client-side Leaflet rendering container, OSM raster tile layer with mandatory attribution, responsive map controls, and trip itinerary workspace integration. *(🟢 Completed)*
+- [ ] **Day 39 — Itinerary Activity Map Markers & Popups:** Plot daily activity coordinates on Leaflet map, custom category pins, editorial popup cards, and active day bounds. *(🔴 Scheduled)*
+- [ ] **Day 40 — Build AI Travel Assistant API:** LLM integration endpoint for travel recommendations, context-aware itinerary assistance, and prompt engineering. *(🔴 Scheduled)*
+- [ ] **Day 41 — Build Assistant Chat Interface:** Conversational UI component, message threading, streaming or optimistic updates, and itinerary action suggestions. *(🔴 Scheduled)*
+- [ ] **Day 42 — Integrate, Test and Fix Complete MVP:** Full end-to-end user journey audit, cross-feature regression testing, responsive polish, and bug fixes. *(🔴 Scheduled)*
+
+#### 1. Files Created / Modified
+- `client/package.json` — *Modified.* Added `leaflet` (`^1.9.4`) to application runtime dependencies.
+- `client/src/utils/mapUtils.js` — *Created.* Pure utility module providing `isValidLatLng` (WGS84 coordinate boundary validation), `DESTINATION_COORDINATES` registry, `getDestinationCoordinates` centroid lookup, `OSM_TILE_URL`, `OSM_ATTRIBUTION`, and `DEFAULT_MAP_CONFIG`.
+- `client/src/components/map/LeafletMapContainer.jsx` — *Created.* Modular, accessible (`role="region"`) mapping component encapsulating Leaflet map instantiation, tile layer attachment, standard zoom control positioning, `ResizeObserver` container dimension tracking, `requestAnimationFrame` size invalidation, unmount cleanup (`map.remove()`), and dynamic center/zoom prop synchronization.
+- `client/src/index.css` — *Modified.* Added custom Leaflet design system styling rules for `.leaflet-container`, `.leaflet-bar` zoom controls, and `.leaflet-control-attribution` adhering to Warm Ivory, Forest Green, and Terracotta editorial tokens.
+- `client/src/pages/TripDetailPage.jsx` — *Modified.* Integrated `LeafletMapContainer` into the populated itinerary workspace above the Day-by-Day schedule, deriving destination centroid coordinates via `getDestinationCoordinates(trip.destination)`.
+- `scratch/test_day38_leaflet_osm_integration.mjs` — *Created.* 111-assertion test suite verifying WGS84 boundary enforcement, destination coordinate lookups, OpenStreetMap attribution compliance, Leaflet lifecycle patterns, TripDetailPage integration, CSS theme tokens, geolocation privacy, and tile usage policies.
+- `scratch/run_browser_day38.mjs` — *Created.* Headless Microsoft Edge browser test suite driving Chrome DevTools Protocol (CDP) to verify DOM presence, tile rendering, attribution text, zoom control interaction, and responsive layouts across Desktop, Tablet, and Mobile viewports.
+- `ARCHITECTURE.md` — *Modified.* Updated Section 4 with Leaflet and OpenStreetMap foundation architecture, container resilience, and lifecycle management patterns.
+- `MVP_SCOPE.md` — *Modified.* Updated Section 3.8 to record completion of Day 38 Leaflet and OpenStreetMap foundation deliverables.
+- `DECISIONS.md` — *Modified.* Resolved Pending-005 into ADR-022: Vanilla Leaflet with React 19 Lifecycle and Container Resilience for Interactive Maps.
+- `DEVELOPMENT_LOG.md` — *Modified.* Appended Day 38 session history and updated Week 6 progress tracker.
+
+#### 2. Key Implementation Details & Concepts
+- **Vanilla Leaflet vs. `react-leaflet` with React 19 (ADR-022):** Selected Vanilla Leaflet (`leaflet@^1.9.4`) over `react-leaflet`. Evaluated `react-leaflet` and identified severe React 19 peer-dependency conflicts (`react-dom@^18.0.0`). Vanilla Leaflet provides complete direct control over DOM container referencing, explicit lifecycle initialization, `ResizeObserver` integration, tile loading, and cleanup without wrapper overhead or peer-dependency friction.
+- **React Lifecycle & Duplicate Initialization Guards:** `LeafletMapContainer` uses a DOM `containerRef` and an instance `mapInstanceRef`. An immediate guard `if (mapInstanceRef.current) return` prevents duplicate map initializations during React 19 StrictMode double-mounting. On unmount, the cleanup effect disconnects the `ResizeObserver`, invokes `map.remove()`, and sets `mapInstanceRef.current = null`.
+- **Container Dimension Resilience (`invalidateSize`):** Leaflet requires non-zero container dimensions to calculate tile coordinates. If a map is rendered in an initially hidden tab or during layout calculation, tiles can collapse into a gray background. Solved via:
+  1. Setting explicit inline `style={{ minHeight: height, height }}` alongside responsive Tailwind utility classes.
+  2. Observing container dimensions via `ResizeObserver` and calling `map.invalidateSize()` whenever dimensions change.
+  3. Firing `map.invalidateSize()` via `requestAnimationFrame` and a 150ms timeout post-mount.
+- **OpenStreetMap Tile Usage Policy Compliance:**
+  - Uses standard raster tile URL: `https://tile.openstreetmap.org/{z}/{x}/{y}.png`.
+  - Displays mandatory attribution: `&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors`.
+  - Relies strictly on standard browser header propagation (`Referer`/`Origin`).
+  - Zero bulk tile downloading, tile scrapers, or unauthorized offline caches.
+- **Geolocation Privacy Discipline:** In strict accordance with user guidelines, zero unsolicited calls to `navigator.geolocation.getCurrentPosition` or `navigator.geolocation.watchPosition` were introduced. Centering relies strictly on destination metadata and curated coordinates without prompting for browser location permissions.
+
+#### 3. Verification & Testing Performed
+- **Day 38 Test Suite (`test_day38_leaflet_osm_integration.mjs`):** 111/111 assertions passed (100% success rate across 8 test sections).
+- **Day 37 Regression Suite (`test_day37_destination_search_and_filters.mjs`):** 139/139 assertions passed (100% regression pass).
+- **Day 36 Regression Suite (`test_day36_destination_discovery.mjs`):** 317/317 assertions passed (100% regression pass).
+- **ESLint Code Quality Verification:** `npx --prefix client eslint client/src/components/map/LeafletMapContainer.jsx client/src/utils/mapUtils.js client/src/pages/TripDetailPage.jsx` executed with **0 errors and 0 warnings**.
+- **Production Vite Build:** `npm --prefix client run build` succeeded in **1.42s** (all 2,598 modules transformed cleanly, bundling Leaflet and CSS assets with code `0`).
+- **Automated Headless Browser Visual Audit (`run_browser_day38.mjs`):**
+  - Confirmed `hasLeafletContainer: true`, `hasAttribution: true`, `attributionText: ' Leaflet | © OpenStreetMap contributors'`, `hasZoomControls: true`.
+  - `browser_day38_map_desktop.png`: High-resolution visual capture of interactive map in TripDetailPage at 1280x900.
+  - `browser_day38_map_zoomed.png`: Confirmed zoom-in control interaction and tile re-rendering.
+  - `browser_day38_map_tablet.png`: Confirmed responsive layout at 768x1024 tablet viewport.
+  - `browser_day38_map_mobile.png`: Confirmed single-column mobile layout at 375x812 mobile viewport.
+- **Git State Hygiene:** `git status` confirmed zero staged files (`git add` not invoked).
+
+#### 4. Known Limitations, Blockers & Remaining Work for Day 39
+- **Known Limitations:**
+  - Day 38 delivers the interactive map container foundation. Activity coordinate markers, custom category pins, and detail popups are not yet plotted on the map.
+- **Remaining Work for Day 39 (Itinerary Activity Map Markers & Popups):**
+  - Plot daily activity coordinates on the Leaflet map as markers.
+  - Create custom SVG/HTML marker pins matching activity categories (`stay`, `food`, `transit`, `activity`, `other`).
+  - Implement editorial popup cards displaying activity title, time, location, and cost.
+  - Connect active day selection to marker filtering and bounds fitting.
+
+---
+
+### [2026-11-21] — Day 37: Destination Search, Filters & Frontend API Integration
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Connect the existing Destination Discovery frontend (`DestinationDiscovery.jsx`) to the backend API (`GET /api/destinations`), replacing hardcoded destination data (`client/src/data/destinations.js`) as the runtime source with API-driven data. Implement debounced multi-field search, synchronized category filter pills, Vite-bundled WebP asset resolution preserving all 6 creator attributions, race condition guards with `AbortController` cancellation, and accessible loading/empty/error states.
+- **Scope Boundaries:** Frontend discovery component, destination image resolver, API client signal forwarding, backend search field extension, test suite, and documentation. Zero destructive redesigns. Zero staging (`git add`), zero commits, zero pushes to Git.
+
+#### Week 6 Progress Tracker
+- [x] **Day 36 — Destination Discovery Backend & API:** Curated static data architecture, public REST API (`GET /api/destinations`), response envelopes, WGS84 coordinates, and frontend API client layer. *(🟢 Completed)*
+- [x] **Day 37 — Destination Search & Category Filter Integration:** Connect frontend `DestinationDiscovery.jsx` to `destinationApi`, debounced multi-field search, category filter synchronization, WebP image asset resolution, loading/empty/error states. *(🟢 Completed)*
+- [ ] **Day 38 — Leaflet & OpenStreetMap Foundation:** Client-side Leaflet rendering container, OSM raster tile layer with mandatory attribution, and responsive map controls. *(🔴 Scheduled)*
+- [ ] **Day 39 — Itinerary Activity Map Markers & Popups:** Plot daily activity coordinates on Leaflet map, custom category pins, editorial popup cards, and active day bounds. *(🔴 Scheduled)*
+- [ ] **Day 40 — Build AI Travel Assistant API:** LLM integration endpoint for travel recommendations, context-aware itinerary assistance, and prompt engineering. *(🔴 Scheduled)*
+- [ ] **Day 41 — Build Assistant Chat Interface:** Conversational UI component, message threading, streaming or optimistic updates, and itinerary action suggestions. *(🔴 Scheduled)*
+- [ ] **Day 42 — Integrate, Test and Fix Complete MVP:** Full end-to-end user journey audit, cross-feature regression testing, responsive polish, and bug fixes. *(🔴 Scheduled)*
+
+#### 1. Files Created / Modified
+- `client/src/components/landing/DestinationDiscovery.jsx` — *Modified.* Replaced hardcoded destination import with `destinationApi.getDestinations(params, { signal })`. Added accessible search input with clear button, 300ms debouncing, category filter pill synchronization, request ID / `AbortController` race condition protection, 6-card pulsing skeleton loader, editorial empty state with clear/reset actions, and error alert box with retry button.
+- `client/src/components/landing/DestinationCard.jsx` — *Modified.* Updated image resolution to utilize `resolveDestinationImage(destination)`, cleaned up unused React imports for React 19 JSX transform compliance.
+- `client/src/utils/destinationImages.js` — *Modified.* Added `DESTINATION_IMAGE_REGISTRY` mapping stable IDs/slugs (`kyoto-japan`, `swiss-alps-switzerland`, `bali-indonesia`, `manali-india`, `varanasi-india`, `amalfi-coast-italy`) to bundled WebP asset imports. Exported `resolveDestinationImage(destination)` with fallback to `getDestinationPhoto`.
+- `client/src/services/api/destinationApi.js` — *Modified.* Updated `getDestinations(params, options)` to forward `options.signal` to `apiClient.get` for HTTP request cancellation.
+- `server/src/services/destinationService.js` — *Modified.* Extended search predicate in `getAllDestinations()` to match across `highlights` alongside `name`, `country`, `region`, `tags`, and `travelVibes`.
+- `scratch/test_day37_destination_search_and_filters.mjs` — *Created.* Comprehensive 139-assertion test suite validating query parameter serialization, multi-field search logic, category filtering, bundled WebP asset resolution, API client contracts, and UI component architecture.
+- `scratch/run_browser_day37.mjs` — *Created.* Automated headless Edge browser verification suite capturing high-resolution visual proof of initial desktop grid, debounced search, category filtering, empty state, tablet layout, and mobile layout.
+- `ARCHITECTURE.md` — *Modified.* Updated Section 3.9 and Section 4 with Day 37 search/filter integration, debouncing, request cancellation, and asset resolution architecture.
+- `MVP_SCOPE.md` — *Modified.* Updated Section 3.7 to mark Day 37 frontend search/filter integration completed.
+- `DECISIONS.md` — *Modified.* Added ADR-021 documenting debounced search, synchronized category filtering, and bundled WebP asset resolution.
+- `DEVELOPMENT_LOG.md` — *Modified.* Appended Day 37 session entry and restored original Week 6 progress tracker for Days 40–42.
+
+#### 2. Key Implementation Details & Concepts
+- **Vite Bundled Asset Resolution vs API Image Paths:** In Vite SPAs, assets under `client/src/assets/destinations/` are bundled with content hashes (e.g. `kyoto-japan-BicYHV9m.webp`), whereas the backend returns raw paths (`/assets/destinations/kyoto-japan.webp`). Passing raw backend strings directly to `<img src>` causes 404s in production. `resolveDestinationImage(destination)` uses stable destination IDs/slugs to resolve the bundled WebP asset URL, while consuming all destination metadata, alt text, and attribution from the backend API.
+- **Debounced Multi-Field Search (300ms):** Implemented debounced search in `DestinationDiscovery.jsx` using a 300ms timer. The backend search matches case-insensitive substrings against `name`, `country`, `region`, `tags`, `travelVibes`, and `dest.highlights`, enabling rich user queries (e.g. searching "temples", "alpine", "hiking", "Lauterbrunnen", or "Ganga Aarti").
+- **Race Condition Prevention & Request Cancellation:** Managed asynchronous concurrency using a mutable `latestRequestId` ref paired with an `AbortController`. Outdated HTTP requests are aborted on filter/search change, and responses that resolve out of order are discarded silently if `requestId !== latestRequestId.current`.
+- **Stateful Editorial Feedback:**
+  - *Loading Skeleton:* 6 pulsing card skeletons matching the exact 4:3 aspect ratio and container dimensions of destination cards.
+  - *Empty State:* Editorial card with `Compass` icon, clear explanation of non-matching search or category, and contextual "Clear search query", "View all categories", or "Reset all filters" buttons.
+  - *Error State:* Burnt Crimson alert box with retry button that triggers re-fetching without a full page reload.
+- **Schedule Restoration for Days 40–42:** Corrected the Week 6 progress tracker to restore the original schedule for Days 40–42 (Day 40: Build AI travel assistant API; Day 41: Build assistant chat interface; Day 42: Integrate, test and fix complete MVP).
+
+#### 3. Verification & Testing Performed
+- **Day 37 Test Suite (`test_day37_destination_search_and_filters.mjs`):** 139/139 passed (100% success rate across 6 test sections).
+- **Day 36 Regression Suite (`test_day36_destination_discovery.mjs`):** 317/317 passed (100% regression pass).
+- **ESLint Code Quality Verification:** `npx --prefix client eslint client/src/components/landing/DestinationDiscovery.jsx client/src/components/landing/DestinationCard.jsx client/src/utils/destinationImages.js client/src/services/api/destinationApi.js` executed with 0 errors and 0 warnings.
+- **Production Vite Build:** `npm --prefix client run build` completed successfully in 1.46s (all 2,594 modules transformed cleanly, bundling 10 WebP/media assets including all 6 destination images).
+- **Automated Headless Browser Visual Audit (`run_browser_day37.mjs`):**
+  - `browser_day37_initial_grid_desktop.png`: 6 destination cards loaded with search input and category pills at 1280x900.
+  - `browser_day37_search_filtered.png`: Live search filtering for "temple" displaying matching cards.
+  - `browser_day37_category_filtered.png`: Category pill selection "Mountain Escape" displaying matching mountain card.
+  - `browser_day37_empty_state.png`: Non-matching query "AtlantisXYZ" displaying editorial empty state with reset buttons.
+  - `browser_day37_tablet.png`: Responsive 2-column grid layout verified at 768x1024.
+  - `browser_day37_mobile.png`: Responsive single-column layout verified at 375x812.
+- **Git Status Hygiene:** `git status` verified zero staged files (`git add` not invoked).
+
+#### 4. Known Limitations, Blockers & Remaining Work for Day 38
+- **Known Limitations:**
+  - "Plan a trip here" one-click action that pre-fills the Trip Creation wizard remains deferred to the Stage 4 Trip Creation workflow.
+- **Remaining Work for Day 38 (Leaflet & OpenStreetMap Foundation):**
+  - Implement client-side Leaflet rendering container and CSS loading.
+  - Configure OpenStreetMap raster tile layer with mandatory attribution notice.
+  - Establish responsive map controls and container lifecycles in React.
+
+---
+
+### [2026-11-21] — Day 36: Destination Discovery Backend & API (Week 6 Launch)
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement the backend foundation for TripMind's Destination Discovery feature. Establish the curated destination data architecture, implement public REST API endpoints (`GET /api/destinations`, `GET /api/destinations/:identifier`), enforce standardized response envelopes, validate WGS84 coordinates and open-access creator attributions, create the frontend API client service layer (`client/src/services/api/destinationApi.js`), and verify end-to-end compatibility while strictly preserving the existing homepage UI components.
+- **Scope Boundaries:** Backend data architecture, service layer, controllers, routes, client API service module, testing, and documentation. Zero destructive frontend redesigns or UI changes. Zero staging (`git add`), zero commits, zero pushes to Git.
+
+#### Week 6 Progress Tracker
+- [x] **Day 36 — Destination Discovery Backend & API:** Curated static data architecture, public REST API (`GET /api/destinations`), response envelopes, WGS84 coordinates, and frontend API client layer. *(🟢 Completed)*
+- [x] **Day 37 — Destination Search & Category Filter Integration:** Connect frontend `DestinationDiscovery.jsx` to `destinationApi`, debounced multi-field search, category filter synchronization, WebP image asset resolution, loading/empty/error states. *(🟢 Completed)*
+- [ ] **Day 38 — Leaflet & OpenStreetMap Foundation:** Client-side Leaflet rendering container, OSM raster tile layer with mandatory attribution, and responsive map controls. *(🔴 Scheduled)*
+- [ ] **Day 39 — Itinerary Activity Map Markers & Popups:** Plot daily activity coordinates on Leaflet map, custom category pins, editorial popup cards, and active day bounds. *(🔴 Scheduled)*
+- [ ] **Day 40 — Build AI Travel Assistant API:** LLM integration endpoint for travel recommendations, context-aware itinerary assistance, and prompt engineering. *(🔴 Scheduled)*
+- [ ] **Day 41 — Build Assistant Chat Interface:** Conversational UI component, message threading, streaming or optimistic updates, and itinerary action suggestions. *(🔴 Scheduled)*
+- [ ] **Day 42 — Integrate, Test and Fix Complete MVP:** Full end-to-end user journey audit, cross-feature regression testing, responsive polish, and bug fixes. *(🔴 Scheduled)*
+
+#### 1. Files Created / Modified
+- `server/src/data/destinations.js` — *Created.* Authoritative centralized dataset of 6 curated destinations (Kyoto, Swiss Alps, Bali, Manali, Varanasi, Amalfi Coast) with stable IDs, unique kebab-case slugs, WGS84 geographic coordinates, detailed descriptions, travel vibes, search tags, budget estimates, and verified Wikimedia Commons open-access attribution records.
+- `server/src/services/destinationService.js` — *Created.* Pure domain service providing `getAllDestinations` (with deep cloning for immutability, `activeOnly: true` default filtering, category matching, and keyword search), `getDestinationBySlugOrId` (case-insensitive point lookup), and `isValidDestination` (coordinate and structural validator).
+- `server/src/controllers/destinationController.js` — *Created.* HTTP coordinator handling `getDestinations` and `getDestinationByIdentifier`, returning standardized response envelopes `{ success: true, data: { destinations, total }, message }` and `{ success: false, error: { code: 'NOT_FOUND', message, details: [] } }`.
+- `server/src/routes/destination.routes.js` — *Created.* Public Express router declaring `GET /` and `GET /:identifier` with zero authentication barrier for discovery browsing.
+- `server/src/app.js` — *Modified.* Mounted `destinationRoutes` at `/api/destinations`.
+- `client/src/services/api/destinationApi.js` — *Created.* Frontend API client module providing `getDestinations(params)` and `getDestination(identifier)` utilizing the shared `apiClient` Axios instance.
+- `client/src/services/api/apiClient.js` — *Modified.* Added optional chaining `import.meta?.env?.VITE_API_BASE_URL` to guarantee safe imports across both Vite and vanilla Node test environments.
+- `scratch/test_day36_destination_discovery.mjs` — *Created.* Comprehensive 317-assertion verification suite covering data integrity, WGS84 coordinate bounds, frontend field parity, domain service filters, REST API endpoints, 404 anti-enumeration, immutability, and API client contracts.
+- `ARCHITECTURE.md` — *Modified.* Updated Section 2.1 Server Directory Layout, added Section 3.9 documenting Destination Discovery architecture and static-vs-MongoDB rationale, and updated Section 4.1 client API layer.
+- `MVP_SCOPE.md` — *Modified.* Updated Section 3.7 to reflect completion of Day 36 backend API and data architecture deliverables.
+- `DECISIONS.md` — *Modified.* Added ADR-020: Curated Static Destination Data Architecture & Public Discovery API.
+- `DEVELOPMENT_LOG.md` — *Modified.* Appended Day 36 session log and updated Week 6 progress tracker.
+
+#### 2. Key Implementation Details & Concepts
+- **Data Architecture Selection (Static vs MongoDB for MVP):** Evaluated curated static data vs MongoDB storage. Adopted curated static data (`server/src/data/destinations.js`) for the MVP because destinations are editorial travel guides (not user-generated). This delivers instant 0ms in-memory queries, zero database migration/seed overhead, zero connection pool contention, and immutable guarantees for verified open-license attributions and WGS84 coordinates. Encapsulating access behind `destinationService.js` guarantees that transitioning to a Mongoose `Destination` model in Phase 2 requires zero changes to routes, controllers, or client contracts.
+- **WGS84 Geographic Coordinate Integrity:** Every destination defines both nested `coordinates: { latitude, longitude }` and direct `latitude`/`longitude` properties matching real-world coordinates (Kyoto: 35.0116, 135.7681; Swiss Alps: 46.5935, 7.9090; Bali: -8.4095, 115.1889; Manali: 32.2432, 77.1892; Varanasi: 25.3176, 82.9739; Amalfi Coast: 40.6340, 14.6027). All coordinates are finite numbers within valid WGS84 bounds with zero placeholder (0, 0) values, directly preparing for Day 38 Leaflet map rendering.
+- **Frontend Compatibility & Field Parity:** The backend schema completely satisfies and extends the existing frontend `DestinationCard.jsx` contract (`id`, `name`, `country`, `category`, `description`, `iconName`, `image`, `imageAlt`, `attribution`), while introducing foundation fields for upcoming days (`travelVibes`, `tags`, `bestTimeToVisit`, `recommendedDuration`, `estimatedDailyBudget`, `currency`, `highlights`, `isFeatured`, `isActive`).
+- **Standardized Response Envelopes & Error Hygiene:** All endpoints adhere strictly to TripMind's standardized response envelopes:
+  - Success: `{ success: true, data: { destinations, total }, message: "Destinations retrieved successfully" }`
+  - Single Success: `{ success: true, data: { destination }, message: "Destination retrieved successfully" }`
+  - Error: `{ success: false, error: { code: "NOT_FOUND", message: "Destination not found", details: [] } }`
+- **Zero Authentication Barrier for Public Browsing:** Destination discovery routes are completely public, allowing unauthenticated landing page visitors to explore destinations without credentials or token overhead.
+- **In-Memory Express Dispatcher Testing Pattern:** Created an in-memory `request(method, path)` dispatcher that passes mock request/response EventEmitters directly to `app.handle(req, res)`, executing full Express routing, middleware, controllers, and centralized error handling with 0ms latency and zero TCP socket sandbox permission friction.
+
+#### 3. Verification & Testing Performed
+- **Day 36 Test Suite (`test_day36_destination_discovery.mjs`):** 317/317 passed (100% success rate across 7 test sections):
+  - Part 1: Dataset structural & geographic coordinate integrity (108 assertions)
+  - Part 2: Frontend compatibility & field parity (120 assertions)
+  - Part 3: Destination domain service unit tests (24 assertions)
+  - Part 4: HTTP REST API endpoints (GET /api/destinations) (20 assertions)
+  - Part 5: Single destination retrieval & 404 anti-enumeration (14 assertions)
+  - Part 6: Frontend destinationApi client layer contract (4 assertions)
+  - Part 7: Route mounting & 404 regression (5 assertions)
+- **Production Vite Build:** `npm --prefix client run build` succeeded with code 0 in 5.07s (all 2,594 modules transformed cleanly, bundling 10 WebP/media assets including all destination images).
+- **ESLint Verification:** `npx --prefix client eslint client/src/services/api/destinationApi.js client/src/services/api/apiClient.js` executed with 0 errors and 0 warnings.
+- **Git State Verification:** `git status` confirmed 0 files staged. All uncommitted work preserved safely.
+
+#### 4. Known Limitations, Blockers & Remaining Work for Day 37
+- **Known Limitations:**
+  - The homepage Destination Discovery UI (`DestinationDiscovery.jsx`) currently imports static destination data from `client/src/data/destinations.js`. Wiring the frontend component to consume `destinationApi.getDestinations()` with loading states, error fallbacks, and live category/search filtering is scheduled for Day 37.
+  - "Plan a trip here" one-click action that pre-fills the Trip Creation wizard remains pending Stage 4 Trip Creation workflow integration.
+- **Remaining Work for Day 37 (Destination Search & Filters):**
+  - Integrate `destinationApi.getDestinations({ category, search })` into `DestinationDiscovery.jsx`.
+  - Add search input for destination names, regions, and travel vibes.
+  - Implement responsive loading skeletons and graceful empty-state handling for non-matching queries.
+  - Maintain existing 4:3 aspect ratio card presentation and filter pill ergonomics.
+
+---
+
 ### [2026-11-20] — Day 31 Fetch & Query Optimization Audit (Week 5 Reconciliation)
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Perform a focused, evidence-based audit of Day 31 — Fetch Itinerary by Trip ID (`GET /api/trips/:id`), reconciling original query optimization, Mongoose population, embedded subdocument architecture, and ownership protection requirements to bring Week 5 to a definitive, verified close.
