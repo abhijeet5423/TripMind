@@ -460,7 +460,7 @@ client/src/
 │   └── discovery/      # DestinationCard, DestinationGrid, FilterPills
 ├── context/            # AuthContext, TripContext (cross-cutting application state)
 ├── hooks/              # Custom hooks: useAuth, useTrip, useLeafletMap
-├── pages/              # Route views: LandingPage, LoginPage, RegisterPage, Dashboard, TripDetailPage
+├── pages/              # Route views: LandingPage, AboutPage, LoginPage, RegisterPage, Dashboard, TripDetailPage
 ├── services/
 │   └── api/            # Standardized Axios API clients:
 │       ├── apiClient.js    # Base Axios instance, interceptors, error mapping

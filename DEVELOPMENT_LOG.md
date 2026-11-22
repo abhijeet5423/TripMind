@@ -33,7 +33,53 @@
 
 ## 2. Session History
 
-### [2026-11-22] — Day 52: Itinerary Visual Enhancement, Mobile UX & Performance Optimization
+### [2026-11-22] — Day 53: Homepage Storytelling, About Us & Footer Polish
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Complete Day 53 development deliverables: (1) Redesign and rename the existing "How It Works" / "How to Use TripMind" homepage section to "From Inspiration to Itinerary." under "The Journey Unfolds", streamlining explanatory copy and adding an interactive desktop progression track; (2) Create a dedicated About Us page (`/about`) explaining TripMind's purpose, problem/solution, 6 core capabilities, and field journal design philosophy with curated photography and zero fictional claims; (3) Redesign the website footer with clean information architecture, valid navigation links, and a memorable brand sign-off ("Ready. Steady. Go."); (4) Review and harmonize desktop and mobile navigation with active state indicators and zero broken links; (5) Execute comprehensive regression, accessibility, and multi-viewport testing across 7 viewports (320px to 1920px).
+- **Branch / Status:** `main` — Fully implemented, verified, and passing 100%.
+
+#### 1. Files Created / Modified
+- [`client/src/pages/AboutPage.jsx`](./client/src/pages/AboutPage.jsx) — *Created.* Dedicated About Us page featuring executive mission, Problem & Solution comparative analysis (20-tab browsing, blind AI prompts, budget disconnect), 6 Core Capabilities matrix (Discovery, Gemini AI, Leaflet/OSM Mapping, Recharts Budgeting, Journal Noticeboard, Cryptographic Sharing & PDF Export), Literary Field Journal Philosophy, curated destination gallery plates (Kyoto, Amalfi Coast, Swiss Alps), and closing onboarding CTAs. Fully responsive with zero horizontal overflow across 7 viewports.
+- [`client/src/App.jsx`](./client/src/App.jsx) — *Modified.* Registered dedicated public `/about` route wrapped inside `<PublicLayout>`, ensuring full header/footer continuity and direct browser page refresh resilience.
+- [`client/src/components/landing/HowItWorks.jsx`](./client/src/components/landing/HowItWorks.jsx) — *Modified.* Renamed section title to **"From Inspiration to Itinerary."** under eyebrow **"The Journey Unfolds"** (retaining `id="how-it-works"` anchor); simplified explanatory text into 5 concise, engaging steps (`Discover Your Vibe`, `Set Your Canvas`, `Curate with AI`, `Tailor Every Stop`, `Wander with Clarity`); added interactive desktop progression track with numbered nodes 01–05 and active step highlighting (`border-terracotta/70 ring-2 ring-terracotta/20`); preserved Day 52 native CSS mobile horizontal carousel (`82vw` peek preview, synchronized terracotta pagination dots, touch scroll listener).
+- [`client/src/components/layout/Footer.jsx`](./client/src/components/layout/Footer.jsx) — *Modified.* Redesigned footer information architecture into 3 clean, verified columns (Explore, Capabilities, Data & Attribution); added memorable brand signature sign-off: **"Ready. Steady. Go."** in serif bold italic with terracotta sparkles accent; removed dead/phantom links (`/#itineraries`, `/#budget`); integrated functional internal `<Link to="/about">` and external OpenStreetMap attribution.
+- [`client/src/components/layout/Navbar.jsx`](./client/src/components/layout/Navbar.jsx) — *Modified.* Standardized desktop and mobile navigation labels to "The Journey", "Destinations", "Itineraries" (`/dashboard`), and "About Us" (`/about`); implemented active route indicator for `/about`; ensured mobile hamburger menu drawer closes automatically upon link navigation.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — *Modified.* Updated Section 4.1 Component Structure & Modularity to include `AboutPage` in the page catalog.
+- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — *Modified.* Added Section 5.23 documenting Homepage Storytelling, Dedicated About Us Page, and Brand Signature Standards.
+- [`DECISIONS.md`](./DECISIONS.md) — *Modified.* Added ADR-029: "Homepage Storytelling Section, Dedicated About Us Architecture, and Brand Signature Standards".
+- [`scratch/test_day53_verification.mjs`](./scratch/test_day53_verification.mjs) — *Created.* Automated 43-assertion Edge CDP verification suite evaluating storytelling section interaction, About Us page structure, direct refresh resilience, 7 viewports, footer link hygiene, brand sign-off, desktop/mobile navigation consistency, zero console errors, and zero failed network requests.
+
+#### 2. Key Implementation Details & Concepts
+- **Storytelling Section Cognitive Load Reduction:** Eliminated redundant summary blocks and long descriptive paragraphs on `HowItWorks.jsx`. Replaced with concise 1–2 sentence copy (~15–20 words), crisp titles, and micro-tags.
+- **Interactive Step Progression Track:** Added an interactive timeline bar on desktop viewports (>= 1024px) linking all 5 steps with clickable numbered nodes. Clicking or tapping a step smoothly focuses the card and applies active terracotta accents.
+- **Factual About Us Page Standards:** The new About Us page adheres strictly to supported product capabilities without fictional team members, fake testimonials, unsupported statistics, or false booking claims. Includes authentic Creative Commons photographer attribution for destination imagery.
+- **Brand Signature Sign-Off:** Implemented TripMind's memorable closing sign-off `"Ready. Steady. Go."` in the footer, visually communicating the journey from preparation to adventure.
+- **Navigation Sanitization & Active States:** Replaced broken anchor links (`/#about`, `/#itineraries`, `/#budget`) with valid route targets (`/about`, `/dashboard`). The active route indicator illuminates both desktop and mobile navigation links when the traveler is viewing `/about`.
+
+#### 3. Verification & Testing Performed
+- **Automated Verification Suite (`scratch/test_day53_verification.mjs`):** 43 Passed, 0 Failed.
+  - Section heading renamed to "From Inspiration to Itinerary." [PASS]
+  - Section eyebrow updated to "The Journey Unfolds" [PASS]
+  - Exactly 5 workflow steps present with concise copy [PASS]
+  - Desktop interactive step progression track (nodes 01–05) and active step highlighting verified [PASS]
+  - Mobile carousel horizontal overflow-x, peek affordance, and 5 dot indicators verified on Narrow Mobile (320px), Standard Mobile (375px), and Large Mobile (430px) [PASS]
+  - About Us page renders primary editorial headline and survives direct page refresh [PASS]
+  - Curated destination photography plates load successfully with natural dimensions (Kyoto, Amalfi Coast, Swiss Alps) [PASS]
+  - Problem & Antidote section and 6 core capabilities verified [PASS]
+  - Design philosophy section and closing CTAs verified [PASS]
+  - About Us page verified for zero horizontal overflow (`scrollWidth <= clientWidth`) across all 7 viewports (320px, 375px, 430px, 768px, 1024px, 1280px, 1920px) [PASS]
+  - Footer brand signature ("Ready. Steady. Go.") and link hygiene verified (zero dead links) [PASS]
+  - Desktop navigation ("The Journey", "Destinations", "Itineraries", "About Us") and active state on `/about` verified [PASS]
+  - Mobile hamburger drawer open, links, and auto-close verified [PASS]
+  - Zero browser console errors and zero unexpected failed network requests [PASS]
+- **Day 52 Full Regression Suite (`scratch/test_day52_verification.mjs`):** 73 Passed, 0 Failed.
+- **Frontend ESLint:** 0 errors, 0 warnings across all modified components.
+- **Production Build (`npm --prefix client run build`):** Built successfully in 1.64s with 0 errors.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- None. Day 53 objectives are 100% complete, tested, and regression-free.
+
+---
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Complete Day 52 development deliverables: (1) Enrich itineraries and PDF exports with destination/place imagery supporting 0, 1, or 2 images, broken image handling, and legacy record compatibility; (2) Enhance mobile homepage UX with two distinct native CSS scroll-snapping horizontal carousels ("How to Use TripMind" and "Find Your Next Somewhere") with interactive indicators and peek previews; (3) Inspect and optimize database query indexes (`{ userId: 1, status: 1, createdAt: -1 }` and sparse/partial token hash index); (4) Perform comprehensive regression verification across 6 viewports with real physical PDF export inspection.
 - **Branch / Status:** `main` — Fully implemented, verified, and passing 100%.

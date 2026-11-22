@@ -8,6 +8,7 @@ import DashboardPage from './pages/DashboardPage.jsx'
 import TripDetailPage from './pages/TripDetailPage.jsx'
 import TripExportPage from './pages/TripExportPage.jsx'
 import SharedTripPage from './pages/SharedTripPage.jsx'
+import AboutPage from './pages/AboutPage.jsx'
 import NotFoundPage from './pages/NotFoundPage.jsx'
 import ProtectedRoute from './components/common/ProtectedRoute.jsx'
 import PublicOnlyRoute from './components/common/PublicOnlyRoute.jsx'
@@ -52,6 +53,16 @@ export default function App() {
           element={
             <PublicLayout>
               <SharedTripPage />
+            </PublicLayout>
+          }
+        />
+
+        {/* Dedicated About Us Page */}
+        <Route
+          path="/about"
+          element={
+            <PublicLayout>
+              <AboutPage />
             </PublicLayout>
           }
         />

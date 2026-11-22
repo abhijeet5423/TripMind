@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, Sparkles } from 'lucide-react'
 import Container from '../common/Container.jsx'
 
 /**
  * Footer Component
- * Reusable editorial footer for TripMind.
+ * Reusable editorial footer for TripMind with verified navigation links,
+ * attribution disclosures, and brand signature sign-off.
  *
  * @param {Object} props
  * @param {string} [props.className='']
@@ -13,17 +14,17 @@ export default function Footer({ className = '' }) {
   const currentYear = new Date().getFullYear()
 
   const platformLinks = [
-    { label: 'How It Works', href: '/#how-it-works' },
+    { label: 'The Journey', href: '/#how-it-works' },
     { label: 'Curated Destinations', href: '/#destinations' },
-    { label: 'Sample Itinerary Concept', href: '/#itineraries' },
-    { label: 'Budget Insights', href: '/#budget' },
-    { label: 'Traveler Dashboard', href: '/dashboard', internal: true },
+    { label: 'My Journal (Saved Trips)', to: '/dashboard' },
+    { label: 'About TripMind', to: '/about' },
   ]
 
-  const editorialLinks = [
-    { label: 'Intelligent Journey Curation', href: '/#about' },
-    { label: 'Destination Discovery', href: '/#destinations' },
-    { label: 'Tactile Pinboard Experience', href: '/dashboard', internal: true },
+  const capabilityLinks = [
+    { label: 'AI Itinerary Curation', href: '/#how-it-works' },
+    { label: 'Interactive Mapping', to: '/about' },
+    { label: 'Budget Intelligence', to: '/about' },
+    { label: 'Public Trip Sharing', to: '/about' },
   ]
 
   return (
@@ -49,19 +50,27 @@ export default function Footer({ className = '' }) {
               premium editorial experience. Transforming wanderlust into
               geographically coherent, budget-conscious journeys.
             </p>
+
+            {/* Brand Signature Sign-Off */}
+            <div className="mt-6 flex items-center gap-2">
+              <span className="font-serif italic text-base sm:text-lg font-bold text-forest tracking-tight">
+                Ready. Steady. Go.
+              </span>
+              <Sparkles className="w-4 h-4 text-terracotta" aria-hidden="true" />
+            </div>
           </div>
 
-          {/* Navigation Column 1: Platform */}
+          {/* Navigation Column 1: Platform Navigation */}
           <div>
             <h4 className="font-serif text-base font-semibold text-forest tracking-tight mb-4">
-              Platform
+              Explore
             </h4>
-            <ul className="space-y-2.5 text-sm">
+            <ul className="space-y-2.5 text-sm list-none p-0 m-0">
               {platformLinks.map((link) => (
                 <li key={link.label}>
-                  {link.internal ? (
+                  {link.to ? (
                     <Link
-                      to={link.href}
+                      to={link.to}
                       className="text-stone hover:text-forest transition-colors duration-150"
                     >
                       {link.label}
@@ -79,17 +88,17 @@ export default function Footer({ className = '' }) {
             </ul>
           </div>
 
-          {/* Navigation Column 2: Editorial Highlights */}
+          {/* Navigation Column 2: Capabilities & Overview */}
           <div>
             <h4 className="font-serif text-base font-semibold text-forest tracking-tight mb-4">
-              Explore
+              Capabilities
             </h4>
-            <ul className="space-y-2.5 text-sm">
-              {editorialLinks.map((link) => (
+            <ul className="space-y-2.5 text-sm list-none p-0 m-0">
+              {capabilityLinks.map((link) => (
                 <li key={link.label}>
-                  {link.internal ? (
+                  {link.to ? (
                     <Link
-                      to={link.href}
+                      to={link.to}
                       className="text-stone hover:text-forest transition-colors duration-150"
                     >
                       {link.label}
@@ -133,7 +142,7 @@ export default function Footer({ className = '' }) {
                   Security Architecture
                 </span>
                 <p className="text-xs text-stone/80 mt-0.5">
-                  Stateless authenticated sessions protected by HttpOnly security tokens.
+                  Stateless authenticated sessions protected by HttpOnly security cookies.
                 </p>
               </div>
             </div>
@@ -151,3 +160,4 @@ export default function Footer({ className = '' }) {
     </footer>
   )
 }
+

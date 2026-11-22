@@ -659,6 +659,36 @@
 
 ---
 
+### ADR-029: Homepage Storytelling Section, Dedicated About Us Architecture, and Brand Signature Standards
+- **Status:** 🟢 CONFIRMED (Implemented Day 53)
+- **Context:** The homepage "How to Use TripMind" section was overly textual and explanatory. Navigation contained broken anchor links (`/#itineraries`, `/#budget`, `/#about`), and the platform lacked a dedicated About Us page and cohesive closing brand signature.
+- **Decision:**
+  1. **Homepage Storytelling Redesign ("From Inspiration to Itinerary."):**
+     - Renamed the section from "How to use TripMind." to **"From Inspiration to Itinerary."** under eyebrow **"The Journey Unfolds"** while preserving `id="how-it-works"` for backwards compatibility.
+     - Condensed lengthy explanatory copy into 5 concise, engaging steps (`Discover Your Vibe`, `Set Your Canvas`, `Curate with AI`, `Tailor Every Stop`, `Wander with Clarity`).
+     - Added interactive desktop step timeline progression track (nodes 01–05) with active step highlighting (`border-terracotta/70 ring-2 ring-terracotta/20`).
+     - Preserved and refined Day 52 mobile scroll-snapping carousel (`82vw` cards, synchronized terracotta pagination dots, touch swiping).
+  2. **Dedicated About Us Route & Page Architecture (`/about`):**
+     - Mounted dedicated `AboutPage.jsx` at route `/about` wrapped in `<PublicLayout>`, fully resilient to direct browser page refresh.
+     - Structured strictly around actual application capabilities: Executive Mission, Problem & Antidote (fragmentation, blind AI, budget disconnect), 6 Core Capabilities (Discovery, Gemini AI, Leaflet/OSM Maps, Recharts Budgeting, Journal Noticeboard, Cryptographic Sharing/PDF Export), Literary Field Journal Philosophy, and Closing CTAs.
+     - Embedded curated destination imagery plates (Kyoto, Amalfi Coast, Swiss Alps) with open-access attribution.
+  3. **Footer Redesign & Brand Sign-Off:**
+     - Added memorable closing brand signature: **"Ready. Steady. Go."** in Playfair Display serif italic with terracotta sparkles accent.
+     - Completely eliminated dead links (`/#itineraries`, `/#budget`). Organized navigation into Explore, Capabilities, and Data & Attribution columns.
+  4. **Desktop & Mobile Navigation Consistency:**
+     - Standardized primary links to `The Journey`, `Destinations`, `Itineraries` (routing to `/dashboard`), and `About Us` (routing to `/about`).
+     - Implemented active route indicator for `/about`.
+     - Ensured mobile hamburger drawer closes automatically upon link navigation.
+- **Rationale:**
+  - Strengthens TripMind's brand identity as a thoughtful, literary travel product.
+  - Eliminates dead links and provides genuine educational value for prospective travelers.
+  - Maintains zero-overflow responsive discipline across all 7 viewports (320px to 1920px).
+- **Consequences:**
+  - All navigation links now route to active, verified destinations.
+  - About Us content reflects only real codebase features with zero fictional marketing claims.
+
+---
+
 ## 2. Pending Decisions (🟡 UNDER EVALUATION)
 
 The following architectural and technical choices are open for evaluation during future implementation planning. **Do not mark pending decisions as confirmed.**

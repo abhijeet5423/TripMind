@@ -646,6 +646,42 @@ To eliminate mobile page scroll fatigue while preserving desktop layout density,
   - Safe image loading fallback: Includes `onerror="this.parentElement.style.display='none';"` preventing broken image placeholders from appearing in downloaded/printed documents.
   - Preserves Indian Rupee currency glyph (`₹`), full Unicode travel icons (`📍`, `🧭`), and typography across A4 print media.
 
+---
+
+### 5.23 Homepage Storytelling Section, Dedicated About Us Page, and Brand Signature Standards (Day 53)
+
+#### 1. Homepage Storytelling Section ("From Inspiration to Itinerary.")
+- **Section Identity & Anchor:** Bound to `id="how-it-works"` with `scroll-mt-20` for backwards-compatible anchor navigation, but renamed from the generic "How to Use TripMind" to **"From Inspiration to Itinerary."** under eyebrow **"The Journey Unfolds"**.
+- **Content Streamlining:** Condensed explanatory copy by eliminating repetitive multi-block summaries. Each of the 5 chronological steps features a crisp title, a concise 1–2 sentence narrative (~15–20 words), an editorial micro-badge (`Inspiration`, `Parameters`, `Intelligence`, `Flexibility`, `Exploration`), and 3 concise feature highlights.
+- **Desktop Interactive Progression Track (>= 1024px):**
+  - Displays a horizontal travel timeline connecting the 5 stages with an interactive terracotta progress line.
+  - Numbered node buttons (01 through 05) allow direct jump-to-step activation.
+  - Active step card receives elevated focus (`border-terracotta/70 ring-2 ring-terracotta/20 shadow-md bg-white`) and illuminated icon container (`bg-forest text-sand-ivory`).
+- **Mobile Horizontal Carousel (< 768px):**
+  - Preserves Day 52 native CSS horizontal scroll carousel (`snap-x snap-mandatory scroll-smooth no-scrollbar`).
+  - Viewport-proportional card sizing (`w-[82vw] sm:w-[72vw] md:w-auto`) provides natural peek affordance.
+  - Synchronized terracotta dot indicators (`role="tablist"`) update on touch scroll and provide tap-to-scroll navigation.
+  - Restrained text ensures compact card heights, eliminating vertical mobile scroll fatigue.
+
+#### 2. Dedicated About Us Page Standards (`/about`)
+- **Route & Layout Architecture:** Mounted at `/about` wrapped within `<PublicLayout>`, providing seamless sticky header and footer continuity. Fully resilient to direct browser page refresh.
+- **Visual Design & Typography:** Adheres strictly to the Warm Ivory (`#F7F5EF`) canvas, Forest Green (`#173D35`) serif headlines, Terracotta (`#D97757`) accents, and Muted Sage (`#D8DFD5`) borders.
+- **Atmospheric Destination Plates:** Incorporates curated 4:3 photographic plates (Kyoto, Amalfi Coast, Swiss Alps) with open-access licensing disclosures.
+- **Narrative Content Architecture:**
+  1. *Executive Mission:* Establishes TripMind's identity as a calm, editorial travel planning platform that unites generative intelligence with spatial clarity and budget realism.
+  2. *The Problem & Antidote:* Juxtaposes fragmented 20-tab browsing, geographically blind AI prompts, and unbudgeted travel against TripMind's unified canvas, geographic clustering, and live financial reconciliation.
+  3. *Core Capabilities Matrix:* 6 distinct capability cards itemizing Destination Discovery, Intelligent AI Curation, Interactive Leaflet Mapping, Transparent Budget Intelligence, Granular Customization, and Cryptographic Sharing/PDF Export.
+  4. *Editorial Philosophy & Ethics:* Highlights literary journal aesthetics (*Cereal*, *Kinfolk*, *Condé Nast Traveler*), traveler autonomy (100% editable itineraries), transparent seasonal estimates, and OpenStreetMap attribution.
+  5. *Closing Call to Action:* Dual high-contrast action triggers ("Start Planning Free" and "Browse Destinations") linking into authenticated onboarding.
+- **Accessibility & Viewports:** Verified across all 7 standard viewports (320px to 1920px) with strictly zero horizontal overflow (`scrollWidth <= clientWidth`).
+
+#### 3. Brand Signature & Footer Polish Standards (`Footer.jsx`)
+- **Brand Signature Sign-Off:** Integrates TripMind's memorable sign-off: `"Ready. Steady. Go."` styled in Playfair Display serif bold italic with a terracotta `Sparkles` icon.
+- **Information Architecture & Link Hygiene:**
+  - Removed all dead, phantom anchors (`/#itineraries`, `/#budget`).
+  - Categorized into 3 logical columns: *Explore* (The Journey, Curated Destinations, My Journal, About TripMind), *Capabilities* (AI Curation, Interactive Mapping, Budget Intelligence, Public Sharing), and *Data & Attribution* (OpenStreetMap attribution with external link icon, session security disclosure).
+  - All internal links route via React Router `<Link to="...">`, while section anchors (`/#how-it-works`, `/#destinations`) cleanly navigate from any page.
+
 
 
 

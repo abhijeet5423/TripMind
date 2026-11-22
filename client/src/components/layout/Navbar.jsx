@@ -35,10 +35,10 @@ export default function Navbar({ className = '' }) {
   const profileTimeoutRef = useRef(null)
 
   const navLinks = [
-    { label: 'How It Works', href: '/#how-it-works' },
+    { label: 'The Journey', href: '/#how-it-works' },
     { label: 'Destinations', href: '/#destinations' },
     { label: 'Itineraries', to: '/dashboard' },
-    { label: 'About', href: '/#about' },
+    { label: 'About Us', to: '/about' },
   ]
 
   const toggleMobileMenu = () => {
