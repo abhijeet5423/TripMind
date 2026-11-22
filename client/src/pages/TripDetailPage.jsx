@@ -17,6 +17,7 @@ import {
   Clock,
   BookOpen,
   Plus,
+  Download,
 } from 'lucide-react'
 import Container from '../components/common/Container.jsx'
 import Button from '../components/common/Button.jsx'
@@ -34,6 +35,7 @@ import { useTrip } from '../hooks/useTrip.js'
 import { mapItineraryError } from '../utils/itineraryErrorHelper.js'
 import { getDestinationPhoto } from '../utils/destinationImages.js'
 import { getDestinationCoordinates, getPlottableActivities } from '../utils/mapUtils.js'
+import { exportTripToPdf } from '../utils/tripPdfExporter.js'
 
 /**
  * Formats calendar dates into an editorial human-readable range (UTC).
@@ -127,6 +129,10 @@ export default function TripDetailPage() {
   const [deletingActivity, setDeletingActivity] = useState(null)
   const [isRemovingActivity, setIsRemovingActivity] = useState(false)
   const [removeActivityError, setRemoveActivityError] = useState(null)
+
+  // PDF Export States
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
+  const [exportPdfError, setExportPdfError] = useState(null)
 
   // Destination Photograph (Task B2)
   const destinationPhoto = trip?.destination
@@ -298,6 +304,26 @@ export default function TripDetailPage() {
       setShowRegenerateModal(true)
     } else {
       executeGeneration()
+    }
+  }
+
+  /**
+   * Dispatches client-side PDF export for the authenticated trip.
+   * Invokes print-to-PDF via isolated iframe; falls back gracefully to printable preview view.
+   */
+  const handleDownloadPdf = async () => {
+    if (!trip) return
+    setIsExportingPdf(true)
+    setExportPdfError(null)
+
+    try {
+      await exportTripToPdf(trip)
+    } catch (err) {
+      console.warn('Direct iframe PDF export failed, falling back to export page:', err)
+      setExportPdfError('Opening print-ready itinerary view...')
+      navigate(`/trips/${trip._id}/export?autoPrint=true`)
+    } finally {
+      setIsExportingPdf(false)
     }
   }
 
@@ -746,8 +772,8 @@ export default function TripDetailPage() {
                 )}
               </div>
 
-              {/* Action Button: Generate / Regenerate Itinerary (Task B3 Enhanced Visibility) */}
-              <div className="pt-2">
+              {/* Action Buttons: Generate / Regenerate Itinerary & Download PDF */}
+              <div className="pt-2 flex flex-wrap items-center gap-3">
                 <Button
                   variant={hasItinerary ? 'primary' : 'accent'}
                   size="lg"
@@ -776,7 +802,35 @@ export default function TripDetailPage() {
                     </>
                   )}
                 </Button>
+
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  onClick={handleDownloadPdf}
+                  disabled={isExportingPdf || isGenerating}
+                  className="w-full sm:w-auto justify-center gap-2 font-semibold text-sm sm:text-base px-5 py-3.5 border-sage/80 hover:border-forest text-forest hover:bg-sand-ivory shadow-xs hover:shadow-md transition-all cursor-pointer"
+                  aria-label="Download trip itinerary as PDF"
+                >
+                  {isExportingPdf ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-forest" />
+                      <span>Preparing PDF...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 text-forest" />
+                      <span>Download PDF</span>
+                    </>
+                  )}
+                </Button>
               </div>
+
+              {exportPdfError && (
+                <div className="mt-2 text-xs text-stone flex items-center gap-1.5 bg-sand-ivory p-2 rounded-lg border border-sage/60">
+                  <AlertCircle className="w-3.5 h-3.5 text-terracotta shrink-0" />
+                  <span>{exportPdfError}</span>
+                </div>
+              )}
             </div>
 
             {/* Visual Destination Photograph Plate (Task B2) */}

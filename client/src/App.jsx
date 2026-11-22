@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
 import TripDetailPage from './pages/TripDetailPage.jsx'
+import TripExportPage from './pages/TripExportPage.jsx'
 import NotFoundPage from './pages/NotFoundPage.jsx'
 import ProtectedRoute from './components/common/ProtectedRoute.jsx'
 import PublicOnlyRoute from './components/common/PublicOnlyRoute.jsx'
@@ -79,6 +80,16 @@ export default function App() {
             <ProtectedRoute>
               <TripProvider>
                 <TripDetailPage />
+              </TripProvider>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trips/:id/export"
+          element={
+            <ProtectedRoute>
+              <TripProvider>
+                <TripExportPage />
               </TripProvider>
             </ProtectedRoute>
           }

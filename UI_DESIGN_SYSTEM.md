@@ -482,6 +482,22 @@ The typographic identity balances literary prestige with modern legibility throu
 - **Responsive Heights:**
   - Chart graphic canvas uses `h-[190px] sm:h-[220px]` with `ResponsiveContainer width="100%" height="100%"`, maintaining visual proportionality without vertical inflation.
 
+---
+
+### 5.17 PDF Export & Printable Document Standards (`tripPdfExporter.js`, `TripExportPage.jsx`)
+
+#### 1. Architectural Model & Zero-Dependency Print Engine
+- **Approach:** Uses client-side CSS Paged Media standards (`@page { size: A4 portrait; margin: 14mm 14mm 16mm 14mm; }`) and native browser print pipelines (`window.print()`, isolated iframe rendering).
+- **Rationale:** Avoids heavy multi-megabyte binary dependencies (like Puppeteer/PDFKit on backend or canvas bloat on frontend). Native browser engines provide pixel-perfect Google Fonts typography (`Playfair Display`, `DM Sans`), 100% vector fidelity, native Indian Rupee (`₹`) unicode glyph rendering, and zero bundle bloat.
+- **Dedicated Printable Route:** `/trips/:id/export` provides a standalone, authenticated print preview document with a top action bar (`no-print`), allowing travelers to review or print directly.
+
+#### 2. Page Break Prevention & Layout Hygiene
+- **Activity Cards:** Every activity card enforces `break-inside: avoid; page-break-inside: avoid;`, ensuring no card or cost breakdown note is awkwardly severed across page margins.
+- **Day Headers & Headings:** Section and day headers enforce `break-after: avoid; page-break-after: avoid;`, ensuring headings never appear orphaned at the bottom of an A4 page.
+- **Cover Overview Card:** Framed in Warm Ivory (`#F7F5EF`) with Sage border (`#CCD5C0`), displaying origin, travel dates, traveling party, target budget, journey overview, and travel tips with `break-inside: avoid;`.
+- **Financial Architecture Table:** Clean categorical breakdown table itemizing all 6 canonical categories with amount, percentage, and category color dots.
+
+
 
 
 

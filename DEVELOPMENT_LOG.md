@@ -33,6 +33,55 @@
 
 ## 2. Session History
 
+### [2026-11-22] — Feature: PDF Itinerary Export
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement an editorial, high-fidelity, client-side PDF Itinerary Export feature for TripMind conforming to the brand design system (Playfair Display serif, DM Sans, Warm Ivory #F7F5EF, Forest Green #173D35, Terracotta #C25E3E). Support complete cover overview, multi-day scheduled itinerary with activity cards, financial architecture and categorical budget table, clean A4 paged media margins, zero awkward card splitting (`break-inside: avoid;`), and native Indian Rupee (`₹`) and multi-currency formatting without heavy binary backend dependencies.
+
+#### 1. Files Created / Modified
+- [`client/src/utils/tripPdfExporter.js`](./client/src/utils/tripPdfExporter.js) — *Created.* Core PDF export utility and HTML generator. Implements `generateTripPdfHtml(trip)` and `exportTripToPdf(trip)` using CSS Paged Media standards (`@page { size: A4 portrait; margin: 14mm 14mm 16mm 14mm; }`), isolated hidden iframe print dispatcher, multi-currency formatting (`INR` with `₹`, `USD`, `EUR`, `GBP`, `JPY`), category badge mapping, and zero `undefined`/`null` leaks.
+- [`client/src/pages/TripExportPage.jsx`](./client/src/pages/TripExportPage.jsx) — *Created.* Dedicated standalone export/print preview route (`/trips/:id/export`). Enforces trip ownership authorization via `tripApi.getTrip(id)`, displays a non-printable action bar (`no-print`), and supports `?autoPrint=true` for automated print triggering.
+- [`client/src/pages/TripDetailPage.jsx`](./client/src/pages/TripDetailPage.jsx) — *Modified.* Added prominent "Download PDF" button in the Journey Header alongside "Generate / Regenerate Itinerary", loading state spinner, error banner handling, and direct export trigger with automatic fallback to `/trips/:id/export`.
+- [`client/src/App.jsx`](./client/src/App.jsx) — *Modified.* Registered protected `/trips/:id/export` route inside `TripProvider` and `ProtectedRoute`.
+- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — *Modified.* Documented Section 5.17 establishing PDF export and printable document standards.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Documented implementation details, test suite execution, and physical PDF generation results.
+
+#### 2. Key Implementation Details & Concepts
+- Zero-Dependency Client-Side Architecture:
+  - Avoided bloated backend PDF generation libraries or multi-megabyte headless browser dependencies in production.
+  - Leveraged browser native print-to-PDF engine via CSS Paged Media (`@page`, `@media print`, `break-inside: avoid;`, `page-break-after: avoid;`).
+  - Perfect native Unicode glyph support for `₹` (Indian Rupee), Japanese characters, European accents, and Google Fonts vector rendering.
+- Layout & Section Architecture:
+  - Cover Overview Card: TripMind branding, large Playfair Display destination title, 4-column metadata grid (Origin, Schedule, Party, Budget), travel preferences, journey overview, and curated travel tips.
+  - Day-wise Itinerary: Day headers with numbers, dates, themes, notes, and activity cards itemizing time slots, timings, durations, locations, category badges, estimated costs, and descriptive notes.
+  - Financial Architecture & Budget Summary: Metrics grid (Total Estimated, Target Budget, Remaining Buffer, Per Person, Utilization %) and a 6-category breakdown table.
+- Security & Privacy:
+  - Derived strictly from authenticated session via `tripApi.getTrip(id)`.
+  - Intruders cannot access or export other users' private trips (verified by MongoDB query isolation and 404 response).
+  - No internal tokens, passwords, or MongoDB ObjectIds exposed in the exported document.
+
+#### 3. Verification & Testing Performed
+- Comprehensive Automated Test Suite (`scratch/test_pdf_export.mjs`):
+  - Part 1: Multiple Days & Many Activities — Verified title, destination, Day 1 & Day 2 banners, activity cards, and category badges.
+  - Part 2: Missing Optional Fields — Verified graceful fallbacks when descriptions, timings, or themes are omitted; zero `undefined` or `null` in output.
+  - Part 3: Currency Formatting — Verified `₹1,25,000` Indian numbering format, `$`, `€`, `£`, `¥`.
+  - Part 4: Long Descriptions & Special Characters — Tested 800-character description and verified HTML escaping while preserving `₹`, `&`, `ō`, `é`, `日本`.
+  - Part 5: Empty / Incomplete Itinerary — Verified placeholder state and zero `NaN` occurrences.
+  - Part 6: Authorization & Private Trip Isolation — Verified that an unauthorized user cannot query or retrieve an owner's private trip.
+  - Part 7: Physical PDF Generation via Headless Edge CDP:
+    - Verified "Download PDF" button rendered on desktop (`download_pdf_button_desktop.png`).
+    - Verified "Download PDF" button rendered on mobile (375px) with $\ge 40\text{px}$ touch target (`download_pdf_button_mobile.png`).
+    - Verified `/trips/:id/export` preview page (`export_preview_page.png`).
+    - Successfully generated physical A4 PDF file via `Page.printToPDF` (**384,077 bytes** saved to `scratch/tripmind_kyoto_itinerary.pdf`).
+    - Verified `%PDF-1.4` magic byte header and internal Page objects.
+- Build & Linting:
+  - ESLint passed with 0 errors across all modified and created files.
+  - Vite production build completed successfully in 950ms.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- None. PDF export is fully functional, secure, responsive, and visually verified.
+
+---
+
 ### [2026-11-22] — UI Bug: Doughnut Chart Labels Overlap on Small Screens
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Fix overlapping numbers, labels, and values in the doughnut chart component (`client/src/components/budget/ExpenseDonutChart.jsx`) across mobile screens (320px, 375px, 390px, 430px, tablet 768px, desktop 1280px+). Ensure readable labels without truncation, maintain clean center hole clearance without text touching donut slice arcs, preserve desktop 3-column presentation, and avoid unnecessary vertical space.
