@@ -33,6 +33,33 @@
 
 ## 2. Session History
 
+### [2026-11-22] — Global UI Motion Guidelines Specification
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Establish the global animation and motion standards for TripMind by creating `UI_MOTION_GUIDELINES.md`. Define purposeful motion principles, inventory of approved animations (AnimatedBackground, BorderTrail, TextEffect, ScrollProgress, Tilt, Section Reveals), standardized timing and duration tiers, 4-tier animation hierarchy, strict accessibility and `prefers-reduced-motion` compliance, mobile performance constraints, and future animation approval criteria without modifying application source code.
+- **Branch / Status:** `main` — Documentation update, zero application code modified.
+
+#### 1. Files Created / Modified
+- [`UI_MOTION_GUIDELINES.md`](./UI_MOTION_GUIDELINES.md) — *Created.* Global motion standards specification establishing 10 motion philosophy principles, 7 approved animation inventory specifications (Navbar Hover Background, Dashboard Card BorderTrail, Animated Form Borders, Hero Heading TextEffect, Scroll Progress, Destination Card Tilt, Scroll-triggered Section Reveals), standardized timing tiers (150ms–500ms), 4-level animation hierarchy with viewport budgeting, WCAG 2.2 accessibility safeguards, 60fps GPU performance rules, and future animation approval criteria.
+- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — *Modified.* Added cross-references to `UI_MOTION_GUIDELINES.md` in header metadata and Section 5.19 (Motion & Reduced-Motion Accessibility).
+- [`PROJECT_RULES.md`](./PROJECT_RULES.md) — *Modified.* Added `UI_MOTION_GUIDELINES.md` to Section 1.1 Mandatory Documentation Review and Section 4.4 Design System & Motion Fidelity.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Appended operational log for creation of Global UI Motion Guidelines.
+
+#### 2. Key Implementation Details & Concepts
+- **Purposeful Motion Philosophy:** Formulated ten core tenets emphasizing restraint, clarity, and utility over decorative excess. TripMind strictly avoids becoming an animation showcase, preserving its calm editorial identity.
+- **Approved Animation Inventory:** Documented exact usage contexts, behavioral specifications, device gating, and intensity ratings for 7 key motion patterns.
+- **Standardized Timing Tiers:** Defined 150–200ms for micro-interactions, 200–250ms for standard interactions, 250–350ms for spring physics, 300–500ms for section reveals, and 40–50ms for character staggers. Explicitly banned interactions longer than 500ms.
+- **4-Level Hierarchy & Viewport Budgeting:** Categorized motion into Level 1 (Functional), Level 2 (Micro-Interactions), Level 3 (Content Motion), and Level 4 (Signature Motion). Level 4 signature animations are strictly isolated to prevent visual competition within the same viewport.
+- **Accessibility & Hardware Performance:** Enforced strict `prefers-reduced-motion: reduce` zero-duration fallbacks, guaranteed static DOM availability for all content, keyboard focus ring visibility, composite-only GPU properties (`transform`, `opacity`), and touch/pointer media queries.
+
+#### 3. Verification & Testing Performed
+- Verified all root documentation links and formatting.
+- Confirmed zero application source code modified (`client/src` and `server/src` intact).
+- Verified markdown linting and document structure.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Motion standards are fully documented and established across the project.
+- Ready for future feature tasks or Day 52 launch preparation.
+
 ### [2026-11-22] — Week 8, Day 51: Hero Redesign, Homepage Discovery & Navigation Cleanup
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Redesign TripMind's homepage hero section, eliminate aggressive mobile video cropping, streamline homepage destination discovery, remove the redundant homepage search box, implement secure destination preselection deep links with modal auto-launch, clean up primary navigation by removing "Budget Planner" from headers, and route "Itineraries" directly to the traveler's saved dashboard noticeboard.
@@ -544,47 +571,6 @@
 - None. All mobile responsiveness improvements and touch target enhancements are verified and complete.
 
 ---
-
-## 2. Session History
-
-### [2026-11-22] — Week 8, Day 51: Hero Redesign, Homepage Discovery & Navigation Cleanup
-- **Author / Agent:** Antigravity (AI Coding Assistant)
-- **Objective:** Redesign TripMind's homepage hero section, eliminate aggressive mobile video cropping, streamline homepage destination discovery, remove the redundant homepage search box, implement secure destination preselection deep links with modal auto-launch, clean up primary navigation by removing "Budget Planner" from headers, and route "Itineraries" directly to the traveler's saved dashboard noticeboard.
-- **Branch / Status:** `main` — Clean working tree, all tests passing, zero regressions.
-
-#### 1. Files Created / Modified
-- [`client/src/components/landing/Hero.jsx`](./client/src/components/landing/Hero.jsx) — *Modified.* Implemented responsive viewport gating (`min-width: 768px`) for the background video; on mobile (< 768px), the 4.76MB video is omitted from the DOM to eliminate ~74% center-cropping blur and bandwidth waste, replaced by a high-resolution WebP hero poster with an atmospheric multi-stop gradient scrim (`from-forest-dark/90 via-forest-dark/60 to-forest-dark/35`). Removed the unnecessary dummy preview card (Dolomites), restored balanced typography, and enhanced primary CTAs ("Start Planning" & "Explore Destinations") and the three core pillars.
-- [`client/src/components/landing/DestinationDiscovery.jsx`](./client/src/components/landing/DestinationDiscovery.jsx) — *Modified.* Completely removed the full-width search input box, avoiding redundant search logic on the curated 6-destination showcase while retaining 6 category filter pills and live destination counter.
-- [`client/src/components/landing/DestinationCard.jsx`](./client/src/components/landing/DestinationCard.jsx) — *Modified.* Replaced passive "Plan Journey" links with explicit "Create Itinerary" action buttons passing the encoded destination parameter into the onboarding funnel (`/register?destination=...` for guests, `/dashboard?destination=...` for authenticated users).
-- [`client/src/components/layout/Navbar.jsx`](./client/src/components/layout/Navbar.jsx) — *Modified.* Removed "Budget Planner" from desktop nav and mobile slide-out drawer. Updated "Itineraries" link to navigate directly to `/dashboard` (saved itineraries pinboard) with active route indicator.
-- [`client/src/pages/DashboardPage.jsx`](./client/src/pages/DashboardPage.jsx) — *Modified.* Added deep-link destination listener (`initialDestination = searchParams.get('destination')`) that automatically opens `CreateTripModal` with the preselected destination, and cleans up the browser address bar with `navigate('/dashboard', { replace: true })` upon modal dismissal.
-- [`client/src/pages/LoginPage.jsx`](./client/src/pages/LoginPage.jsx) — *Modified.* Preserves destination query parameters across login redirects and during toggling between "Sign in" and "Create account".
-- [`client/src/pages/RegisterPage.jsx`](./client/src/pages/RegisterPage.jsx) — *Modified.* Preserves destination query parameters across registration redirects and during toggling to "Sign in".
-- [`client/src/components/common/PublicOnlyRoute.jsx`](./client/src/components/common/PublicOnlyRoute.jsx) — *Modified.* Preserves destination query parameters when redirecting already-authenticated users to `/dashboard?destination=...`.
-- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — *Modified.* Added Section 5.20 documenting Hero Redesign, Mobile Video Degradation, Destination Discovery Architecture, and Navigation Standards.
-- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Appended Day 51 operational entry and verification findings.
-- [`scratch/test_day51_verification.mjs`](./scratch/test_day51_verification.mjs) — *Created.* Automated 66-assertion end-to-end CDP verification suite evaluating 7 viewports (1920x1080, 1280x900, 1024x768, 768x1024, 430x932, 375x812, 320x568), video rendering, search box removal, Create Itinerary deep link preselection, modal close URL sanitization, zero horizontal overflow, and console/network monitoring.
-- Visual proof screenshots captured in `scratch/`:
-  - `scratch/day51_desktop_hero_1280.png`
-  - `scratch/day51_tablet_hero_1024.png`
-  - `scratch/day51_mobile_hero_375.png`
-  - `scratch/day51_desktop_destinations_1280.png`
-  - `scratch/day51_mobile_destinations_375.png`
-  - `scratch/day51_modal_preselected_destination.png`
-
-#### 2. Key Implementation Details & Concepts
-- **Mobile Video Degradation Rationale:** On narrow mobile screens (9:19.5 aspect ratio), a 16:9 landscape video cropped via `object-fit: cover` loses ~74% of horizontal content, resulting in extreme pixelation and distracting visual motion behind text while downloading 4.76MB over cellular connections. Replacing it with a high-resolution poster + atmospheric gradient overlay preserves typography legibility, achieves 0ms paint delays, and saves bandwidth.
-- **Deep-Link Destination Preselection:** Clean end-to-end funnel passing destination params through `PublicOnlyRoute`, `LoginPage`, and `RegisterPage` to `DashboardPage`, opening `CreateTripModal` instantly and cleaning up the browser URL with `replace: true` on dismissal.
-- **Navigation Architecture:** Removed "Budget Planner" from header navigation while keeping all underlying budget calculation engines and activity cost recalculations intact. "Itineraries" now seamlessly navigates to `/dashboard`.
-
-#### 3. Verification & Testing Performed
-- `node scratch/test_day51_verification.mjs` — **66 PASSED, 0 FAILED** (100% pass across all 7 viewports, video switching, search removal, deep linking, modal preselection, zero overflow, 0 console errors, 0 failed network requests).
-- `node scratch/test_day50_backend_audit.mjs` — **42 PASSED, 0 FAILED** (Backend CSRF, CORS, Auth, IDOR, Activities, Sharing).
-- Client ESLint: **0 errors, 0 warnings**.
-- Client Production Build (`npm --prefix client run build`): **Built successfully in 1.01s**.
-
-#### 4. Unresolved Issues, Blockers & Next Steps
-- Day 51 homepage hero redesign, destination discovery, and navigation cleanup are verified and complete. Ready for Day 52 launch readiness and final release documentation.
 
 ### [2026-11-22] — Week 8, Day 50: Full Backend Testing & Security Audit
 - **Author / Agent:** Antigravity (AI Coding Assistant)

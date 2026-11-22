@@ -2,7 +2,8 @@
 
 > **Aesthetic Philosophy:** Premium Editorial Travel Experience  
 > **Inspiration:** Literary travel journals, vintage field guides, and print magazines (*Cereal*, *Kinfolk*, *Condé Nast Traveler*).  
-> **Anti-Patterns:** Avoid generic dark SaaS dashboards, neon cyan/magenta gradients, over-rounded toy-like buttons, and cluttered widget grids.
+> **Anti-Patterns:** Avoid generic dark SaaS dashboards, neon cyan/magenta gradients, over-rounded toy-like buttons, and cluttered widget grids.  
+> **Motion Standards:** See [`UI_MOTION_GUIDELINES.md`](./UI_MOTION_GUIDELINES.md) for global animation principles, approved inventory, timing tiers, and accessibility safeguards.
 
 ---
 
@@ -557,6 +558,7 @@ The typographic identity balances literary prestige with modern legibility throu
 #### 3. Motion & Reduced-Motion Accessibility
 - **CSS-Level Reduced-Motion Overrides:** Global `@media (prefers-reduced-motion: reduce)` block reduces animation and transition durations to 0.01ms and resets `scroll-behavior: auto !important`.
 - **Component-Level Motion Guards:** Hero background video checks `window.matchMedia('(prefers-reduced-motion: reduce)')` synchronously during state initialization and renders static photographic fallbacks without video playback.
+- **Global Motion Standards:** For complete choreography rules, animation hierarchy, approved component inventory, and timing guidelines, refer to [`UI_MOTION_GUIDELINES.md`](./UI_MOTION_GUIDELINES.md).
 
 #### 4. Touch Targets & Keyboard Navigation Standards
 - **Touch Target Ergonomics:** All interactive buttons, tabs, links, and modal dismiss triggers enforce minimum heights of $\ge 34\text{px}$ (`min-h-[34px]`) on desktop/tablet and $\ge 42\text{px}$ on primary mobile actions, with touch padding preventing mis-taps.

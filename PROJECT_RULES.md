@@ -19,6 +19,7 @@ Before performing any modification, planning, or code generation:
    - [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md)
    - [`DECISIONS.md`](./DECISIONS.md)
    - [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md)
+   - [`UI_MOTION_GUIDELINES.md`](./UI_MOTION_GUIDELINES.md)
 2. **Align With Decisions**: Check [`DECISIONS.md`](./DECISIONS.md) before introducing new patterns, libraries, or architectural changes. Never contradict an established Architecture Decision Record (ADR), and never treat pending decisions as finalized.
 
 ---
@@ -88,7 +89,7 @@ The backend architecture separates the server entry point from the Express appli
 ### 4.4 Frontend Architecture & API Client Layer (`client/src/`)
 - **Component Modularity**: Divide UI elements logically into `components/common` (buttons, inputs, modals), `components/layout` (navbar, footer, shell), and feature components (`components/itinerary`, `components/budget`, `components/map`, `components/discovery`).
 - **Service Layer for HTTP**: All network requests to Express APIs must go through dedicated API client modules located in `client/src/services/api/` (e.g., `apiClient.js`, `authApi.js`, `tripApi.js`, `aiApi.js`). Components must never invoke raw `fetch` or instantiate separate Axios instances.
-- **Design System Fidelity**: Adhere strictly to the color codes, font families, and visual rules in [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md). Style definitions must leverage Tailwind CSS v4's CSS-first `@theme` configuration in `client/src/index.css`.
+- **Design System & Motion Fidelity**: Adhere strictly to the color codes, font families, and visual rules in [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) and the motion choreography standards in [`UI_MOTION_GUIDELINES.md`](./UI_MOTION_GUIDELINES.md). Style definitions must leverage Tailwind CSS v4's CSS-first `@theme` configuration in `client/src/index.css`.
 
 ### 4.5 Static Asset Performance & Image Optimization Discipline
 - **Modern Asset Formats**: Large photographic and atmospheric imagery imported into the client application must utilize modern, compressed formats (WebP as standard default, targeting 300–600 KB per full-bleed image) to eliminate bundle bloat while preserving desktop sharpness.
