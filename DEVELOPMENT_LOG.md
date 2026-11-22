@@ -33,6 +33,75 @@
 
 ## 2. Session History
 
+### [2026-11-22] — Week 7, Day 46: Helmet and API Rate Limiting
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Strengthen TripMind's backend API security posture by integrating and auditing Helmet security headers, eliminating server fingerprinting, and establishing a 4-tier rate limiting architecture guarding authentication endpoints, general API endpoints, external AI generation/assistant endpoints, and public shared itinerary endpoints without breaking client connectivity, maps, or uptime health monitoring.
+
+#### 1. Files Created / Modified
+- [`server/package.json`](./server/package.json) — *Modified.* Installed `helmet` (`^8.3.0`) as a core backend dependency for HTTP security header enforcement.
+- [`server/src/config/env.js`](./server/src/config/env.js) — *Modified.* Added optional environment variables with production defaults for `trustProxy`, `rateLimit.apiWindowMs`, `rateLimit.apiMax`, `rateLimit.authWindowMs`, `rateLimit.authMax`, `rateLimit.aiWindowMs`, `rateLimit.aiMax`, `rateLimit.shareWindowMs`, and `rateLimit.shareMax`.
+- [`server/.env.example`](./server/.env.example) — *Modified.* Documented `TRUST_PROXY` and all optional rate-limiting environment variables for deployment reference.
+- [`server/src/middleware/rateLimiter.js`](./server/src/middleware/rateLimiter.js) — *Modified.* Upgraded rate limiting engine:
+  - Enhanced `createRateLimiter` factory to support a `skip` predicate (e.g. bypassing health checks) alongside window, limit, error code, and envelope formatting.
+  - Implemented Tier 1 `authRateLimiter`: 10 attempts per 15 minutes per IP (`AUTH_RATE_LIMIT_EXCEEDED`).
+  - Implemented Tier 2 `apiRateLimiter`: 120 requests per 15 minutes per user/IP (`API_RATE_LIMIT_EXCEEDED`), explicitly skipping `/api/health`.
+  - Implemented Tier 3 `aiRateLimiter`: 15 requests per 1 minute per user/IP (`RATE_LIMIT_EXCEEDED`), safeguarding Google Gemini quota.
+  - Preserved `assistantLimiter` as backward-compatible alias to `aiRateLimiter`.
+  - Preserved Tier 4 `publicShareRateLimiter`: 60 requests per 1 minute per IP (`RATE_LIMIT_EXCEEDED`).
+  - Added `resetAllRateLimiters()` helper for clean test-suite execution.
+- [`server/src/routes/auth.routes.js`](./server/src/routes/auth.routes.js) — *Modified.* Mounted `authRateLimiter` directly on `POST /register` and `POST /login` before input validators.
+- [`server/src/routes/trip.routes.js`](./server/src/routes/trip.routes.js) — *Modified.* Mounted `aiRateLimiter` on `POST /:id/generate-itinerary` alongside existing `publicShareRateLimiter` on `/shared/:token` and `assistantLimiter` on `/assistant/messages`.
+- [`server/src/app.js`](./server/src/app.js) — *Modified.* Re-architected Express middleware pipeline:
+  1. Proxy Trust: `app.set('trust proxy', config.trustProxy || 1)`
+  2. Security Headers: `app.disable('x-powered-by')` and `app.use(helmet({ ... }))` with `crossOriginResourcePolicy: { policy: 'cross-origin' }`, `crossOriginEmbedderPolicy: false`, clean API CSP directives, and strict referrer policy.
+  3. CORS policy with origin whitelist and credentials.
+  4. Parsers: `express.json({ limit: '1mb' })` with 1MB payload ceiling and `cookieParser()`.
+  5. Infrastructure Health Check: `app.use('/api', healthRoutes)` mounted before general rate limiter.
+  6. General API Rate Limiting: `app.use('/api', apiRateLimiter)`.
+  7. Domain Routes: mounted `/api/auth`, `/api/trips`, `/api/destinations`.
+  8. 404 and Centralized Error Handling.
+- [`scratch/test_day46_security.mjs`](./scratch/test_day46_security.mjs) — *Created.* Automated 39-point security verification suite covering Helmet headers, CORS preflight, health-check rate limit immunity, auth rate limiting, AI rate limiting, share rate limiting, general API rate limiting, proxy trust, and regression checks.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — *Modified.* Updated Section 2.1 (9-stage Express pipeline) and added Section 5.7 documenting Helmet security headers, 4-tier rate limiting architecture, and cluster scaling guidelines.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Appended Day 46 session history record.
+
+#### 2. Key Implementation Details & Concepts
+- Helmet & Cross-Origin Compatibility:
+  - Because TripMind's React frontend runs on a distinct origin (`http://localhost:5173` or production domain) from the Express API (`http://localhost:5000`), Helmet's default `Cross-Origin-Resource-Policy: same-origin` would prevent the frontend from reading API responses or loading images. Configuring `crossOriginResourcePolicy: { policy: 'cross-origin' }` and disabling COEP ensures clean cross-origin resource sharing while keeping standard security headers intact.
+- Server Fingerprinting Prevention:
+  - `app.disable('x-powered-by')` combined with Helmet's `hidePoweredBy: true` ensures no `X-Powered-By: Express` header leaks to client scanners.
+- Defense-in-Depth for Health Checks:
+  - `/api/health` is mounted *before* `apiRateLimiter` and additionally guarded by `skip: (req) => req.path === '/health' ...`, guaranteeing uptime pingers and Render health monitors are never blocked by high-traffic load.
+- Reverse Proxy Trust:
+  - Configured `trust proxy: 1` ensures Express extracts the authentic client IP from the right-most untrusted entry in `X-Forwarded-For`, preventing attackers from forging multi-hop headers to bypass rate limits.
+- Multi-Instance Scaling Limitations:
+  - The in-memory Map rate limiter provides 0ms latency and zero financial cost for single-instance deployments. Horizontally clustered environments (Kubernetes/multiple containers) require replacing the local store with a shared Redis adapter (`rate-limit-redis`) or API Gateway policy.
+
+#### 3. Verification & Testing Performed
+- Automated Security Suite (`scratch/test_day46_security.mjs`):
+  - 39 assertions executed and passed 100% (0 failures):
+    - Helmet headers verified (`X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `X-DNS-Prefetch-Control: off`, `X-Permitted-Cross-Domain-Policies: none`, `Referrer-Policy: strict-origin-when-cross-origin`, `Cross-Origin-Resource-Policy: cross-origin`, CSP).
+    - `X-Powered-By` header verified strictly absent.
+    - CORS preflight and `credentials: true` verified.
+    - Health check verified 200 OK under burst request load.
+    - Auth rate limiter verified: permits 10 attempts, 11th triggers HTTP 429 `AUTH_RATE_LIMIT_EXCEEDED`, sets `Retry-After` header, includes `details` array, and protects `/register` and `/login` while maintaining IP isolation.
+    - AI rate limiter verified: permits 15 requests, 16th triggers HTTP 429 `RATE_LIMIT_EXCEEDED` with `Retry-After`.
+    - Public share rate limiter verified: 60 requests ceiling verified on `/api/trips/shared/:token`.
+    - General API rate limiter verified: sets `X-RateLimit-*` headers on general routes.
+    - Reverse proxy trust verified: client IP correctly extracted behind proxy header.
+    - Full functional regression: registration, login, cookie issuance, profile fetch, trip creation, and single trip retrieval verified end-to-end.
+- Regression Suites:
+  - `scratch/test_day29_1_pinboard_and_ui.mjs`: 59/59 passed (100%).
+  - `scratch/test_shareable_links.mjs`: 79/79 passed (100%).
+  - `scratch/test_day45_dashboard.mjs`: 33/33 passed (100%).
+- Linter & Production Build:
+  - Client ESLint verified with 0 errors and 0 warnings.
+  - Client Vite production build (`npm --prefix client run build`) completed successfully in 1.06s with 0 errors.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- None. Helmet security headers and rate limiting are fully operational, tested, and production-ready.
+
+---
+
 ### [2026-11-22] — Week 7, Day 45: Improve Trip Dashboard Experience
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Upgrade the existing TripMind dashboard into a polished, premium travel-planning experience adhering strictly to `UI_DESIGN_SYSTEM.md`. Redesign trip cards with rich editorial presentation, prominent duration badges, clean status indicators, photographic plate with fallback parity, accessible touch targets, real-time search & status filtering toolbar, separate first-time empty vs filtered no-results states, and rock-solid responsive behavior across 1280px, 768px, and 375px viewports.
@@ -299,6 +368,75 @@
 ---
 
 ## 2. Session History
+
+### [2026-11-22] — Week 7, Day 46: Helmet and API Rate Limiting
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Strengthen TripMind's backend API security posture by integrating and auditing Helmet security headers, eliminating server fingerprinting, and establishing a 4-tier rate limiting architecture guarding authentication endpoints, general API endpoints, external AI generation/assistant endpoints, and public shared itinerary endpoints without breaking client connectivity, maps, or uptime health monitoring.
+
+#### 1. Files Created / Modified
+- [`server/package.json`](./server/package.json) — *Modified.* Installed `helmet` (`^8.3.0`) as a core backend dependency for HTTP security header enforcement.
+- [`server/src/config/env.js`](./server/src/config/env.js) — *Modified.* Added optional environment variables with production defaults for `trustProxy`, `rateLimit.apiWindowMs`, `rateLimit.apiMax`, `rateLimit.authWindowMs`, `rateLimit.authMax`, `rateLimit.aiWindowMs`, `rateLimit.aiMax`, `rateLimit.shareWindowMs`, and `rateLimit.shareMax`.
+- [`server/.env.example`](./server/.env.example) — *Modified.* Documented `TRUST_PROXY` and all optional rate-limiting environment variables for deployment reference.
+- [`server/src/middleware/rateLimiter.js`](./server/src/middleware/rateLimiter.js) — *Modified.* Upgraded rate limiting engine:
+  - Enhanced `createRateLimiter` factory to support a `skip` predicate (e.g. bypassing health checks) alongside window, limit, error code, and envelope formatting.
+  - Implemented Tier 1 `authRateLimiter`: 10 attempts per 15 minutes per IP (`AUTH_RATE_LIMIT_EXCEEDED`).
+  - Implemented Tier 2 `apiRateLimiter`: 120 requests per 15 minutes per user/IP (`API_RATE_LIMIT_EXCEEDED`), explicitly skipping `/api/health`.
+  - Implemented Tier 3 `aiRateLimiter`: 15 requests per 1 minute per user/IP (`RATE_LIMIT_EXCEEDED`), safeguarding Google Gemini quota.
+  - Preserved `assistantLimiter` as backward-compatible alias to `aiRateLimiter`.
+  - Preserved Tier 4 `publicShareRateLimiter`: 60 requests per 1 minute per IP (`RATE_LIMIT_EXCEEDED`).
+  - Added `resetAllRateLimiters()` helper for clean test-suite execution.
+- [`server/src/routes/auth.routes.js`](./server/src/routes/auth.routes.js) — *Modified.* Mounted `authRateLimiter` directly on `POST /register` and `POST /login` before input validators.
+- [`server/src/routes/trip.routes.js`](./server/src/routes/trip.routes.js) — *Modified.* Mounted `aiRateLimiter` on `POST /:id/generate-itinerary` alongside existing `publicShareRateLimiter` on `/shared/:token` and `assistantLimiter` on `/assistant/messages`.
+- [`server/src/app.js`](./server/src/app.js) — *Modified.* Re-architected Express middleware pipeline:
+  1. Proxy Trust: `app.set('trust proxy', config.trustProxy || 1)`
+  2. Security Headers: `app.disable('x-powered-by')` and `app.use(helmet({ ... }))` with `crossOriginResourcePolicy: { policy: 'cross-origin' }`, `crossOriginEmbedderPolicy: false`, clean API CSP directives, and strict referrer policy.
+  3. CORS policy with origin whitelist and credentials.
+  4. Parsers: `express.json({ limit: '1mb' })` with 1MB payload ceiling and `cookieParser()`.
+  5. Infrastructure Health Check: `app.use('/api', healthRoutes)` mounted before general rate limiter.
+  6. General API Rate Limiting: `app.use('/api', apiRateLimiter)`.
+  7. Domain Routes: mounted `/api/auth`, `/api/trips`, `/api/destinations`.
+  8. 404 and Centralized Error Handling.
+- [`scratch/test_day46_security.mjs`](./scratch/test_day46_security.mjs) — *Created.* Automated 39-point security verification suite covering Helmet headers, CORS preflight, health-check rate limit immunity, auth rate limiting, AI rate limiting, share rate limiting, general API rate limiting, proxy trust, and regression checks.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — *Modified.* Updated Section 2.1 (9-stage Express pipeline) and added Section 5.7 documenting Helmet security headers, 4-tier rate limiting architecture, and cluster scaling guidelines.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Appended Day 46 session history record.
+
+#### 2. Key Implementation Details & Concepts
+- Helmet & Cross-Origin Compatibility:
+  - Because TripMind's React frontend runs on a distinct origin (`http://localhost:5173` or production domain) from the Express API (`http://localhost:5000`), Helmet's default `Cross-Origin-Resource-Policy: same-origin` would prevent the frontend from reading API responses or loading images. Configuring `crossOriginResourcePolicy: { policy: 'cross-origin' }` and disabling COEP ensures clean cross-origin resource sharing while keeping standard security headers intact.
+- Server Fingerprinting Prevention:
+  - `app.disable('x-powered-by')` combined with Helmet's `hidePoweredBy: true` ensures no `X-Powered-By: Express` header leaks to client scanners.
+- Defense-in-Depth for Health Checks:
+  - `/api/health` is mounted *before* `apiRateLimiter` and additionally guarded by `skip: (req) => req.path === '/health' ...`, guaranteeing uptime pingers and Render health monitors are never blocked by high-traffic load.
+- Reverse Proxy Trust:
+  - Configured `trust proxy: 1` ensures Express extracts the authentic client IP from the right-most untrusted entry in `X-Forwarded-For`, preventing attackers from forging multi-hop headers to bypass rate limits.
+- Multi-Instance Scaling Limitations:
+  - The in-memory Map rate limiter provides 0ms latency and zero financial cost for single-instance deployments. Horizontally clustered environments (Kubernetes/multiple containers) require replacing the local store with a shared Redis adapter (`rate-limit-redis`) or API Gateway policy.
+
+#### 3. Verification & Testing Performed
+- Automated Security Suite (`scratch/test_day46_security.mjs`):
+  - 39 assertions executed and passed 100% (0 failures):
+    - Helmet headers verified (`X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `X-DNS-Prefetch-Control: off`, `X-Permitted-Cross-Domain-Policies: none`, `Referrer-Policy: strict-origin-when-cross-origin`, `Cross-Origin-Resource-Policy: cross-origin`, CSP).
+    - `X-Powered-By` header verified strictly absent.
+    - CORS preflight and `credentials: true` verified.
+    - Health check verified 200 OK under burst request load.
+    - Auth rate limiter verified: permits 10 attempts, 11th triggers HTTP 429 `AUTH_RATE_LIMIT_EXCEEDED`, sets `Retry-After` header, includes `details` array, and protects `/register` and `/login` while maintaining IP isolation.
+    - AI rate limiter verified: permits 15 requests, 16th triggers HTTP 429 `RATE_LIMIT_EXCEEDED` with `Retry-After`.
+    - Public share rate limiter verified: 60 requests ceiling verified on `/api/trips/shared/:token`.
+    - General API rate limiter verified: sets `X-RateLimit-*` headers on general routes.
+    - Reverse proxy trust verified: client IP correctly extracted behind proxy header.
+    - Full functional regression: registration, login, cookie issuance, profile fetch, trip creation, and single trip retrieval verified end-to-end.
+- Regression Suites:
+  - `scratch/test_day29_1_pinboard_and_ui.mjs`: 59/59 passed (100%).
+  - `scratch/test_shareable_links.mjs`: 79/79 passed (100%).
+  - `scratch/test_day45_dashboard.mjs`: 33/33 passed (100%).
+- Linter & Production Build:
+  - Client ESLint verified with 0 errors and 0 warnings.
+  - Client Vite production build (`npm --prefix client run build`) completed successfully in 1.06s with 0 errors.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- None. Helmet security headers and rate limiting are fully operational, tested, and production-ready.
+
+---
 
 ### [2026-11-22] — Week 7, Day 45: Improve Trip Dashboard Experience
 - **Author / Agent:** Antigravity (AI Coding Assistant)

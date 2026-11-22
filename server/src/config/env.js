@@ -144,4 +144,40 @@ export const config = {
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
   geminiApiKey: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : '',
   geminiModel: (process.env.GEMINI_MODEL && process.env.GEMINI_MODEL.trim()) || 'gemini-3.5-flash-lite',
+  trustProxy: process.env.TRUST_PROXY ? parseInt(process.env.TRUST_PROXY, 10) : 1,
+
+  // Rate Limiting Configurations (with sensible production defaults)
+  rateLimit: {
+    // General API rate limiter
+    apiWindowMs: process.env.API_RATE_LIMIT_WINDOW_MS
+      ? parseInt(process.env.API_RATE_LIMIT_WINDOW_MS, 10)
+      : 15 * 60 * 1000, // 15 minutes
+    apiMax: process.env.API_RATE_LIMIT_MAX
+      ? parseInt(process.env.API_RATE_LIMIT_MAX, 10)
+      : 120, // 120 requests per 15 minutes
+
+    // Authentication rate limiter (login & register)
+    authWindowMs: process.env.AUTH_RATE_LIMIT_WINDOW_MS
+      ? parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MS, 10)
+      : 15 * 60 * 1000, // 15 minutes
+    authMax: process.env.AUTH_RATE_LIMIT_MAX
+      ? parseInt(process.env.AUTH_RATE_LIMIT_MAX, 10)
+      : 10, // 10 attempts per 15 minutes
+
+    // AI endpoints rate limiter (assistant & generation)
+    aiWindowMs: process.env.AI_RATE_LIMIT_WINDOW_MS
+      ? parseInt(process.env.AI_RATE_LIMIT_WINDOW_MS, 10)
+      : 60 * 1000, // 1 minute
+    aiMax: process.env.AI_RATE_LIMIT_MAX
+      ? parseInt(process.env.AI_RATE_LIMIT_MAX, 10)
+      : 15, // 15 requests per minute
+
+    // Public share itinerary endpoint rate limiter
+    shareWindowMs: process.env.SHARE_RATE_LIMIT_WINDOW_MS
+      ? parseInt(process.env.SHARE_RATE_LIMIT_WINDOW_MS, 10)
+      : 60 * 1000, // 1 minute
+    shareMax: process.env.SHARE_RATE_LIMIT_MAX
+      ? parseInt(process.env.SHARE_RATE_LIMIT_MAX, 10)
+      : 60, // 60 requests per minute
+  },
 }

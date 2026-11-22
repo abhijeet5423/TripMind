@@ -1,3 +1,5 @@
+import { config } from '../config/env.js'
+
 /**
  * In-Memory Rate Limiter Middleware
  *
@@ -23,6 +25,7 @@
  * @param {string} [options.errorCode='RATE_LIMIT_EXCEEDED'] - Error code returned in response envelope
  * @param {string} [options.message='Too many requests. Please wait before retrying.'] - Human-readable message
  * @param {Function} [options.keyGenerator] - Custom key extractor function (defaults to req.user.id || req.ip)
+ * @param {Function} [options.skip] - Optional predicate (req) => boolean to bypass rate limiting
  * @returns {import('express').RequestHandler & { reset: Function }} Configured middleware
  */
 export function createRateLimiter(options = {}) {
@@ -31,7 +34,8 @@ export function createRateLimiter(options = {}) {
     maxRequests = 15,
     errorCode = 'RATE_LIMIT_EXCEEDED',
     message = 'Too many requests. Please wait before retrying.',
-    keyGenerator = (req) => (req.user && req.user.id) || req.ip || 'anonymous',
+    keyGenerator = (req) => (req.user && (req.user.id || req.user._id)) || req.ip || 'anonymous',
+    skip = () => false,
   } = options
 
   // In-memory hit counter store: Map<key, { count: number, resetTime: number }>
@@ -53,6 +57,10 @@ export function createRateLimiter(options = {}) {
   }
 
   const limiterMiddleware = (req, res, next) => {
+    if (skip(req)) {
+      return next()
+    }
+
     const key = keyGenerator(req)
     const now = Date.now()
 
@@ -105,25 +113,71 @@ export function createRateLimiter(options = {}) {
 }
 
 /**
- * Public Share Endpoint Rate Limiter
+ * 1. Authentication Endpoint Rate Limiter
+ * Protects login and registration against automated brute-force attacks and credential stuffing.
+ * Keyed strictly by client IP address.
+ */
+export const authRateLimiter = createRateLimiter({
+  windowMs: config.rateLimit?.authWindowMs || 15 * 60 * 1000,
+  maxRequests: config.rateLimit?.authMax || 10,
+  errorCode: 'AUTH_RATE_LIMIT_EXCEEDED',
+  message: 'Too many authentication attempts. Please wait before retrying.',
+  keyGenerator: (req) => req.ip || 'anonymous',
+})
+
+/**
+ * 2. General API Rate Limiter
+ * Applied across all /api routes to safeguard against denial-of-service and runaway loops.
+ * Exempts infrastructure health check endpoints (/api/health).
+ */
+export const apiRateLimiter = createRateLimiter({
+  windowMs: config.rateLimit?.apiWindowMs || 15 * 60 * 1000,
+  maxRequests: config.rateLimit?.apiMax || 120,
+  errorCode: 'API_RATE_LIMIT_EXCEEDED',
+  message: 'API rate limit exceeded. Please wait before sending more requests.',
+  keyGenerator: (req) => (req.user && (req.user.id || req.user._id)) || req.ip || 'anonymous',
+  skip: (req) => req.path === '/health' || req.originalUrl === '/api/health' || req.originalUrl?.includes('/health'),
+})
+
+/**
+ * 3. AI Endpoints Rate Limiter
+ * Protects external Google Gemini LLM quota allocations across itinerary generation and travel assistant chat.
+ * Preserves the established 15 requests per minute ceiling.
+ */
+export const aiRateLimiter = createRateLimiter({
+  windowMs: config.rateLimit?.aiWindowMs || 60 * 1000,
+  maxRequests: config.rateLimit?.aiMax || 15,
+  errorCode: 'RATE_LIMIT_EXCEEDED',
+  message: 'AI request rate limit exceeded. Please wait a moment before sending more requests.',
+  keyGenerator: (req) => (req.user && (req.user.id || req.user._id)) || req.ip || 'anonymous',
+})
+
+/**
+ * Backward compatibility alias for assistant routes
+ */
+export const assistantLimiter = aiRateLimiter
+
+/**
+ * 4. Public Share Endpoint Rate Limiter
  * Limits public unauthenticated visitors to 60 requests per minute per IP address.
+ * Preserved from Day 44 implementation.
  */
 export const publicShareRateLimiter = createRateLimiter({
-  windowMs: 60 * 1000,
-  maxRequests: 60,
+  windowMs: config.rateLimit?.shareWindowMs || 60 * 1000,
+  maxRequests: config.rateLimit?.shareMax || 60,
   errorCode: 'RATE_LIMIT_EXCEEDED',
   message: 'Too many requests for shared itineraries. Please wait before retrying.',
   keyGenerator: (req) => req.ip || 'anonymous',
 })
 
 /**
- * Assistant endpoint rate limiter: Max 15 messages per minute per user/IP.
+ * Helper to reset all rate limiters across the application (useful in automated test suites).
  */
-export const assistantLimiter = createRateLimiter({
-  windowMs: 60 * 1000,
-  maxRequests: 15,
-  errorCode: 'RATE_LIMIT_EXCEEDED',
-  message: 'Assistant rate limit exceeded. Please wait a moment before sending more messages.',
-})
+export function resetAllRateLimiters() {
+  authRateLimiter.reset()
+  apiRateLimiter.reset()
+  aiRateLimiter.reset()
+  publicShareRateLimiter.reset()
+}
 
 export default assistantLimiter

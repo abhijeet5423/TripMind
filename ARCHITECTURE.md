@@ -97,9 +97,19 @@ sequenceDiagram
 #### 2. Express Application Configuration (`server/src/app.js`)
 - **Primary Role:** Express application factory and pipeline configuration.
 - Instantiates Express `app`.
-- Mounts top-level middleware: CORS (`cors`), security headers (`helmet`), JSON body parser (`express.json`), and HTTP request logging.
-- Mounts API route routers under the `/api` prefix (e.g., `/api/auth`, `/api/trips`, `/api/ai`).
-- Mounts 404 handler for unrecognized endpoints and the centralized error handling middleware.
+- Enforces strict 9-stage middleware ordering:
+  1. **Proxy Trust:** `app.set('trust proxy', config.trustProxy || 1)` (trusts first hop for Render reverse proxy alignment).
+  2. **Security Headers (Helmet):** `app.disable('x-powered-by')` and `app.use(helmet({ ... }))` removing runtime fingerprinting, enforcing `Cross-Origin-Resource-Policy: cross-origin`, COOP, COEP, strict Referrer Policy, and CSP.
+  3. **CORS:** Strict origin mapping (`config.clientUrl`), `credentials: true`, whitelisted methods and headers.
+  4. **Parsers:** `express.json({ limit: '1mb' })` (with payload size cap to prevent body-parsing DoS) and `cookieParser()`.
+  5. **Infrastructure Health Check:** `app.use('/api', healthRoutes)` mounted before rate limiters to ensure uptime monitoring is never blocked.
+  6. **General API Rate Limiting:** `app.use('/api', apiRateLimiter)` providing 120 req/15min baseline protection.
+  7. **Domain & Route-Specific Limiters:**
+     - `authRateLimiter`: 10 attempts/15min on `/api/auth/login` and `/api/auth/register`.
+     - `aiRateLimiter`: 15 req/min on `/api/trips/:id/generate-itinerary` and `/api/trips/:tripId/assistant/messages`.
+     - `publicShareRateLimiter`: 60 req/min on `/api/trips/shared/:token`.
+  8. **Authentication & Domain Routers:** Mounted under `/api/auth`, `/api/trips`, and `/api/destinations`.
+  9. **404 & Centralized Error Handling:** Uniform error envelope with status normalization and `details: []`.
 - Exports the configured `app` for use by `server/server.js` and automated integration tests.
 - **Strict Boundary:** Does not listen on a port and does not connect directly to the database.
 
@@ -663,6 +673,69 @@ TripMind utilizes JWT for stateless authentication and `bcrypt` for salted passw
   - `publicShareRateLimiter` enforces a strict ceiling of 60 requests/minute per IP, preventing automated scanning and token brute-forcing.
 - **Frontend Read-Only Interface (`/shared/:token`):**
   - Displays complete itinerary, interactive Leaflet map, and client-side PDF export without rendering any trip mutation controls (no edit, delete, or add activity buttons) or AI Assistant launchers.
+
+### 5.7 Helmet Security Headers & Rate Limiting Architecture (Day 46)
+
+#### 1. Helmet Security Headers Suite
+The Express backend configures `helmet` centrally in `server/src/app.js` to establish an HTTP security baseline:
+- **Server Fingerprint Removal:** `app.disable('x-powered-by')` and Helmet's `hidePoweredBy: true` strictly remove the `X-Powered-By: Express` header, denying attackers insight into backend runtime technologies.
+- **MIME Sniffing Prevention:** `X-Content-Type-Options: nosniff` forces browsers to adhere to declared MIME types, mitigating drive-by executable attacks.
+- **Clickjacking Defense:** `X-Frame-Options: SAMEORIGIN` prevents malicious embedding of TripMind endpoints within deceptive iframes.
+- **DNS Prefetch Control:** `X-DNS-Prefetch-Control: off` disables browser speculative domain resolution to prevent user privacy leakage.
+- **Cross-Domain Policy:** `X-Permitted-Cross-Domain-Policies: none` denies Flash and PDF plugins permission to fetch cross-domain resources.
+- **Referrer Privacy:** `Referrer-Policy: strict-origin-when-cross-origin` transmits full referrers on same-origin requests, but reduces referrers to the origin hostname on cross-origin requests.
+- **Cross-Origin Resource Policy (CORP):** Configured explicitly as `crossOriginResourcePolicy: { policy: 'cross-origin' }`. Because the React frontend single-page application is hosted separately (`http://localhost:5173` or production client domain) from the Express API, the default `same-origin` policy would block legitimate browser client fetches and image loading.
+- **Cross-Origin Opener Policy (COOP):** `crossOriginOpenerPolicy: { policy: 'same-origin' }` prevents cross-origin window manipulation.
+- **Cross-Origin Embedder Policy (COEP):** Disabled (`false`) to ensure external OpenStreetMap tiles, Wikimedia imagery, and mapping assets load seamlessly without requiring `require-corp` headers from external CDN servers.
+- **Content Security Policy (CSP):** Configured with clean API-appropriate directives:
+  - `default-src 'self'`
+  - `img-src 'self' data: https:`
+  - `font-src 'self' https: data:`
+  - `connect-src 'self' <clientUrl> https://*.openstreetmap.org https://*.mongodb.net`
+  - `upgradeInsecureRequests`: set to `[]` in production, and `null` in development to prevent forced HTTPS upgrades on localhost.
+
+#### 2. Tiered Rate Limiting Architecture (`server/src/middleware/rateLimiter.js`)
+TripMind establishes a 4-tier rate limiting architecture implemented via a sliding in-memory window:
+
+| Tier | Category | Endpoint / Path | Limit & Window | Key Generator | Error Code | Purpose |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Tier 1** | **Authentication** | `POST /api/auth/register`<br>`POST /api/auth/login` | **10 attempts / 15 min** | Client IP (`req.ip`) | `AUTH_RATE_LIMIT_EXCEEDED` | Defends against automated credential stuffing, password brute-force, and registration spam. |
+| **Tier 2** | **General API** | `app.use('/api', ...)` | **120 requests / 15 min** | User ID or IP | `API_RATE_LIMIT_EXCEEDED` | Baseline protection against denial-of-service, request looping, and API scraping. Exempts `/api/health`. |
+| **Tier 3** | **AI Services** | `POST /api/trips/:id/generate-itinerary`<br>`POST /api/trips/:tripId/assistant/messages` | **15 requests / 1 min** | User ID or IP | `RATE_LIMIT_EXCEEDED` | Safeguards Google Gemini free-tier quota (₹0 budget) from exhaustion across itinerary generation and chat. |
+| **Tier 4** | **Public Share** | `GET /api/trips/shared/:token` | **60 requests / 1 min** | Client IP (`req.ip`) | `RATE_LIMIT_EXCEEDED` | Prevents automated high-frequency token enumeration against public itinerary links. |
+
+#### 3. Standardized Rate-Limit Response Envelope & Headers
+When any rate limiter is exceeded, the middleware halts execution and returns HTTP 429 Too Many Requests conforming strictly to TripMind's standardized JSON error envelope:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "AUTH_RATE_LIMIT_EXCEEDED",
+    "message": "Too many authentication attempts. Please wait before retrying.",
+    "details": [
+      {
+        "field": "rateLimit",
+        "message": "Maximum of 10 requests allowed per 900 seconds."
+      }
+    ]
+  }
+}
+```
+Accompanying HTTP Headers:
+- `X-RateLimit-Limit`: Maximum requests permitted within window.
+- `X-RateLimit-Remaining`: Remaining request allowance (0 when blocked).
+- `X-RateLimit-Reset`: Unix timestamp (seconds) when quota refreshes.
+- `Retry-After`: Number of integer seconds before traveler or client may retry.
+
+#### 4. Proxy Trust & Real Client IP Resolution
+- Configured via `app.set('trust proxy', config.trustProxy || 1)`:
+  - For Render and standard single-hop reverse proxies, `trust proxy: 1` instructs Express to trust the 1st reverse proxy hop.
+  - Express extracts the real client IP from the right-most untrusted entry in `X-Forwarded-For`.
+  - Multi-hop spoofed values inserted by untrusted clients are discarded, preventing attackers from bypassing IP rate-limiting via synthetic `X-Forwarded-For` headers.
+
+#### 5. Multi-Instance & Horizontal Cluster Limitations
+- **Current Architecture:** Relies on an in-memory `Map` store scoped to the individual Node.js process. In single-instance deployments (such as Render Free Tier or individual containers), this provides 0ms latency with zero infrastructure costs.
+- **Production Cluster Scaling:** In horizontally auto-scaled environments (e.g. Kubernetes, AWS ECS, multiple PM2 workers), each process maintains independent counters. Production cluster scale-out requires swapping the in-memory store with a shared Redis adapter (e.g. `rate-limit-redis`) or delegating rate limiting to an API Gateway (Cloudflare / Kong / AWS API Gateway).
 
 ---
 

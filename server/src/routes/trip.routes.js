@@ -30,7 +30,7 @@ import {
   validateShareToken,
 } from '../validators/shareValidator.js'
 import { authenticateToken } from '../middleware/authMiddleware.js'
-import { publicShareRateLimiter } from '../middleware/rateLimiter.js'
+import { publicShareRateLimiter, aiRateLimiter } from '../middleware/rateLimiter.js'
 import assistantRoutes from './assistant.routes.js'
 
 const router = Router()
@@ -86,9 +86,15 @@ router.post('/', authenticateToken, validateCreateTrip, createTrip)
 /**
  * @route   POST /api/trips/:id/generate-itinerary
  * @desc    Generate an AI itinerary for a trip owned by the authenticated user
- * @access  Private (Requires valid HttpOnly JWT cookie)
+ * @access  Private (Requires valid HttpOnly JWT cookie, Rate-limited)
  */
-router.post('/:id/generate-itinerary', authenticateToken, validateTripId, generateTripItinerary)
+router.post(
+  '/:id/generate-itinerary',
+  authenticateToken,
+  validateTripId,
+  aiRateLimiter,
+  generateTripItinerary
+)
 
 /**
  * Assistant Routes

@@ -2,22 +2,23 @@ import { Router } from 'express'
 import { register, login, getProfile, logout } from '../controllers/authController.js'
 import { validateRegistration, validateLogin } from '../validators/authValidator.js'
 import { authenticateToken } from '../middleware/authMiddleware.js'
+import { authRateLimiter } from '../middleware/rateLimiter.js'
 
 const router = Router()
 
 /**
  * @route   POST /api/auth/register
  * @desc    Register a new user account
- * @access  Public
+ * @access  Public (Rate-limited)
  */
-router.post('/register', validateRegistration, register)
+router.post('/register', authRateLimiter, validateRegistration, register)
 
 /**
  * @route   POST /api/auth/login
  * @desc    Authenticate user credentials and set HttpOnly JWT cookie
- * @access  Public
+ * @access  Public (Rate-limited)
  */
-router.post('/login', validateLogin, login)
+router.post('/login', authRateLimiter, validateLogin, login)
 
 /**
  * @route   POST /api/auth/logout
