@@ -737,6 +737,32 @@ Accompanying HTTP Headers:
 - **Current Architecture:** Relies on an in-memory `Map` store scoped to the individual Node.js process. In single-instance deployments (such as Render Free Tier or individual containers), this provides 0ms latency with zero infrastructure costs.
 - **Production Cluster Scaling:** In horizontally auto-scaled environments (e.g. Kubernetes, AWS ECS, multiple PM2 workers), each process maintains independent counters. Production cluster scale-out requires swapping the in-memory store with a shared Redis adapter (e.g. `rate-limit-redis`) or delegating rate limiting to an API Gateway (Cloudflare / Kong / AWS API Gateway).
 
+### 5.8 Access Control, IDOR Prevention & Input Validation Architecture (Day 47)
+
+#### 1. Authentication vs Authorization
+- **Authentication:** Proves user identity via cryptographically signed JWT cookies (`authenticateToken` middleware), decoding `sub` to set `req.user = { id: decoded.sub }`.
+- **Authorization:** Proves the authenticated user has legitimate rights to read, modify, or delete a specific resource. TripMind enforces resource ownership at the data layer, not merely by validating that an authentication token exists.
+
+#### 2. Insecure Direct Object Reference (IDOR) Defense
+- **Database Query-Level Ownership:** Every private resource query filters on both the resource ID and the authenticated user ID (`{ _id: resourceId, userId: req.user.id }`).
+- **Uniform Anti-Enumeration Responses:** Attempting to access, modify, or delete an unowned resource returns HTTP `404 Not Found` with `{ success: false, error: { code: 'NOT_FOUND', message: 'Trip not found', details: [] } }` rather than HTTP 403 Forbidden. This completely denies attackers the ability to probe whether a given resource identifier exists.
+- **Nested Subdocument Isolation:** Nested operations on days and activities (`/trips/:tripId/days/:dayId/activities/:activityId`) retrieve the parent trip with `{ _id: tripId, userId: req.user.id }` before touching subdocuments. Cross-user modification of activities is physically impossible.
+- **Protected Action Gating:** Single-trip retrieval, AI itinerary generation (`/generate-itinerary`), share management (`/share`), and export endpoints all query with owner context prior to executing downstream logic, preventing unauthorized billing or data exposure.
+
+#### 3. Mass-Assignment & Privilege Escalation Protection
+- **Field Whitelisting:** Mutation handlers enforce strict allowlists (`ALLOWED_UPDATE_FIELDS` and `ALLOWED_ACTIVITY_UPDATE_FIELDS`). Unknown or unexpected fields are rejected with HTTP `400 VALIDATION_ERROR`.
+- **Protected System Fields:** System-managed attributes (`_id`, `id`, `userId`, `role`, `shareSettings`, `shareTokenHash`, `shareTokenEncrypted`, `createdAt`, `updatedAt`, `__v`) are guarded by `PROTECTED_SYSTEM_FIELDS` in `tripValidator.js` and `activityValidator.js`. Supplying them in creation or mutation payloads triggers immediate validation failure.
+- **Role Elevation Defense:** The registration validator (`authValidator.js`) explicitly rejects client-supplied `role` attributes, guaranteeing all new accounts instantiate strictly with `role: 'user'`.
+
+#### 4. NoSQL & Query Parameter Injection Defense
+- **Query Parameter Whitelisting:** `validateGetTrips` enforces `ALLOWED_QUERY_PARAMS = new Set(['page', 'limit', 'status'])`, immediately halting requests that supply operator syntax (such as `?status[$ne]=draft`) with HTTP `400 VALIDATION_ERROR`.
+- **Strict Primitive Typing:** Validators verify data types explicitly (`typeof field === 'string'`, `typeof budget === 'number'`), preventing objects with MongoDB operators (`$gt`, `$ne`, `$where`, `$regex`) from reaching service queries or Mongoose models.
+
+#### 5. CSRF Context & Pre-Production Launch Roadmap
+- **Development Context:** Cookie settings use `SameSite: Lax; HttpOnly`, preventing cross-origin transmission on state-changing requests.
+- **Decoupled Production Context:** Production deploys frontend and backend on distinct origins, requiring `SameSite: None; Secure`. CORS preflight checks block unauthorized cross-origin requests requiring `Content-Type: application/json`.
+- **Pre-Production Launch Requirement:** Decoupled production architectures should implement an explicit Double Submit Cookie anti-CSRF token or verify custom client headers (e.g., `X-Requested-With`) prior to processing mutating operations.
+
 ---
 
 ## 6. Mapping Architecture & OpenStreetMap Policies

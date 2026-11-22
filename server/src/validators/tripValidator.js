@@ -53,6 +53,10 @@ const PROTECTED_SYSTEM_FIELDS = new Set([
   '_id',
   'id',
   'userId',
+  'role',
+  'shareSettings',
+  'shareTokenHash',
+  'shareTokenEncrypted',
   'createdAt',
   'updatedAt',
   '__v',
@@ -78,12 +82,17 @@ export function validateCreateTrip(req, res, next) {
     })
   }
 
-  // 2. Discard client-supplied ownership fields (prevent spoofing / mass assignment)
-  if ('userId' in req.body) {
-    delete req.body.userId
-  }
-
   const details = []
+
+  // 2. Reject client-supplied protected system fields (prevent spoofing / mass assignment)
+  for (const key of Object.keys(req.body)) {
+    if (PROTECTED_SYSTEM_FIELDS.has(key)) {
+      details.push({
+        field: key,
+        message: `Field '${key}' is protected and cannot be supplied`,
+      })
+    }
+  }
 
   // 3. Starting location validation
   const { startingLocation } = req.body
@@ -435,6 +444,19 @@ export function validateGetTrips(req, res, next) {
   }
 
   const details = []
+
+  // 1.1 Whitelist allowed query parameters (blocks NoSQL operators or unexpected query parameters)
+  const ALLOWED_QUERY_PARAMS = new Set(['page', 'limit', 'status'])
+  if (req.query && typeof req.query === 'object') {
+    for (const key of Object.keys(req.query)) {
+      if (!ALLOWED_QUERY_PARAMS.has(key)) {
+        details.push({
+          field: key,
+          message: `Query parameter '${key}' is not permitted`,
+        })
+      }
+    }
+  }
 
   // 2. Validate page parameter
   const { page, limit, status } = req.query

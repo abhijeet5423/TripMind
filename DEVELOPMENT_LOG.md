@@ -33,6 +33,41 @@
 
 ## 2. Session History
 
+### [2026-11-22] — Week 7, Day 47: Audit Validation and Access Controls
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Conduct a comprehensive security audit of TripMind's backend validation, authentication, authorization, ownership verification, and role-based access controls. Address confirmed vulnerabilities across mass-assignment, privilege escalation, and query-level NoSQL injection, and develop automated regression tests verifying all 15 audit criteria.
+
+#### 1. Files Created / Modified
+- [`server/src/validators/authValidator.js`](./server/src/validators/authValidator.js) — *Modified.* Hardened `validateRegistration` to explicitly reject any client-supplied `role` parameter with HTTP 400 `VALIDATION_ERROR`, stopping privilege escalation at the boundary.
+- [`server/src/validators/tripValidator.js`](./server/src/validators/tripValidator.js) — *Modified.*
+  - Expanded `PROTECTED_SYSTEM_FIELDS` to include `role`, `shareSettings`, `shareTokenHash`, and `shareTokenEncrypted`.
+  - Upgraded `validateCreateTrip` to iterate across request keys and reject any client attempt to supply protected system attributes.
+  - Hardened `validateGetTrips` to enforce a strict query parameter whitelist (`ALLOWED_QUERY_PARAMS = new Set(['page', 'limit', 'status'])`), immediately halting attempts to pass NoSQL operator syntax or arbitrary query filters with HTTP 400 `VALIDATION_ERROR`.
+- [`server/src/validators/activityValidator.js`](./server/src/validators/activityValidator.js) — *Modified.* Synchronized `PROTECTED_FIELDS` with `role`, `shareSettings`, `shareTokenHash`, and `shareTokenEncrypted`, rejecting spoofed payloads on nested activity routes.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — *Modified.* Documented Section 5.8 on Access Control, IDOR Prevention, Mass-Assignment Defense, NoSQL Injection Mitigation, and CSRF Architecture.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Appended Day 47 operational log and audit verification records.
+- [`scratch/test_day47_audit.mjs`](./scratch/test_day47_audit.mjs) — *Created.* Automated 15-criteria end-to-end security test suite covering unauthenticated gating, IDOR defense across trips and activities, privilege escalation prevention, mass-assignment blocking, NoSQL injection resistance, public shareable link lifecycle, and legitimate workflow continuity (71 assertions total).
+
+#### 2. Key Implementation Details & Concepts
+- **Authentication vs Authorization:** Re-affirmed that authentication via HttpOnly JWT cookie establishes traveler identity (`req.user.id`), whereas authorization enforces resource permissions at the database level (`{ _id: id, userId: req.user.id }`).
+- **Insecure Direct Object Reference (IDOR) Defense:** Confirmed that every trip endpoint (read, update, delete, itinerary generation, sharing, nested activity management) verifies ownership at the MongoDB query layer and returns uniform HTTP 404 `NOT_FOUND` on unowned trips, preventing resource enumeration and unauthorized mutation.
+- **Mass-Assignment & Privilege Escalation Mitigation:** Enforced strict allowlists and protected field checks across all creation and update validators, rejecting client injection of `userId`, `role`, or `shareSettings`.
+- **NoSQL Operator Injection Defense:** Eliminated parameter injection by validating strict string and integer types and enforcing parameter key allowlists in query string parsers.
+- **CSRF Risk Assessment & Carry-Forward:** Documented current `SameSite: Lax` development configuration vs `SameSite: None; Secure` decoupled production configuration. Established pre-production requirement for Double Submit Cookie tokens or custom request header verification.
+
+#### 3. Verification & Testing Performed
+- `node scratch/test_day47_audit.mjs` — **71 PASSED, 0 FAILED** (100% pass across all 15 audit criteria).
+- `node scratch/test_day46_security.mjs` — **39 PASSED, 0 FAILED** (Rate limiting and Helmet security headers).
+- `node scratch/test_day45_dashboard.mjs` — **33 PASSED, 0 FAILED** (Dashboard UI and Edge CDP regression).
+- `node scratch/test_shareable_links.mjs` — **79 PASSED, 0 FAILED** (Public shareable links and crypto tokens).
+- `node scratch/test_day29_1_pinboard_and_ui.mjs` — **59 PASSED, 0 FAILED** (Pinboard, navigation, and UI experience).
+- Client ESLint & Production Build:
+  - `npx --prefix client eslint client/src/components/dashboard/PinnedTripCard.jsx client/src/components/dashboard/AddTripPinCard.jsx client/src/components/dashboard/CorkBoard.jsx client/src/pages/DashboardPage.jsx client/src/utils/tripCardUtils.js client/src/components/common/Button.jsx` — **0 warnings, 0 errors**.
+  - `npm --prefix client run build` — **Built successfully in 1.42s**.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Implement pre-production anti-CSRF token verification (Double Submit Cookie or custom header check) prior to multi-domain production launch.
+
 ### [2026-11-22] — Week 7, Day 46: Helmet and API Rate Limiting
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Strengthen TripMind's backend API security posture by integrating and auditing Helmet security headers, eliminating server fingerprinting, and establishing a 4-tier rate limiting architecture guarding authentication endpoints, general API endpoints, external AI generation/assistant endpoints, and public shared itinerary endpoints without breaking client connectivity, maps, or uptime health monitoring.
@@ -368,6 +403,41 @@
 ---
 
 ## 2. Session History
+
+### [2026-11-22] — Week 7, Day 47: Audit Validation and Access Controls
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Conduct a comprehensive security audit of TripMind's backend validation, authentication, authorization, ownership verification, and role-based access controls. Address confirmed vulnerabilities across mass-assignment, privilege escalation, and query-level NoSQL injection, and develop automated regression tests verifying all 15 audit criteria.
+
+#### 1. Files Created / Modified
+- [`server/src/validators/authValidator.js`](./server/src/validators/authValidator.js) — *Modified.* Hardened `validateRegistration` to explicitly reject any client-supplied `role` parameter with HTTP 400 `VALIDATION_ERROR`, stopping privilege escalation at the boundary.
+- [`server/src/validators/tripValidator.js`](./server/src/validators/tripValidator.js) — *Modified.*
+  - Expanded `PROTECTED_SYSTEM_FIELDS` to include `role`, `shareSettings`, `shareTokenHash`, and `shareTokenEncrypted`.
+  - Upgraded `validateCreateTrip` to iterate across request keys and reject any client attempt to supply protected system attributes.
+  - Hardened `validateGetTrips` to enforce a strict query parameter whitelist (`ALLOWED_QUERY_PARAMS = new Set(['page', 'limit', 'status'])`), immediately halting attempts to pass NoSQL operator syntax or arbitrary query filters with HTTP 400 `VALIDATION_ERROR`.
+- [`server/src/validators/activityValidator.js`](./server/src/validators/activityValidator.js) — *Modified.* Synchronized `PROTECTED_FIELDS` with `role`, `shareSettings`, `shareTokenHash`, and `shareTokenEncrypted`, rejecting spoofed payloads on nested activity routes.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — *Modified.* Documented Section 5.8 on Access Control, IDOR Prevention, Mass-Assignment Defense, NoSQL Injection Mitigation, and CSRF Architecture.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Appended Day 47 operational log and audit verification records.
+- [`scratch/test_day47_audit.mjs`](./scratch/test_day47_audit.mjs) — *Created.* Automated 15-criteria end-to-end security test suite covering unauthenticated gating, IDOR defense across trips and activities, privilege escalation prevention, mass-assignment blocking, NoSQL injection resistance, public shareable link lifecycle, and legitimate workflow continuity (71 assertions total).
+
+#### 2. Key Implementation Details & Concepts
+- **Authentication vs Authorization:** Re-affirmed that authentication via HttpOnly JWT cookie establishes traveler identity (`req.user.id`), whereas authorization enforces resource permissions at the database level (`{ _id: id, userId: req.user.id }`).
+- **Insecure Direct Object Reference (IDOR) Defense:** Confirmed that every trip endpoint (read, update, delete, itinerary generation, sharing, nested activity management) verifies ownership at the MongoDB query layer and returns uniform HTTP 404 `NOT_FOUND` on unowned trips, preventing resource enumeration and unauthorized mutation.
+- **Mass-Assignment & Privilege Escalation Mitigation:** Enforced strict allowlists and protected field checks across all creation and update validators, rejecting client injection of `userId`, `role`, or `shareSettings`.
+- **NoSQL Operator Injection Defense:** Eliminated parameter injection by validating strict string and integer types and enforcing parameter key allowlists in query string parsers.
+- **CSRF Risk Assessment & Carry-Forward:** Documented current `SameSite: Lax` development configuration vs `SameSite: None; Secure` decoupled production configuration. Established pre-production requirement for Double Submit Cookie tokens or custom request header verification.
+
+#### 3. Verification & Testing Performed
+- `node scratch/test_day47_audit.mjs` — **71 PASSED, 0 FAILED** (100% pass across all 15 audit criteria).
+- `node scratch/test_day46_security.mjs` — **39 PASSED, 0 FAILED** (Rate limiting and Helmet security headers).
+- `node scratch/test_day45_dashboard.mjs` — **33 PASSED, 0 FAILED** (Dashboard UI and Edge CDP regression).
+- `node scratch/test_shareable_links.mjs` — **79 PASSED, 0 FAILED** (Public shareable links and crypto tokens).
+- `node scratch/test_day29_1_pinboard_and_ui.mjs` — **59 PASSED, 0 FAILED** (Pinboard, navigation, and UI experience).
+- Client ESLint & Production Build:
+  - `npx --prefix client eslint client/src/components/dashboard/PinnedTripCard.jsx client/src/components/dashboard/AddTripPinCard.jsx client/src/components/dashboard/CorkBoard.jsx client/src/pages/DashboardPage.jsx client/src/utils/tripCardUtils.js client/src/components/common/Button.jsx` — **0 warnings, 0 errors**.
+  - `npm --prefix client run build` — **Built successfully in 1.42s**.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Implement pre-production anti-CSRF token verification (Double Submit Cookie or custom header check) prior to multi-domain production launch.
 
 ### [2026-11-22] — Week 7, Day 46: Helmet and API Rate Limiting
 - **Author / Agent:** Antigravity (AI Coding Assistant)

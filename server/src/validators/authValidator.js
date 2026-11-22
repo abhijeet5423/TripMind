@@ -32,6 +32,14 @@ export function validateRegistration(req, res, next) {
   const { name, email, password } = req.body
   const details = []
 
+  // 1.1 Reject attempts to supply privileged or protected fields during registration
+  if (req.body.role !== undefined) {
+    details.push({
+      field: 'role',
+      message: 'Role cannot be specified during registration',
+    })
+  }
+
   // 2. Name validation
   if (name === undefined || name === null || typeof name !== 'string') {
     details.push({
