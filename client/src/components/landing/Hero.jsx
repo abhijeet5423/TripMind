@@ -48,7 +48,7 @@ export default function Hero() {
         alt="Panoramic view of emerald river gorge flanked by dramatic towering canyon cliffs"
         className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none select-none"
         loading="eager"
-        fetchpriority="high"
+        fetchPriority="high"
       />
 
       {/* 2. Responsive Cinematic Video with Reduced-Motion and Error Guard */}

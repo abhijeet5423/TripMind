@@ -542,6 +542,27 @@ The typographic identity balances literary prestige with modern legibility throu
   - Friendly suggestion to broaden search parameters.
   - High-visibility *"Clear Search & Filters"* CTA button that immediately restores all pinned trips.
 
+---
+
+### 5.19 Global Viewport Containment, Reduced-Motion & Accessibility Standards (Day 49)
+
+#### 1. Dual Root Overflow Containment (`index.css`)
+- **Root Element Containment:** Enforces `overflow-x: hidden;` across both `html` and `body` in `@layer base`.
+- **Rationale:** Prevents vertical scrollbar width offsets (16px on desktop) or full-bleed responsive cards from triggering accidental horizontal viewport panning on Windows or narrow viewports (320px–375px), guaranteeing `scrollWidth <= clientWidth`.
+
+#### 2. Media Attribute Standards & DOM Compliance
+- **Asset Loading Priority:** LCP background imagery and hero poster layers must strictly use standard React camelCase `fetchPriority="high"` rather than lowercase HTML DOM properties, preventing React console warnings.
+- **Aspect Ratio Parity:** Media plates (Hero, Destination discovery cards, Trip card photos) maintain fixed aspect ratios (`aspect-[16/10]`, `aspect-[4/3]`) to prevent layout shifts (CLS).
+
+#### 3. Motion & Reduced-Motion Accessibility
+- **CSS-Level Reduced-Motion Overrides:** Global `@media (prefers-reduced-motion: reduce)` block reduces animation and transition durations to 0.01ms and resets `scroll-behavior: auto !important`.
+- **Component-Level Motion Guards:** Hero background video checks `window.matchMedia('(prefers-reduced-motion: reduce)')` synchronously during state initialization and renders static photographic fallbacks without video playback.
+
+#### 4. Touch Targets & Keyboard Navigation Standards
+- **Touch Target Ergonomics:** All interactive buttons, tabs, links, and modal dismiss triggers enforce minimum heights of $\ge 34\text{px}$ (`min-h-[34px]`) on desktop/tablet and $\ge 42\text{px}$ on primary mobile actions, with touch padding preventing mis-taps.
+- **Dialog Accessibility:** All modal dialogs implement `role="dialog"`, `aria-modal="true"`, explicit heading association (`aria-labelledby`), visible focus rings (`focus-visible:ring-2 focus-visible:ring-forest`), and keyboard Escape key listeners.
+
+
 
 
 
