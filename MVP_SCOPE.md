@@ -1,7 +1,7 @@
 # TripMind — MVP Scope & Roadmap
 
-> **Document Status:** Active Baseline  
-> **Rule:** Do not mark unimplemented features as completed. All features listed below are currently pending implementation unless verified through tests and logged in [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md).
+> **Document Status:** Completed Baseline (MVP & Day 54 Delivered)  
+> **Rule:** All Tier 1 MVP features, Tier 2 PDF Export & Shareable Links, and Day 54 Authentication Upgrades have been fully implemented, verified through automated suites, and logged in [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md).
 
 ---
 
@@ -174,11 +174,11 @@ Stage 5: AI Itinerary, Maps & Budget Analytics
 
 ## 4. Optional Extensions (Tier 2 — Post-MVP Polish)
 
-These features provide incremental value and should only be initiated once all Tier 1 features are fully functional and tested:
-1. **Weather Forecast Preview:** Display multi-day weather forecasts for upcoming trip dates using an open weather API.
-2. **Packing Checklist Generator:** Suggest a personalized packing list based on trip duration, climate, and planned activities.
-3. **Currency Conversion Helper:** Display estimated costs in both local destination currency and home currency.
-4. **Printable / Clean View Mode:** CSS print stylesheet or clean reader mode for easy viewing on mobile or paper.
+These features provide incremental value:
+1. **Weather Forecast Preview:** Display multi-day weather forecasts for upcoming trip dates using an open weather API. *(Future)*
+2. **Packing Checklist Generator:** Suggest a personalized packing list based on trip duration, climate, and planned activities. *(Future)*
+3. **Currency Conversion Helper:** Display estimated costs in both local destination currency and home currency. *(Future)*
+4. **Printable / Clean View Mode & Shareable Links:** CSS print stylesheet and cryptographic share links. *(🟢 Completed across Days 44 & 45 via `/trips/:id/export` and `/shared/:token`)*
 
 ---
 
