@@ -497,6 +497,52 @@ The typographic identity balances literary prestige with modern legibility throu
 - **Cover Overview Card:** Framed in Warm Ivory (`#F7F5EF`) with Sage border (`#CCD5C0`), displaying origin, travel dates, traveling party, target budget, journey overview, and travel tips with `break-inside: avoid;`.
 - **Financial Architecture Table:** Clean categorical breakdown table itemizing all 6 canonical categories with amount, percentage, and category color dots.
 
+---
+
+### 5.18 Dashboard Experience & Pinned Trip Card Architecture (`PinnedTripCard.jsx`, `CorkBoard.jsx`, `AddTripPinCard.jsx`)
+
+#### 1. Physical Pinboard Philosophy & Canvas Hierarchy
+- **Tactile Cork Canvas:** Renders a rich physical corkboard surface (`#BA8950`) layered with multi-point radial gradients simulating textured natural cork porosity, inset shadows (`inset 0 0 80px rgba(35, 18, 8, 0.55)`), and top ambient lighting vignettes.
+- **Wooden Frame:** Encased in a beveled hardwood frame (`#543820`, border `#3D2614`) with responsive padding:
+  - Mobile ($< 640\text{px}$): `p-3` frame padding, `border-3`, `rounded-2xl`.
+  - Tablet ($640\text{px} - 1023\text{px}$): `p-5` to `p-6` frame padding, `border-6`.
+  - Desktop ($\ge 1024\text{px}$): `p-7` frame padding, `border-6`, `rounded-3xl`.
+- **Brass Plaque:** Fixed brass header badge with mini pushpin and compass emblem displaying journey counters and active filter indicators.
+
+#### 2. Trip Card Anatomy (`PinnedTripCard.jsx`)
+- **Card Sizing & Layout Stability:** Every card enforces `flex flex-col justify-between h-full min-h-[440px]` on a Warm Ivory sheet (`#FAF7EE`), matching the exact dimensional height of `AddTripPinCard` to eliminate grid jaggedness.
+- **Subtle Rotation Angles:** Cards apply subtle rotations on desktop (`lg:rotate-0.5`, `lg:-rotate-0.5`) and completely upright (`rotate-0`) on mobile and tablet to prevent accidental horizontal overflow.
+- **3D Pushpin:** Physically pinned with a realistic multi-gradient SVG thumbtack assigned deterministically from the 10-color heritage palette (`pinPalette.js`).
+- **Hero Photograph Plate:**
+  - 16:10 aspect ratio (`aspect-[16/10]`) with gentle hover zoom (`group-hover:scale-105 duration-500`).
+  - Overlay duration badge (`N Days`) pinned in the bottom corner with dark gradient contrast backing.
+  - Elegant linen fallback with compass emblem and subtle typography, preserving exact 16:10 height parity when no photo is available or load fails.
+- **Status Indicator Badges:**
+  - `Upcoming`: Olive Grove tone (`bg-olive-grove/10 text-olive-grove border-olive-grove/30`).
+  - `Completed`: Forest tone (`bg-forest/10 text-forest border-forest/30`).
+  - `Draft`: Ochre tone (`bg-ochre-gold/15 text-[#925C18] border-ochre-gold/30`).
+- **Itemized Metadata Grid:** Two clean two-column metadata rows displaying origin, date range with total days, traveler count with icon, and formatted currency budget (INR `₹` or selected currency).
+- **Generous Touch Targets:** Edit and delete action buttons enforce $\ge 36\times 36\text{px}$ (`min-w-[36px] min-h-[36px]`).
+- **Full-Width CTA:** High-contrast editorial button to "Open Itinerary" or "Generate Travel Itinerary".
+
+#### 3. Search & Status Filtering Toolbar
+- **Real-Time Text Search:** Debounced input field with left search icon, placeholder, and touch-friendly clear button (`min-w-[32px] min-h-[32px]`).
+- **Status Filter Pills:** Segmented pill buttons (`All`, `Upcoming`, `Drafts`, `Completed`) with dynamic count badges and minimum 34px height (`min-h-[34px]`) for touch ergonomics.
+- **Reset Trigger:** Instant reset button restores full view when filters are active.
+
+#### 4. Dual Empty State Architecture
+- **State A: First-Time Empty State (0 Trips Total):**
+  - Warm field journal invitation note: *"Your Travel Canvas Awaits"*.
+  - 3-step structured ritual guide explaining the trip creation journey (destination & dates -> budget & preferences -> AI itinerary generation).
+  - Quick inspiration destination chips ("Kyoto, Japan", "Amalfi Coast, Italy", "Swiss Alps, Switzerland", "Bali, Indonesia") with instant prefill capability.
+  - Prominent primary CTA *"Plan Your First Journey"* paired alongside the tactile `AddTripPinCard`.
+- **State B: Filtered / Search No-Results State ($> 0$ Trips Total, 0 Matches):**
+  - Dedicated brass-pinned noticeboard card: *"No Journeys Match Your Search"*.
+  - Dynamic display highlighting the active query string or filter pill.
+  - Friendly suggestion to broaden search parameters.
+  - High-visibility *"Clear Search & Filters"* CTA button that immediately restores all pinned trips.
+
+
 
 
 

@@ -25,9 +25,9 @@ export default function Button({
     'inline-flex items-center justify-center font-sans font-medium rounded-lg transition-all duration-200 cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 active:scale-[0.98] motion-reduce:active:scale-100 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100'
 
   const sizeClasses = {
-    sm: 'px-3.5 py-1.5 text-xs tracking-wide',
-    md: 'px-5 py-2.5 text-sm',
-    lg: 'px-6 py-3.5 text-base',
+    sm: 'px-3.5 py-1.5 min-h-[34px] text-xs tracking-wide',
+    md: 'px-5 py-2.5 min-h-[42px] text-sm',
+    lg: 'px-6 py-3.5 min-h-[48px] text-base',
   }
 
   const variantClasses = {
