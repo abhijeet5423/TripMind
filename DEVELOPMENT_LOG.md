@@ -33,6 +33,49 @@
 
 ## 2. Session History
 
+### [2026-11-22] — UI Bug: Doughnut Chart Labels Overlap on Small Screens
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Fix overlapping numbers, labels, and values in the doughnut chart component (`client/src/components/budget/ExpenseDonutChart.jsx`) across mobile screens (320px, 375px, 390px, 430px, tablet 768px, desktop 1280px+). Ensure readable labels without truncation, maintain clean center hole clearance without text touching donut slice arcs, preserve desktop 3-column presentation, and avoid unnecessary vertical space.
+
+#### 1. Files Created / Modified
+- [`client/src/components/budget/ExpenseDonutChart.jsx`](./client/src/components/budget/ExpenseDonutChart.jsx) — *Modified.*
+  - Refactored legend layout from rigid `grid-cols-2 sm:grid-cols-3` to mobile-first responsive `grid-cols-1 sm:grid-cols-3 gap-2`.
+  - Added formatted currency values on mobile single-column pills (`sm:hidden`) alongside percentage badges for touch accessibility.
+  - Constrained desktop font size to `text-xs sm:text-[11px]` and padding `px-2.5 py-1.5 sm:px-2` to guarantee zero truncation for long category labels like "Activities & Tours" across desktop viewports.
+  - Adjusted Recharts Pie radii (`innerRadius={54} outerRadius={80}`) and constrained center summary text to `text-xs sm:text-sm md:text-base max-w-[85px] sm:max-w-[105px]` with 15px+ clearance from the inner stroke.
+  - Made card header responsive (`flex flex-col sm:flex-row sm:items-center gap-2.5`) with `self-start sm:self-auto` badge placement to prevent header overflow on 320px screens.
+  - Adjusted card padding to `p-4 sm:p-6` and chart height to `h-[190px] sm:h-[220px]`.
+- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — *Modified.* Documented Section 5.16.6 "Responsive Donut Chart & Legend Architecture (`ExpenseDonutChart.jsx`)" establishing standards for mobile legend layout, center donut hole clearance, and responsive chart scaling.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Added session record detailing root cause analysis, implementation, automated CDP multi-viewport validation, and test results.
+
+#### 2. Key Implementation Details & Concepts
+- Root Cause Analysis:
+  - On mobile ($< 640\text{px}$), rigid `grid-cols-2` forced legend columns down to ~102px at 320px width, leaving only ~45px for category names after subtracting padding, color dot, and percentage badge. This forced text to truncate with ellipsis and crowd directly against the percentage numbers.
+  - Center summary text had `max-w-[110px]` inside a 116px inner circle (`innerRadius={58}`), putting corner coordinates of long amounts (e.g. `₹1,25,000`) dangerously close to or touching the inner slice boundaries.
+  - Header `flex items-center justify-between` caused title and total badge to collide at 320px.
+- Responsive Solution:
+  - Single-column legend on mobile provides 256px–360px per row, comfortably fitting category dot, full category title without truncation, itemized currency amount, and percentage badge.
+  - 3-column legend preserved on desktop (`sm:grid-cols-3`) with calibrated `text-[11px]` and `px-2` padding ensuring zero ellipsis truncation.
+  - Inner radius set to 54px with `max-w-[85px] sm:max-w-[105px]`, ensuring 15px+ clearance from the inner ring.
+
+#### 3. Verification & Testing Performed
+- Multi-Viewport Headless Browser CDP Inspection (`scratch/inspect_donut_chart.mjs`):
+  - 320px (iPhone SE narrow): Zero truncation, 256px pill width, full title + ₹ amount + percentage badge, zero collision. Captured `donut_320px.png`.
+  - 375px (iPhone standard): Zero truncation, 309px pill width. Captured `donut_375px.png`.
+  - 390px (iPhone 12/13/14): Zero truncation, 324px pill width. Captured `donut_390px.png`.
+  - 430px (iPhone Pro Max): Zero truncation, 364px pill width. Captured `donut_430px.png`.
+  - 768px (iPad portrait): 3 columns, ~220px per pill, zero truncation. Captured `donut_768px.png`.
+  - 1280px (Desktop): 3 columns, 174px per pill, "Activities & Tours" and all 6 categories 100% visible with zero truncation. Captured `donut_1280px.png`.
+- Automated Budget Visualization Test Suite (`scratch/test_day35_budget_visualization.mjs`):
+  - 94 passed, 0 failed across all 12 test suites (6 canonical categories, legacy alias isolation, percentages, zero-value categories, empty state, over-budget handling, multi-currency formatting, persistence reconciliation).
+- Code Quality & Linting:
+  - ESLint passed with 0 errors (`npm --prefix client exec eslint client/src/components/budget/ExpenseDonutChart.jsx`).
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- None. Doughnut chart is fully responsive, legible, and visually balanced across all viewports.
+
+---
+
 ### [2026-11-22] — UI/UX Improvement: Mobile Responsiveness and User Experience
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Improve the mobile experience across TripMind so the application feels polished, intuitive, responsive, and easy to use on smartphones across representative viewports: 320px, 375px, 390px, 430px, tablet (768px), and desktop (1280px+). Eliminate horizontal scrolling, optimize nested container padding, ensure accessible touch targets ($\ge 32-44\text{px}$), prevent modal clipping on short screens with `max-h-[92vh] overflow-y-auto`, eliminate Leaflet map scroll trapping on mobile with responsive height (`h-[280px] sm:h-[360px] lg:h-[400px]`), improve swipeable day tabs, and make mobile modal/banner action buttons full-width for effortless thumb reachability.

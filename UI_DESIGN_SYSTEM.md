@@ -469,5 +469,19 @@ The typographic identity balances literary prestige with modern legibility throu
 #### 5. Horizontal Tab Swiping
 - **Day Navigation Tabs:** Day navigation strips apply `overflow-x-auto scrollbar-none touch-pan-x pb-1.5`, ensuring seamless touch scrolling without obtrusive horizontal scrollbars.
 
+#### 6. Responsive Donut Chart & Legend Architecture (`ExpenseDonutChart.jsx`)
+- **Mobile First Legend Layout:**
+  - On mobile viewports ($< 640\text{px}$), the breakdown legend switches from a cramped multi-column grid to a spacious single-column list (`grid-cols-1 sm:grid-cols-3 gap-2`). This provides $> 250\text{px}$ width per pill even at 320px viewport width, completely eliminating label truncation (`isTruncated: false`) and preventing category names from colliding with numbers.
+  - Mobile legend pills display both the itemized currency amount (`{formatCurrency(item.value, currency)}`, hidden on desktop via `sm:hidden`) and percentage badge (`{item.percentage}%`), providing immediate financial visibility on touchscreens without requiring chart slice hovering.
+  - On desktop viewports ($\ge 640\text{px}$), the legend displays a clean 3-column symmetrical grid (`sm:grid-cols-3`) with compact 11px font (`text-[11px]`) and tight horizontal padding (`sm:px-2`), fitting long labels like "Activities & Tours" comfortably without truncation.
+- **Center Hole Clearance:**
+  - Inner radius calibrated to 54px (`innerRadius={54}`) and outer radius to 80px (`outerRadius={80}`).
+  - Total expenditure center text is constrained to `text-xs sm:text-sm md:text-base font-bold text-forest truncate max-w-[85px] sm:max-w-[105px]`, preserving $\ge 15\text{px}$ of circular breathing room from the inner donut ring and preventing text edges from touching or overlapping the SVG donut path.
+- **Header Adaptability:**
+  - Card header container enforces `flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-sage/40 mb-4`, allowing the total badge to wrap safely below the title on 320px screens (`self-start sm:self-auto`) without text collision.
+- **Responsive Heights:**
+  - Chart graphic canvas uses `h-[190px] sm:h-[220px]` with `ResponsiveContainer width="100%" height="100%"`, maintaining visual proportionality without vertical inflation.
+
+
 
 

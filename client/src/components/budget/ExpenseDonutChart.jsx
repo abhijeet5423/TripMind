@@ -56,18 +56,18 @@ export default function ExpenseDonutChart({
 
   return (
     <div
-      className="bg-white rounded-xl border border-sage/70 p-5 sm:p-6 shadow-[0_2px_8px_rgba(23,61,53,0.03)] flex flex-col justify-between"
+      className="bg-white rounded-xl border border-sage/70 p-4 sm:p-6 shadow-[0_2px_8px_rgba(23,61,53,0.03)] flex flex-col justify-between"
       role="region"
       aria-label="Expense Category Allocation Donut Chart"
     >
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-sage/40 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-sage/40 mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-sand-ivory border border-sage/60 flex items-center justify-center text-terracotta">
+          <div className="w-7 h-7 rounded-lg bg-sand-ivory border border-sage/60 flex items-center justify-center text-terracotta shrink-0">
             <PieIcon className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="font-serif text-lg font-bold text-forest">
+            <h4 className="font-serif text-base sm:text-lg font-bold text-forest leading-tight">
               Expense Allocation
             </h4>
             <p className="text-[11px] text-stone">
@@ -77,7 +77,7 @@ export default function ExpenseDonutChart({
         </div>
 
         {hasExpenses && (
-          <span className="text-xs font-semibold text-forest bg-sand-ivory border border-sage/60 px-2.5 py-1 rounded-full">
+          <span className="self-start sm:self-auto text-xs font-semibold text-forest bg-sand-ivory border border-sage/60 px-2.5 py-1 rounded-full shrink-0">
             {formatCurrency(totalEstimated, currency)}
           </span>
         )}
@@ -100,10 +100,10 @@ export default function ExpenseDonutChart({
       </div>
 
       {/* Chart Graphic Area */}
-      <div className="w-full flex items-center justify-center py-2 min-h-[220px]">
+      <div className="w-full flex items-center justify-center py-2 min-h-[190px] sm:min-h-[220px]">
         {hasExpenses ? (
-          <div className="w-full h-[220px] relative">
-            <ResponsiveContainer width="100%" height={220}>
+          <div className="w-full h-[190px] sm:h-[220px] relative">
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={activeSlices}
@@ -111,8 +111,8 @@ export default function ExpenseDonutChart({
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  innerRadius={58}
-                  outerRadius={85}
+                  innerRadius={54}
+                  outerRadius={80}
                   paddingAngle={activeSlices.length > 1 ? 3 : 0}
                   isAnimationActive={false}
                   stroke="#FFFFFF"
@@ -127,11 +127,11 @@ export default function ExpenseDonutChart({
             </ResponsiveContainer>
 
             {/* Centered Donut Summary */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-1">
               <span className="text-[10px] uppercase tracking-wider text-stone font-medium">
                 Total
               </span>
-              <span className="font-serif text-sm sm:text-base font-bold text-forest truncate max-w-[110px]">
+              <span className="font-serif text-xs sm:text-sm md:text-base font-bold text-forest truncate max-w-[85px] sm:max-w-[105px]">
                 {formatCurrency(totalEstimated, currency)}
               </span>
             </div>
@@ -154,11 +154,11 @@ export default function ExpenseDonutChart({
 
       {/* Legend & Breakdown Pills */}
       <div className="mt-4 pt-3 border-t border-sage/40">
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {chartData.map((item) => (
             <div
               key={item.key}
-              className={`flex items-center justify-between px-2 py-1.5 rounded-lg border text-xs transition-opacity ${
+              className={`flex items-center justify-between px-2.5 py-1.5 sm:px-2 rounded-lg border text-xs transition-opacity ${
                 item.value > 0
                   ? 'border-sage/50 bg-sand-ivory/30'
                   : 'border-sage/20 bg-sand-ivory/10 opacity-50'
@@ -169,13 +169,20 @@ export default function ExpenseDonutChart({
                   className="w-2 h-2 rounded-full shrink-0"
                   style={{ backgroundColor: item.color }}
                 />
-                <span className="text-[11px] font-medium text-stone truncate">
+                <span className="text-xs sm:text-[11px] font-medium text-stone truncate">
                   {item.name}
                 </span>
               </div>
-              <span className="font-serif text-xs font-bold text-forest shrink-0">
-                {item.value > 0 ? `${item.percentage}%` : '0%'}
-              </span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {item.value > 0 && (
+                  <span className="text-[11px] text-stone/80 font-medium sm:hidden">
+                    {formatCurrency(item.value, currency)}
+                  </span>
+                )}
+                <span className="font-serif text-xs font-bold text-forest shrink-0">
+                  {item.value > 0 ? `${item.percentage}%` : '0%'}
+                </span>
+              </div>
             </div>
           ))}
         </div>
