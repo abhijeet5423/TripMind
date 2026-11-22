@@ -254,13 +254,18 @@ export async function resendVerification(email) {
   user.emailVerificationExpires = tokenExpires
   await user.save()
 
-  await emailService.sendVerificationEmail({
-    to: user.email,
-    name: user.name,
-    token: rawVerificationToken,
-  })
-
-  return { sent: true }
+  try {
+    await emailService.sendVerificationEmail({
+      to: user.email,
+      name: user.name,
+      token: rawVerificationToken,
+    })
+    return { sent: true }
+  } catch (_deliveryError) {
+    // SECURITY: Preserve anti-enumeration response contract even when delivery fails or is unconfigured.
+    // Zero tokens, credentials, or sensitive URLs are logged.
+    return { sent: false, deliveryFailed: true }
+  }
 }
 
 /**
@@ -288,13 +293,18 @@ export async function forgotPassword(email) {
   user.passwordResetExpires = tokenExpires
   await user.save()
 
-  await emailService.sendPasswordResetEmail({
-    to: user.email,
-    name: user.name,
-    token: rawResetToken,
-  })
-
-  return { sent: true }
+  try {
+    await emailService.sendPasswordResetEmail({
+      to: user.email,
+      name: user.name,
+      token: rawResetToken,
+    })
+    return { sent: true }
+  } catch (_deliveryError) {
+    // SECURITY: Preserve anti-enumeration response contract even when delivery fails or is unconfigured.
+    // Zero tokens, credentials, or sensitive URLs are logged.
+    return { sent: false, deliveryFailed: true }
+  }
 }
 
 /**
@@ -348,6 +358,7 @@ export async function resetPassword({ token, newPassword }) {
   user.password = newPassword
   user.passwordResetTokenHash = undefined
   user.passwordResetExpires = undefined
+  // Set passwordChangedAt to current timestamp to invalidate all prior active JWT sessions
   user.passwordChangedAt = new Date()
 
   await user.save()

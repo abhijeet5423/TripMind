@@ -705,12 +705,19 @@
      - Login authorization logic evaluates `if (user.isEmailVerified === false)` (or `user.isVerified()`), grandfathering legacy accounts while strictly enforcing verification for newly registered accounts.
   4. **Single-Point Password Hashing:**
      - Password updates assign the plain text password to the user document and trigger `user.save()`, utilizing the single-point Mongoose `pre('save')` bcrypt hook and eliminating double-hashing vulnerabilities.
-  5. **Session Invalidation on Password Reset:**
-     - Calling `res.clearCookie('token', cookieOptions)` upon password reset terminates active client sessions on the resetting device.
+  5. **Cross-Device Session Invalidation on Password Reset (Day 54 Closeout):**
+     - In addition to calling `res.clearCookie('token', cookieOptions)` on the resetting device, password reset updates `user.passwordChangedAt = new Date()`.
+     - `authenticateToken` middleware compares JWT `decoded.iat` against `user.changedPasswordAfter(decoded.iat)`.
+     - Any token issued prior to the password reset is rejected across all devices with HTTP 401 `UNAUTHORIZED`, invalidating all active sessions without introducing stateful session storage.
   6. **Rate Limiting Protection:**
      - Tiered rate limiters: `forgotPasswordLimiter` (5 per 15 min), `resetPasswordLimiter` (10 per 15 min), `resendVerificationLimiter` (3 per 15 min), and `verifyEmailLimiter` (15 per 15 min).
-  7. **Transactional Email Service:**
-     - Implemented in `server/src/services/emailService.js` using Nodemailer with editorial HTML templates, zero sensitive data/token logging, mock transport hooks for testing, and silent development fallback when SMTP is not configured.
+  7. **Transactional Email Service & Delivery Fallback Audit (Day 54 Closeout):**
+     - Implemented in `server/src/services/emailService.js` using Nodemailer with editorial HTML templates and zero sensitive data/token logging.
+     - Mock transport (`setMockTransport`) is strictly forbidden in production (`throw` on `config.nodeEnv === 'production'`) and restricted to automated testing.
+     - Production never silently falls back to mock delivery.
+     - Missing SMTP configuration in production or local environments without mock transport correctly returns `false` on `isEmailConfigured()` and throws `503 EMAIL_SERVICE_UNCONFIGURED`.
+     - Registration rolls back user persistence if email delivery fails, preventing orphaned unverified accounts.
+     - Recovery flows (`forgotPassword`, `resendVerification`) safely catch transport failures and preserve generic HTTP 200 responses to maintain anti-enumeration contracts.
 - **Rationale:**
   - Guarantees high cryptographic security and compliance with OWASP password recovery guidelines.
   - Completely prevents account enumeration attacks.

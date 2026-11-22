@@ -831,7 +831,7 @@ TripMind's account recovery and email verification subsystems implement strict c
 - **Token Generation:** 32-byte cryptographically secure random values via `crypto.randomBytes(32).toString('hex')` (256 bits of entropy).
 - **One-Way Token Hashing:** Tokens are stored in MongoDB strictly as SHA-256 hashes (`hashToken(token)`). Plaintext tokens are never stored, logged, or returned in database queries (`select: false`).
 - **Token Expirations:** Verification tokens expire after 24 hours; password reset tokens expire after 30 minutes.
-- **Single-Use Atomic Consumption:** Email verification uses atomic MongoDB updates (`findOneAndUpdate` with `$unset`), eliminating race conditions and token replay. Password reset invalidates token fields and clears the current HttpOnly session cookie (`res.clearCookie('token', cookieOptions)`).
+- **Single-Use Atomic Consumption & Cross-Device Session Invalidation:** Email verification uses atomic MongoDB updates (`findOneAndUpdate` with `$unset`), eliminating race conditions and token replay. Password reset invalidates token fields, records `user.passwordChangedAt = new Date()`, and clears the resetting client's HttpOnly cookie (`res.clearCookie('token', cookieOptions)`). The `authenticateToken` middleware evaluates `user.changedPasswordAfter(decoded.iat)` on each authenticated request, invalidating any JWT session token issued prior to the password change across all devices with HTTP 401 `UNAUTHORIZED` (`Password was recently changed. Please log in again.`), achieving global revocation without stateful session stores or Redis.
 - **Anti-Enumeration Defense:** `POST /api/auth/forgot-password` and `POST /api/auth/resend-verification` return identical generic HTTP 200 responses regardless of whether the email address is registered, unverified, already verified, or unregistered.
 - **Dedicated Rate Limiting:**
   - `forgotPasswordLimiter`: 5 requests per 15 minutes per IP.
@@ -844,7 +844,7 @@ TripMind's account recovery and email verification subsystems implement strict c
 - **Transport Architecture:** Built on Nodemailer with standard SMTP configuration (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`).
 - **Templates:** Responsive editorial HTML email templates featuring TripMind's warm ivory palette (`#F7F5EF`), forest green buttons (`#173D35`), fallback copyable URLs, and clear expiration notices.
 - **Zero Token/Credential Logging:** Transporter errors and delivery results are logged with sanitized metadata; tokens and recipient credentials are never exposed in log output.
-- **Test & Development Fallback:** Provides mock hooks (`setMockTransport`, `resetMockTransport`) for automated testing and a silent dev fallback that prevents local development crashes when SMTP credentials are absent.
+- **Strict Testing Isolation & Production Safeguards:** Provides mock hooks (`setMockTransport`, `resetMockTransport`) strictly restricted to automated tests in non-production environments (`setMockTransport` explicitly throws if `config.nodeEnv === 'production'`). Production never silently falls back to mock delivery. When SMTP credentials are unconfigured and mock transport is absent, `isEmailConfigured()` returns `false` and `getTransporter()` throws HTTP 503 `EMAIL_SERVICE_UNCONFIGURED`. User registration safely rolls back MongoDB persistence upon delivery failure, while recovery endpoints (`forgotPassword`, `resendVerification`) catch delivery errors safely to maintain strict anti-enumeration contracts without leaking email existence or crashing.
 
 ---
 

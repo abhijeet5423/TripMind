@@ -140,6 +140,20 @@ userSchema.methods.isVerified = function () {
   return this.isEmailVerified !== false
 }
 
+/**
+ * Checks if the user changed their password after a given JWT was issued.
+ *
+ * @param {number} jwtIat - JWT 'iat' (issued at) timestamp in seconds.
+ * @returns {boolean} True if password was changed after token issuance.
+ */
+userSchema.methods.changedPasswordAfter = function (jwtIat) {
+  if (this.passwordChangedAt) {
+    const changedTimestamp = Math.floor(this.passwordChangedAt.getTime() / 1000)
+    return jwtIat < changedTimestamp
+  }
+  return false
+}
+
 const User = mongoose.model('User', userSchema)
 
 export default User

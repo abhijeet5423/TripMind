@@ -17,6 +17,9 @@ let mockTransport = null
  * @param {Object|null} mock - Mock transporter object or null to clear.
  */
 export function setMockTransport(mock) {
+  if (config.nodeEnv === 'production') {
+    throw new Error('Mock email transport is strictly forbidden in production')
+  }
   mockTransport = mock
 }
 
@@ -42,7 +45,8 @@ export function resetMockTransport() {
  * @returns {boolean} True if a mock transport or valid SMTP settings are configured.
  */
 export function isEmailConfigured() {
-  if (mockTransport) {
+  // Mock transport is strictly restricted to automated tests in non-production environments
+  if (mockTransport && config.nodeEnv !== 'production') {
     return true
   }
 
@@ -58,11 +62,6 @@ export function isEmailConfigured() {
     return true
   }
 
-  // Support silent fallback in test/dev environments so tests and local development without active SMTP credentials do not crash
-  if (config.nodeEnv !== 'production') {
-    return true
-  }
-
   return false
 }
 
@@ -72,7 +71,7 @@ export function isEmailConfigured() {
  * @returns {import('nodemailer').Transporter}
  */
 function getTransporter() {
-  if (mockTransport) {
+  if (mockTransport && config.nodeEnv !== 'production') {
     return mockTransport
   }
 
@@ -85,21 +84,6 @@ function getTransporter() {
   }
 
   const { smtpHost, smtpPort, smtpSecure, smtpUser, smtpPass } = config.email
-  if (
-    !smtpHost ||
-    !smtpUser ||
-    !smtpPass ||
-    smtpHost.includes('example.com') ||
-    smtpUser.includes('your_smtp') ||
-    smtpPass.includes('your_smtp')
-  ) {
-    // Development / Test fallback transport (dispatches silently without crashing)
-    return {
-      sendMail: async () => ({
-        messageId: `dev-fallback-${Date.now()}`,
-      }),
-    }
-  }
 
   return nodemailer.createTransport({
     host: smtpHost,

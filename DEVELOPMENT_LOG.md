@@ -33,6 +33,54 @@
 
 ## 2. Session History
 
+### [2026-11-22] — Day 54: Security Closeout, Cross-Device Session Invalidation & Full Regression Verification
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Complete Day 54 security audit, harden cross-device session invalidation, eliminate silent email fallback risks, verify production SMTP configuration readiness, and execute all mandated regression suites without skipping:
+  1. **Cross-Device Session Invalidation:** Added `changedPasswordAfter(jwtIat)` method to the User Mongoose schema. In `authService.resetPassword`, updated `user.passwordChangedAt = new Date()`. Converted `authenticateToken` middleware to evaluate `user.changedPasswordAfter(decoded.iat)`. Verified that existing active JWT cookies across other devices are immediately rejected with HTTP 401 `UNAUTHORIZED` (`Password was recently changed. Please log in again.`), while logins post-reset succeed seamlessly.
+  2. **Email Delivery Fallback Audit:** Audited `server/src/services/emailService.js`. Eliminated silent mock transport fallbacks in development and production. Hardened `setMockTransport` to throw an explicit error if invoked in `production`. Ensured `isEmailConfigured()` returns `false` when SMTP variables are absent and mock transport is not active. Configured `registerUser` to atomically roll back user creation on email failure to prevent orphaned unverified accounts. Hardened `forgotPassword` and `resendVerification` to safely catch transport failures without crashing or breaking the anti-enumeration contract.
+  3. **Regression Suite Execution & Parity Verification:** Executed all 8 required regression suites with exact assertion counts:
+     - Day 29 (`scratch/test_day29_frontend_itinerary.mjs`): **106 passed, 0 failed**
+     - Day 44 (`scratch/test_shareable_links.mjs`): **79 passed, 0 failed**
+     - Day 45 (`scratch/test_day45_dashboard.mjs`): **33 passed, 0 failed**
+     - Day 46 (`scratch/test_day46_security.mjs`): **39 passed, 0 failed**
+     - Day 47 (`scratch/test_day47_audit.mjs`): **71 passed, 0 failed**
+     - Day 48 (`scratch/test_day48_api_edge_cases.mjs`): **77 passed, 0 failed**
+     - Day 50 (`scratch/test_day50_backend_audit.mjs`): **42 passed, 0 failed**
+     - Day 54 (`scratch/test_day54_auth_flows.mjs`): **103 passed, 0 failed**
+     - Total: **550 passed, 0 failed**.
+  4. **Production Configuration Review:** Inspected environment templates and production configs. Verified that production SMTP variables (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`) are documented in `server/.env.example`. Confirmed that live production email delivery remains awaiting actual SMTP provider credentials without inventing mock credentials.
+- **Branch / Status:** `main` — Fully hardened, verified, passing 550 tests across 8 suites, lint clean, and build verified.
+
+#### 1. Files Created / Modified
+- [`server/src/models/User.js`](./server/src/models/User.js) — *Modified.* Added `userSchema.methods.changedPasswordAfter(jwtIat)` helper comparing integer seconds between JWT `iat` and `user.passwordChangedAt`.
+- [`server/src/middleware/authMiddleware.js`](./server/src/middleware/authMiddleware.js) — *Modified.* Converted `authenticateToken` to async, queried `user.passwordChangedAt`, and enforced cross-device session invalidation (HTTP 401 `UNAUTHORIZED`).
+- [`server/src/services/authService.js`](./server/src/services/authService.js) — *Modified.* Set `user.passwordChangedAt = new Date()` on `resetPassword`. Wrapped email delivery in `try/catch` in `forgotPassword` and `resendVerification` to preserve anti-enumeration.
+- [`server/src/services/emailService.js`](./server/src/services/emailService.js) — *Modified.* Enforced strict non-production constraint on `setMockTransport`, removed silent mock delivery fallbacks, and threw `503 EMAIL_SERVICE_UNCONFIGURED` when unconfigured.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — *Modified.* Documented cross-device session invalidation and strict email delivery fallback policies in Section 5.11.
+- [`DECISIONS.md`](./DECISIONS.md) — *Modified.* Updated ADR-030 points 5 and 7 to record cross-device session invalidation and email fallback audit rules.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Appended Day 54 Closeout session log.
+
+#### 2. Key Implementation Details & Concepts
+- **Cross-Device Session Invalidation without Redis/Stateful Sessions:** Preserves stateless JWT architecture (ADR-010) while providing cross-device session revocation via a single timestamp comparison (`jwtIat < changedTimestamp`).
+- **Strict Anti-Enumeration and Safe Fallback:** Delivery failures never expose account existence. Public responses remain HTTP 200 `{ success: true }`.
+- **Zero Real Emails in Automated Tests:** Automated regression tests run with in-memory mock transports without sending real network emails.
+
+#### 3. Verification & Testing Performed
+- **Day 54 Suite:** 103 passed, 0 failed (`scratch/test_day54_auth_flows.mjs`).
+- **Day 29 Suite:** 106 passed, 0 failed (`scratch/test_day29_frontend_itinerary.mjs`).
+- **Day 44 Suite:** 79 passed, 0 failed (`scratch/test_shareable_links.mjs`).
+- **Day 45 Suite:** 33 passed, 0 failed (`scratch/test_day45_dashboard.mjs`).
+- **Day 46 Suite:** 39 passed, 0 failed (`scratch/test_day46_security.mjs`).
+- **Day 47 Suite:** 71 passed, 0 failed (`scratch/test_day47_audit.mjs`).
+- **Day 48 Suite:** 77 passed, 0 failed (`scratch/test_day48_api_edge_cases.mjs`).
+- **Day 50 Suite:** 42 passed, 0 failed (`scratch/test_day50_backend_audit.mjs`).
+- **Client Build & Lint:** `npm --prefix client run lint` passed (0 errors, 0 warnings); `npm --prefix client run build` built in 2.54s.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Production SMTP Configuration:** Live email delivery is awaiting deployment of valid SMTP provider credentials (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`) in the hosting environment (e.g. Render / Brevo / SendGrid / Postmark).
+
+---
+
 ### [2026-11-22] — Day 54: Forgot Password, Password Reset, Email Verification & Resend Verification
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Upgrade TripMind's authentication system with production-grade self-service password recovery and email verification while preserving the existing HttpOnly cookie architecture (ADR-010), maintaining legacy user login compatibility for existing accounts in MongoDB Atlas, and enforcing anti-enumeration defenses:
