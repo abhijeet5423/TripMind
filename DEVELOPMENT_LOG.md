@@ -46,6 +46,7 @@
 - [`client/src/pages/TripDetailPage.jsx`](./client/src/pages/TripDetailPage.jsx) — Added responsive dual-photo plate (`grid-cols-1 sm:grid-cols-2`) and single-photo plate; implemented per-image error tracking (`imageErrors` map) with automatic fallback to an editorial Compass icon badge plate on broken URLs; ensured zero layout shift or empty plates for 0-image trips.
 - [`client/src/components/landing/HowItWorks.jsx`](./client/src/components/landing/HowItWorks.jsx) — Converted instructional steps to native CSS horizontal scroll carousel on mobile (< 768px) with `snap-x snap-mandatory`, `w-[82vw]` peek preview, and interactive terracotta (`#C25E3E`) dot indicators; preserved 5-column grid on desktop/tablet.
 - [`client/src/components/landing/DestinationDiscovery.jsx`](./client/src/components/landing/DestinationDiscovery.jsx) — Converted destination catalog to native CSS horizontal scroll carousel on mobile (< 768px) with `snap-x snap-mandatory`, `w-[84vw]` peek preview, and interactive forest green (`#173D35`) dot indicators; preserved 2/3-column grid on desktop/tablet; preserved all "Create Itinerary" preselection deep links.
+- [`client/src/components/assistant/AssistantLauncher.jsx`](./client/src/components/assistant/AssistantLauncher.jsx) — Added explicit `text-sand-ivory` class to `#assistant-launcher-title` `<h2>` heading, fixing root cause where global `h2` CSS rule (`color: var(--color-charcoal)`) overrode container inheritance on the `bg-forest` bar; elevated contrast ratio from 1.24:1 to 10.97:1 (exceeding WCAG AAA 7:1).
 - [`client/src/index.css`](./client/src/index.css) — Added `@utility no-scrollbar` utility to cleanly suppress scrollbars during horizontal carousel scrolling.
 - [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — Added Section 5.22: "Responsive Mobile Carousels and Itinerary Imagery Standards".
 - [`DECISIONS.md`](./DECISIONS.md) — Added ADR-028: "Destination Imagery Architecture, Mobile Scroll-Snap Carousels, and Database Index Optimization".
@@ -60,8 +61,10 @@
 - **Database Query Indexing:**
   - Added `{ userId: 1, status: 1, createdAt: -1 }` on `Trip` collection to optimize status-filtered queries (`status: upcoming`, `status: completed`, `status: draft`).
   - Confirmed partial index on `shareSettings.shareTokenHash` with `partialFilterExpression: { 'shareSettings.shareTokenHash': { $type: 'string' } }` preventing unshared trips from bloating index memory.
+- **AI Assistant Heading Contrast Optimization:** Fixed `#assistant-launcher-title` `<h2>` styling by adding `text-sand-ivory`. Resolved the root conflict where the global CSS `h1-h6` rule in `index.css` set dark charcoal (`#242923`) on headings, conflicting with the `bg-forest` (`#173D35`) bar. Contrast increased from 1.24:1 (failing) to 10.97:1 (exceeding WCAG AAA 7:1) across desktop and mobile.
 
 #### 3. Verification & Testing Performed
+- **AI Assistant Heading Contrast Suite (`scratch/test_assistant_heading_after.mjs`):** 13 Passed, 0 Failed. Confirmed exact computed color `rgb(247, 245, 239)` against background `rgb(23, 61, 53)` yielding 10.97:1 contrast ratio; verified desktop (1280px) and mobile drawer (375px) layouts, interactive close button focus/hover states, adjacent subtitle/sparkle icon contrast, and clean dialog dismissal.
 - **Automated Verification Suite (`scratch/test_day52_verification.mjs`):** 73 Passed, 0 Failed.
   - DB indexes verified: `{ userId: 1, createdAt: -1 }`, `{ userId: 1, status: 1, createdAt: -1 }`, `shareSettings.shareTokenHash` partial index, `User.email` unique index.
   - 5 test trips verified: 2 images, 1 image, 0 images, broken image URL fallback, older legacy trip.

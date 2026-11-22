@@ -165,7 +165,7 @@ export default function AssistantLauncher() {
               <div>
                 <h2
                   id="assistant-launcher-title"
-                  className="font-serif text-base sm:text-lg font-bold leading-tight"
+                  className="font-serif text-base sm:text-lg font-bold text-sand-ivory leading-tight"
                 >
                   TripMind Assistant
                 </h2>
