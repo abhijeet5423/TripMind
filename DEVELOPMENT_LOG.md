@@ -33,6 +33,39 @@
 
 ## 2. Session History
 
+### [2026-11-22] — Day 53: BorderTrail Placement & Color Correction Across Forms
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Correct the `BorderTrail` animation implementation across all TripMind forms: (1) Completely eliminate input-level animations, blue circular glows, and moving gradient spots behind placeholder and entered text across email, password, text inputs, textareas, and search fields; (2) Apply `BorderTrail` exclusively to the outer border perimeter of standalone form cards/containers (`LoginPage`, `RegisterPage`, `CreateTripModal`, `EditTripModal`, `AddActivityModal`, `EditActivityModal`); (3) Match the animation color to the primary button design token (`#173D35` / `var(--color-forest)` with `#2E5B3D` / olive grove transition); (4) Implement a dual-layer card architecture (`z-10` inner surface with backdrop blur) ensuring 0% background bleed into the card interior; (5) Restore clean static borders (`border-sage`) and brand focus rings (`focus:border-forest focus:ring-forest`), removing all misplaced `focus:border-blue-500` rings; (6) Verify responsiveness, accessibility (`prefers-reduced-motion`), and cross-device functionality.
+- **Branch / Status:** `main` — Fully implemented, verified, and passing 100%.
+
+#### 1. Files Created / Modified
+- [`client/src/components/core/border-trail.jsx`](./client/src/components/core/border-trail.jsx) — *Modified.* Updated default gradient class to deep forest green matching primary button design token: `bg-gradient-to-r from-forest via-[#2E5B3D] to-forest`, default `size = 80`, and 8s duration.
+- [`client/src/components/core/animated-form-field.jsx`](./client/src/components/core/animated-form-field.jsx) — *Modified.* Decommissioned internal `BorderTrail` rendering to ensure no input control is ever wrapped in an animated glow; retained clean backward-compatible static wrapper.
+- [`client/src/pages/LoginPage.jsx`](./client/src/pages/LoginPage.jsx) — *Modified.* Applied `BorderTrail` to the outer card perimeter (`p-[1.5px] rounded-xl overflow-hidden bg-sage/80 shadow-[0_12px_40px_rgba(16,45,39,0.35)]`) with `relative z-10 bg-white/95 backdrop-blur-md rounded-[10.5px]` inner card; removed input-level `AnimatedFormField` wrappers from email and password; restored clean static borders (`border-sage`) and brand focus states (`focus:border-forest focus:ring-forest`), completely eliminating blue focus rings.
+- [`client/src/pages/RegisterPage.jsx`](./client/src/pages/RegisterPage.jsx) — *Modified.* Applied `BorderTrail` to outer card perimeter; removed `AnimatedFormField` from name, email, and password; restored clean static borders and brand focus rings (`border-sage focus:border-forest focus:ring-forest`).
+- [`client/src/components/common/CreateTripModal.jsx`](./client/src/components/common/CreateTripModal.jsx) — *Modified.* Applied `BorderTrail` (`size={140}`) along outer modal dialog container; removed `AnimatedFormField` from `startingLocation` and `destination`; restored brand focus states (`focus:border-forest focus:ring-forest`).
+- [`client/src/components/common/EditTripModal.jsx`](./client/src/components/common/EditTripModal.jsx) — *Modified.* Applied `BorderTrail` (`size={140}`) along outer modal dialog container; removed `AnimatedFormField` from `startingLocation` and `destination`; restored brand focus states (`focus:border-forest focus:ring-forest`).
+- [`client/src/components/itinerary/AddActivityModal.jsx`](./client/src/components/itinerary/AddActivityModal.jsx) — *Modified.* Applied `BorderTrail` (`size={120}`) along outer modal card; removed `AnimatedFormField` from `title` and `locationName`; replaced blue focus states with `focus:ring-forest focus:border-forest`.
+- [`client/src/components/itinerary/EditActivityModal.jsx`](./client/src/components/itinerary/EditActivityModal.jsx) — *Modified.* Applied `BorderTrail` (`size={120}`) along outer modal card; removed `AnimatedFormField` from `title` and `locationName`; replaced blue focus states with `focus:ring-forest focus:border-forest`.
+- [`client/src/components/dashboard/CorkBoard.jsx`](./client/src/components/dashboard/CorkBoard.jsx) — *Modified.* Removed `AnimatedFormField` around search input; replaced blue focus ring with `focus:ring-forest focus:border-forest`.
+- [`UI_MOTION_GUIDELINES.md`](./UI_MOTION_GUIDELINES.md) — *Modified.* Updated Section 3 Catalog and Section 3.C to codify the Form Card Container BorderTrail standard (outer card only, deep forest green, zero input glow).
+- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — *Modified.* Updated Section 5.21 and added Section 5.24 documenting Form Card BorderTrail architecture and input control hygiene standards.
+- [`scratch/test_bordertrail_correction.mjs`](./scratch/test_bordertrail_correction.mjs) — *Created.* Automated 26-assertion Edge CDP verification suite verifying outer card BorderTrail, deep green primary button color, zero blue focus/trail, clean static inputs, text entry, mobile responsiveness, and `prefers-reduced-motion` compliance.
+
+#### 2. Key Implementation Details & Concepts
+- **Outer Perimeter Architecture:** The moving trail element runs along the outer perimeter of the card container using `offsetPath: 'rect(0 100% 100% 0 round inherit)'`. The inner card container uses `relative z-10 bg-white/95 backdrop-blur-md` (or `bg-white`), completely concealing the inner half of the motion circle and allowing only the 1.5px border channel to illuminate.
+- **Brand Color Harmonization:** The trail color directly matches TripMind's primary button token (`#173D35` / `var(--color-forest)` with `#2E5B3D` / olive grove transition). Bright blue and rainbow colors are strictly banned.
+- **Input Field De-Animation:** All individual input controls (`email`, `password`, `text`, `search`, `textarea`) now feature normal clean static borders (`border-sage`) and brand focus states (`border-sage focus:border-forest focus:ring-forest`).
+- **Accessibility & Non-Interference:** `BorderTrail` enforces `pointer-events-none` so clicks pass freely to the form. It cleanly unmounts when `prefers-reduced-motion: reduce` is detected.
+
+#### 3. Verification & Testing Performed
+- **Automated Verification Suite (`scratch/test_bordertrail_correction.mjs`):** 26 Passed, 0 Failed.
+- **Day 53 Regression Suite (`scratch/test_day53_verification.mjs`):** 43 Passed, 0 Failed.
+- **Production Build (`npm --prefix client run build`):** Built cleanly in 1.15s with zero errors.
+- **Linter Check (`npx --prefix client eslint ...`):** Zero errors, zero warnings across all modified files.
+
+---
+
 ### [2026-11-22] — Day 53: Homepage Storytelling, About Us & Footer Polish
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Complete Day 53 development deliverables: (1) Redesign and rename the existing "How It Works" / "How to Use TripMind" homepage section to "From Inspiration to Itinerary." under "The Journey Unfolds", streamlining explanatory copy and adding an interactive desktop progression track; (2) Create a dedicated About Us page (`/about`) explaining TripMind's purpose, problem/solution, 6 core capabilities, and field journal design philosophy with curated photography and zero fictional claims; (3) Redesign the website footer with clean information architecture, valid navigation links, and a memorable brand sign-off ("Ready. Steady. Go."); (4) Review and harmonize desktop and mobile navigation with active state indicators and zero broken links; (5) Execute comprehensive regression, accessibility, and multi-viewport testing across 7 viewports (320px to 1920px).

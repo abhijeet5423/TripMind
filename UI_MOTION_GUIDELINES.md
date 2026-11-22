@@ -51,7 +51,7 @@ The following reusable motion patterns and component specifications represent th
 +---------------------+-------------------------------+-----------------------------+
 | AnimatedBackground  | Desktop Navbar Navigation     | 300ms spring hover pill     |
 | BorderTrail (Card)  | Selected Dashboard Hero Cards | Restrained brand border run |
-| BorderTrail (Form)  | Active Input Focus Rings      | Single-pass focus highlight |
+| BorderTrail (Form)  | Outer Form Card Perimeter     | Deep-forest green card glow |
 | TextEffect          | Landing Hero Heading          | One-time staggered entrance |
 | ScrollProgress      | Landing & Itinerary Views     | 2-3px viewport progress bar |
 | Tilt                | Destination Discovery Cards   | 4-5 deg cursor-driven tilt  |
@@ -90,18 +90,26 @@ The following reusable motion patterns and component specifications represent th
 
 ---
 
-### C. Animated Form Borders
+### C. Form Card Container BorderTrail (Corrected Day 53 Standard)
 
-- **Reference Component:** `BorderTrail` / Focused Field Micro-Choreography
-- **Application Target:** Interactive form input fields across modals and authentication forms (`CreateTripModal`, `EditTripModal`, `LoginPage`, `RegisterPage`).
-- **Functional Purpose:** Confirms active focus state and guides the traveler's attention to the active typing field.
-- **Behavioral Rules:**
-  - **Focus-Triggered Only:** Animates once upon element focus (`:focus-within`). Inactive fields remain strictly static.
-  - **Validation Precedence:** Form validation and semantic feedback take absolute priority:
-    - **Error State:** Border instantly transitions to static `border-burnt-crimson` with accessible error text. The animation is immediately suppressed.
-    - **Success State:** Border reflects static `border-olive-grove`.
-    - **Disabled State:** Border reflects static muted `border-sage/40`.
-- **Motion Intensity:** **Low**.
+- **Reference Component:** `BorderTrail` (`client/src/components/core/border-trail.jsx`)
+- **Application Target:** Standalone form card containers and modal dialog cards (`LoginPage`, `RegisterPage`, `CreateTripModal`, `EditTripModal`, `AddActivityModal`, `EditActivityModal`).
+- **Core Visual Requirement:** The animated effect travels exclusively along the **outer border perimeter** of the form card container, cleanly following its rounded corners. It is **strictly prohibited** around individual input controls, placeholders, textareas, search fields, or individual field wrappers.
+- **Color Harmony:**
+  - Must match TripMind's primary button design token (`#173D35` / `var(--color-forest)`).
+  - Employs a restrained deep forest green gradient: `bg-gradient-to-r from-forest via-[#2E5B3D] to-forest` (with `#2E5B3D` / olive grove as a subtle transition shade).
+  - Strictly eliminates any previous bright blue or unrelated accent gradients.
+- **Surface Cleanliness (No Background Bleed):**
+  - The card's background remains completely clean, solid, and unchanged (`bg-white/95 backdrop-blur-md` on auth pages, `bg-white` on modals).
+  - Implemented via a dual-layer container pattern: the outer shell hosts the `BorderTrail` with 1.5px padding, while an inner container with `relative z-10` sits above the moving trail, ensuring the interior dot is completely hidden and only the 1.5px perimeter channel glows.
+- **Input Field Treatment:**
+  - Individual form controls retain normal, clean static borders (`border-sage`).
+  - Focus states use brand-aligned forest green (`border-sage focus:border-forest focus:ring-forest`), eliminating any blue focus rings.
+  - Zero glow, dot, or moving gradient behind placeholder text or entered content.
+- **Technical Safeguards:**
+  - `pointer-events-none` guarantees zero interception of clicks or input interactions.
+  - Immediate suppression under `prefers-reduced-motion: reduce`.
+  - Zero layout shifts; identical responsive dimensions across desktop and mobile.
 
 ---
 

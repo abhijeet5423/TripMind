@@ -11,7 +11,7 @@ import {
   Check,
 } from 'lucide-react'
 import Button from './Button.jsx'
-import AnimatedFormField from '../core/animated-form-field.jsx'
+import BorderTrail from '../core/border-trail.jsx'
 import { useTrip } from '../../hooks/useTrip.js'
 
 const VALID_PACES = ['relaxed', 'moderate', 'fast-paced']
@@ -629,8 +629,14 @@ function EditTripDialog({ trip, onClose, onSuccess }) {
       aria-modal="true"
       aria-labelledby="edit-trip-modal-title"
     >
-      <div className="relative w-full max-w-2xl bg-white rounded-xl border border-sage shadow-[0_12px_40px_rgba(23,61,53,0.12)] flex flex-col max-h-[90vh] overflow-hidden">
-        {/* Modal Header */}
+      <div className="relative w-full max-w-2xl rounded-xl p-[1.5px] overflow-hidden bg-sage/80 shadow-[0_12px_40px_rgba(23,61,53,0.12)] flex flex-col max-h-[90vh]">
+        <BorderTrail
+          className="bg-gradient-to-r from-forest via-[#2E5B3D] to-forest"
+          size={140}
+          transition={{ duration: 10, ease: 'linear', repeat: Infinity }}
+        />
+        <div className="relative z-10 w-full h-full bg-white rounded-[10.5px] overflow-hidden flex flex-col max-h-[calc(90vh-3px)]">
+          {/* Modal Header */}
         <div className="px-6 py-5 border-b border-sage flex items-start justify-between bg-sand-ivory/50">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -763,23 +769,21 @@ function EditTripDialog({ trip, onClose, onSuccess }) {
                   >
                     Origin (Starting Location) <span className="text-terracotta">*</span>
                   </label>
-                  <AnimatedFormField hasError={Boolean(errors.startingLocation)} disabled={isUpdating}>
-                    <input
-                      ref={firstInputRef}
-                      type="text"
-                      id="edit-startingLocation"
-                      name="startingLocation"
-                      value={formData.startingLocation}
-                      onChange={handleChange}
-                      disabled={isUpdating}
-                      placeholder="e.g. San Francisco, CA"
-                      className={`w-full px-3.5 py-2.5 rounded-lg border bg-white text-sm text-charcoal font-sans transition-all focus:outline-none focus:ring-1 ${
-                        errors.startingLocation
-                          ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
-                          : 'border-sage focus:border-blue-500 focus:ring-blue-500'
-                      }`}
-                    />
-                  </AnimatedFormField>
+                  <input
+                    ref={firstInputRef}
+                    type="text"
+                    id="edit-startingLocation"
+                    name="startingLocation"
+                    value={formData.startingLocation}
+                    onChange={handleChange}
+                    disabled={isUpdating}
+                    placeholder="e.g. San Francisco, CA"
+                    className={`w-full px-3.5 py-2.5 rounded-lg border bg-white text-sm text-charcoal font-sans transition-all focus:outline-none focus:ring-1 ${
+                      errors.startingLocation
+                        ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
+                        : 'border-sage focus:border-forest focus:ring-forest'
+                    }`}
+                  />
                   {errors.startingLocation && (
                     <p className="mt-1 text-xs text-burnt-crimson flex items-center gap-1 font-medium">
                       <AlertCircle className="w-3 h-3" />
@@ -795,22 +799,20 @@ function EditTripDialog({ trip, onClose, onSuccess }) {
                   >
                     Destination <span className="text-terracotta">*</span>
                   </label>
-                  <AnimatedFormField hasError={Boolean(errors.destination)} disabled={isUpdating}>
-                    <input
-                      type="text"
-                      id="edit-destination"
-                      name="destination"
-                      value={formData.destination}
-                      onChange={handleChange}
-                      disabled={isUpdating}
-                      placeholder="e.g. Kyoto, Japan"
-                      className={`w-full px-3.5 py-2.5 rounded-lg border bg-white text-sm text-charcoal font-sans transition-all focus:outline-none focus:ring-1 ${
-                        errors.destination
-                          ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
-                          : 'border-sage focus:border-blue-500 focus:ring-blue-500'
-                      }`}
-                    />
-                  </AnimatedFormField>
+                  <input
+                    type="text"
+                    id="edit-destination"
+                    name="destination"
+                    value={formData.destination}
+                    onChange={handleChange}
+                    disabled={isUpdating}
+                    placeholder="e.g. Kyoto, Japan"
+                    className={`w-full px-3.5 py-2.5 rounded-lg border bg-white text-sm text-charcoal font-sans transition-all focus:outline-none focus:ring-1 ${
+                      errors.destination
+                        ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
+                        : 'border-sage focus:border-forest focus:ring-forest'
+                    }`}
+                  />
                   {errors.destination && (
                     <p className="mt-1 text-xs text-burnt-crimson flex items-center gap-1 font-medium">
                       <AlertCircle className="w-3 h-3" />
@@ -1361,6 +1363,7 @@ function EditTripDialog({ trip, onClose, onSuccess }) {
         </div>
       </div>
     </div>
+  </div>
   )
 }
 

@@ -4,7 +4,7 @@ import { Eye, EyeOff, AlertCircle, ArrowLeft, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 import Container from '../components/common/Container.jsx'
 import Button from '../components/common/Button.jsx'
-import AnimatedFormField from '../components/core/animated-form-field.jsx'
+import BorderTrail from '../components/core/border-trail.jsx'
 import authBackdrop from '../assets/tama66-night-sky-10506842.jpg'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -120,43 +120,48 @@ export default function LoginPage() {
         </div>
 
         {/* Card Shell */}
-        <div className="max-w-md w-full mx-auto bg-white/95 backdrop-blur-md rounded-xl border border-sage/80 p-6 sm:p-8 shadow-[0_12px_40px_rgba(16,45,39,0.35)]">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <Link to="/" className="inline-flex items-center gap-1.5 mb-3 group focus:outline-none">
-              <span className="font-serif text-3xl font-bold tracking-tight text-forest group-hover:text-forest-dark transition-colors">
-                TripMind
-              </span>
-              <span className="inline-block w-2 h-2 rounded-full bg-terracotta" />
-            </Link>
-            <h1 className="font-serif text-2xl font-bold text-forest">Welcome Back</h1>
-            <p className="font-sans text-sm text-stone mt-1">
-              Sign in to continue planning your mindful journeys
-            </p>
-          </div>
-
-          {/* API Error Alert */}
-          {apiError && (
-            <div
-              className="mb-6 p-3.5 rounded-lg bg-burnt-crimson/10 border border-burnt-crimson/25 text-burnt-crimson text-sm flex items-start gap-2.5 animate-fadeIn"
-              role="alert"
-            >
-              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-              <span>{apiError}</span>
+        <div className="max-w-md w-full mx-auto relative rounded-xl p-[1.5px] overflow-hidden bg-sage/80 shadow-[0_12px_40px_rgba(16,45,39,0.35)]">
+          <BorderTrail
+            className="bg-gradient-to-r from-forest via-[#2E5B3D] to-forest"
+            size={120}
+            transition={{ duration: 8, ease: 'linear', repeat: Infinity }}
+          />
+          <div className="relative z-10 w-full bg-white/95 backdrop-blur-md rounded-[10.5px] p-6 sm:p-8">
+            {/* Header */}
+            <div className="text-center mb-8">
+              <Link to="/" className="inline-flex items-center gap-1.5 mb-3 group focus:outline-none">
+                <span className="font-serif text-3xl font-bold tracking-tight text-forest group-hover:text-forest-dark transition-colors">
+                  TripMind
+                </span>
+                <span className="inline-block w-2 h-2 rounded-full bg-terracotta" />
+              </Link>
+              <h1 className="font-serif text-2xl font-bold text-forest">Welcome Back</h1>
+              <p className="font-sans text-sm text-stone mt-1">
+                Sign in to continue planning your mindful journeys
+              </p>
             </div>
-          )}
 
-          {/* Login Form */}
-          <form onSubmit={handleSubmit} noValidate className="space-y-5">
-            {/* Email Field */}
-            <div>
-              <label
-                htmlFor="email"
-                className="text-xs font-semibold uppercase tracking-wider text-stone mb-1.5 block"
+            {/* API Error Alert */}
+            {apiError && (
+              <div
+                className="mb-6 p-3.5 rounded-lg bg-burnt-crimson/10 border border-burnt-crimson/25 text-burnt-crimson text-sm flex items-start gap-2.5 animate-fadeIn"
+                role="alert"
               >
-                Email Address
-              </label>
-              <AnimatedFormField hasError={Boolean(errors.email)} disabled={isSubmitting}>
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                <span>{apiError}</span>
+              </div>
+            )}
+
+            {/* Login Form */}
+            <form onSubmit={handleSubmit} noValidate className="space-y-5">
+              {/* Email Field */}
+              <div>
+                <label
+                  htmlFor="email"
+                  className="text-xs font-semibold uppercase tracking-wider text-stone mb-1.5 block"
+                >
+                  Email Address
+                </label>
                 <input
                   id="email"
                   name="email"
@@ -170,30 +175,28 @@ export default function LoginPage() {
                   className={`w-full px-4 py-2.5 rounded-lg border bg-white text-charcoal font-sans text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors ${
                     errors.email
                       ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
-                      : 'border-sage focus:border-blue-500 focus:ring-blue-500'
+                      : 'border-sage focus:border-forest focus:ring-forest'
                   }`}
                   aria-invalid={Boolean(errors.email)}
                   aria-describedby={errors.email ? 'email-error' : undefined}
                 />
-              </AnimatedFormField>
-              {errors.email && (
-                <p id="email-error" className="text-xs text-burnt-crimson mt-1 font-medium">
-                  {errors.email}
-                </p>
-              )}
-            </div>
-
-            {/* Password Field */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label
-                  htmlFor="password"
-                  className="text-xs font-semibold uppercase tracking-wider text-stone block"
-                >
-                  Password
-                </label>
+                {errors.email && (
+                  <p id="email-error" className="text-xs text-burnt-crimson mt-1 font-medium">
+                    {errors.email}
+                  </p>
+                )}
               </div>
-              <AnimatedFormField hasError={Boolean(errors.password)} disabled={isSubmitting}>
+
+              {/* Password Field */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label
+                    htmlFor="password"
+                    className="text-xs font-semibold uppercase tracking-wider text-stone block"
+                  >
+                    Password
+                  </label>
+                </div>
                 <div className="relative">
                   <input
                     id="password"
@@ -208,7 +211,7 @@ export default function LoginPage() {
                     className={`w-full pl-4 pr-11 py-2.5 rounded-lg border bg-white text-charcoal font-sans text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors ${
                       errors.password
                         ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
-                        : 'border-sage focus:border-blue-500 focus:ring-blue-500'
+                        : 'border-sage focus:border-forest focus:ring-forest'
                     }`}
                     aria-invalid={Boolean(errors.password)}
                     aria-describedby={errors.password ? 'password-error' : undefined}
@@ -223,44 +226,44 @@ export default function LoginPage() {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-              </AnimatedFormField>
-              {errors.password && (
-                <p id="password-error" className="text-xs text-burnt-crimson mt-1 font-medium">
-                  {errors.password}
-                </p>
-              )}
-            </div>
+                {errors.password && (
+                  <p id="password-error" className="text-xs text-burnt-crimson mt-1 font-medium">
+                    {errors.password}
+                  </p>
+                )}
+              </div>
 
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              variant="primary"
-              size="md"
-              disabled={isSubmitting}
-              className="w-full justify-center mt-2"
-            >
-              {isSubmitting ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Signing In...
-                </span>
-              ) : (
-                'Sign In'
-              )}
-            </Button>
-          </form>
-
-          {/* Footer Link */}
-          <div className="mt-8 pt-6 border-t border-sage text-center">
-            <p className="text-sm font-sans text-stone">
-              New to TripMind?{' '}
-              <Link
-                to={destParam ? `/register?destination=${encodeURIComponent(destParam)}` : '/register'}
-                className="text-terracotta hover:text-terracotta-dark font-medium transition-colors"
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                variant="primary"
+                size="md"
+                disabled={isSubmitting}
+                className="w-full justify-center mt-2"
               >
-                Create an account
-              </Link>
-            </p>
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Signing In...
+                  </span>
+                ) : (
+                  'Sign In'
+                )}
+              </Button>
+            </form>
+
+            {/* Footer Link */}
+            <div className="mt-8 pt-6 border-t border-sage text-center">
+              <p className="text-sm font-sans text-stone">
+                New to TripMind?{' '}
+                <Link
+                  to={destParam ? `/register?destination=${encodeURIComponent(destParam)}` : '/register'}
+                  className="text-terracotta hover:text-terracotta-dark font-medium transition-colors"
+                >
+                  Create an account
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
       </Container>

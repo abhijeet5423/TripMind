@@ -14,7 +14,7 @@ import {
   Edit3,
 } from 'lucide-react'
 import Button from './Button.jsx'
-import AnimatedFormField from '../core/animated-form-field.jsx'
+import BorderTrail from '../core/border-trail.jsx'
 import { useTrip } from '../../hooks/useTrip.js'
 
 const INITIAL_FORM_STATE = {
@@ -561,10 +561,16 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
     >
       <div
         ref={modalRef}
-        className="relative w-full max-w-2xl lg:max-w-3xl bg-white rounded-2xl border border-sage shadow-[0_24px_64px_rgba(23,61,53,0.18)] overflow-hidden my-auto max-h-[94vh] flex flex-col font-sans text-charcoal"
+        className="relative w-full max-w-2xl lg:max-w-3xl rounded-2xl p-[1.5px] overflow-hidden bg-sage/80 shadow-[0_24px_64px_rgba(23,61,53,0.18)] my-auto max-h-[94vh] flex flex-col font-sans text-charcoal"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Step 3. Progress Indicator Header (Essential Requirement) */}
+        <BorderTrail
+          className="bg-gradient-to-r from-forest via-[#2E5B3D] to-forest"
+          size={140}
+          transition={{ duration: 10, ease: 'linear', repeat: Infinity }}
+        />
+        <div className="relative z-10 w-full h-full bg-white rounded-[14.5px] overflow-hidden flex flex-col max-h-[calc(94vh-3px)]">
+          {/* Step 3. Progress Indicator Header (Essential Requirement) */}
         <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-sand-ivory/60 border-b border-sage/60">
           <div className="flex items-center justify-between gap-3 mb-2.5">
             <div>
@@ -685,25 +691,23 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
                     <span className="w-2 h-2 rounded-full bg-stone" />
                     <span>Origin / Starting Location <span className="text-terracotta">*</span></span>
                   </label>
-                  <AnimatedFormField hasError={Boolean(errors.startingLocation)} disabled={isCreating}>
-                    <input
-                      ref={firstInputRef}
-                      id="startingLocation"
-                      name="startingLocation"
-                      type="text"
-                      required
-                      disabled={isCreating}
-                      value={formData.startingLocation}
-                      onChange={handleChange}
-                      placeholder="e.g. San Francisco, CA or London, UK"
-                      className={`w-full px-4 py-2.5 rounded-lg border bg-white text-charcoal text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors ${
-                        errors.startingLocation
-                          ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
-                          : 'border-sage focus:border-blue-500 focus:ring-blue-500'
-                      }`}
-                      aria-invalid={Boolean(errors.startingLocation)}
-                    />
-                  </AnimatedFormField>
+                  <input
+                    ref={firstInputRef}
+                    id="startingLocation"
+                    name="startingLocation"
+                    type="text"
+                    required
+                    disabled={isCreating}
+                    value={formData.startingLocation}
+                    onChange={handleChange}
+                    placeholder="e.g. San Francisco, CA or London, UK"
+                    className={`w-full px-4 py-2.5 rounded-lg border bg-white text-charcoal text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors ${
+                      errors.startingLocation
+                        ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
+                        : 'border-sage focus:border-forest focus:ring-forest'
+                    }`}
+                    aria-invalid={Boolean(errors.startingLocation)}
+                  />
                   {errors.startingLocation && (
                     <p className="text-xs text-burnt-crimson mt-1 font-medium">
                       {errors.startingLocation}
@@ -725,24 +729,22 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
                       Focal Point
                     </span>
                   </div>
-                  <AnimatedFormField hasError={Boolean(errors.destination)} disabled={isCreating}>
-                    <input
-                      id="destination"
-                      name="destination"
-                      type="text"
-                      required
-                      disabled={isCreating}
-                      value={formData.destination}
-                      onChange={handleChange}
-                      placeholder="e.g. Kyoto, Japan or Amalfi Coast, Italy"
-                      className={`w-full px-4 py-3 rounded-lg border bg-white text-charcoal font-serif text-base sm:text-lg placeholder:font-sans placeholder:text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors shadow-2xs ${
-                        errors.destination
-                          ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
-                          : 'border-forest/40 focus:border-blue-500 focus:ring-blue-500'
-                      }`}
-                      aria-invalid={Boolean(errors.destination)}
-                    />
-                  </AnimatedFormField>
+                  <input
+                    id="destination"
+                    name="destination"
+                    type="text"
+                    required
+                    disabled={isCreating}
+                    value={formData.destination}
+                    onChange={handleChange}
+                    placeholder="e.g. Kyoto, Japan or Amalfi Coast, Italy"
+                    className={`w-full px-4 py-3 rounded-lg border bg-white text-charcoal font-serif text-base sm:text-lg placeholder:font-sans placeholder:text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors shadow-2xs ${
+                      errors.destination
+                        ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
+                        : 'border-forest/40 focus:border-forest focus:ring-forest'
+                    }`}
+                    aria-invalid={Boolean(errors.destination)}
+                  />
                   {errors.destination && (
                     <p className="text-xs text-burnt-crimson mt-1 font-medium">
                       {errors.destination}
@@ -1462,5 +1464,6 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
         </div>
       </div>
     </div>
+  </div>
   )
 }

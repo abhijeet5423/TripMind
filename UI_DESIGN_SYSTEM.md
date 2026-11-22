@@ -602,7 +602,7 @@ TripMind adheres to a calm, purposeful motion architecture powered by `motion` (
 | :--- | :--- | :--- | :--- |
 | `AnimatedBackground` | Desktop Navbar (`Navbar.jsx`) | Fluid spatial indicator for hovered nav item | 300ms spring (`bounce: 0.15`), `layoutId` pill |
 | `BorderTrail` | Featured Noticeboard Card (`PinnedTripCard.jsx`) | Subtle visual framing on high-priority journey | 6s loop, `offset-path: rect()`, max 1 per viewport |
-| `AnimatedFormField` | Form inputs across all modals and auth pages | Confirms active input focus state | Activates `BorderTrail` on focus; suppressed on error |
+| `BorderTrail (Form Card)` | Outer Form Card Containers (`LoginPage`, `RegisterPage`, Modals) | Ambient perimeter framing matching primary button | 8s loop, deep forest green gradient (`from-forest via-[#2E5B3D] to-forest`), outer border only |
 | `TextEffect` | Hero Heading (`Hero.jsx`) | Literary staggered entrance for headline | 3D `rotateX: 90 -> 0`, 0.04s char stagger, 0.2s duration |
 | `ScrollProgress` | Landing & Itinerary pages | Global reading orientation and scroll depth | 2.5px top bar, `useScroll` + `useSpring` |
 | `Tilt` | Destination Discovery Cards (`DestinationCard.jsx`) | Subtle tactile feedback on hover | Max 4.5° 3D perspective tilt, pointer-fine gated |
@@ -681,6 +681,30 @@ To eliminate mobile page scroll fatigue while preserving desktop layout density,
   - Removed all dead, phantom anchors (`/#itineraries`, `/#budget`).
   - Categorized into 3 logical columns: *Explore* (The Journey, Curated Destinations, My Journal, About TripMind), *Capabilities* (AI Curation, Interactive Mapping, Budget Intelligence, Public Sharing), and *Data & Attribution* (OpenStreetMap attribution with external link icon, session security disclosure).
   - All internal links route via React Router `<Link to="...">`, while section anchors (`/#how-it-works`, `/#destinations`) cleanly navigate from any page.
+
+---
+
+### 5.24 Form Card BorderTrail & Control Hygiene Standards
+
+#### 1. Architectural Placement: Outer Card Perimeter Only
+The `BorderTrail` animation is strictly reserved for the **outer perimeter of prominent form card containers** and standalone modal dialogs (`LoginPage`, `RegisterPage`, `CreateTripModal`, `EditTripModal`, `AddActivityModal`, `EditActivityModal`).
+- **Never Input-Level:** Prohibited from being applied around individual text inputs, passwords, emails, textareas, search bars, or individual field wrappers.
+- **Zero Input Glow:** Strictly eliminates any glowing dots, moving gradient spots, or pulsing highlights behind placeholder text or entered content.
+
+#### 2. Color Harmonization with Primary Button
+The `BorderTrail` animation color is synchronized with TripMind's primary button token (`#173D35` / `var(--color-forest)`):
+- **Gradient Tokens:** `bg-gradient-to-r from-forest via-[#2E5B3D] to-forest` (utilizing `#2E5B3D` / olive grove as a soft transitional bridge).
+- **Restraint:** Bright blue, indigo, or rainbow gradients are strictly banned.
+
+#### 3. Dual-Layer Card Architecture
+To prevent gradient bleed into the card's surface:
+- **Outer Shell:** `relative rounded-xl p-[1.5px] overflow-hidden bg-sage/80 shadow-[0_12px_40px_rgba(16,45,39,0.35)]` hosting `<BorderTrail size={120} />`.
+- **Inner Surface:** `relative z-10 w-full h-full bg-white/95 backdrop-blur-md rounded-[10.5px] p-6 sm:p-8`.
+- The inner surface fully covers the interior travel of the motion trail, allowing only the 1.5px border channel to illuminate along the card's outer perimeter.
+
+#### 4. Clean Static Inputs & Brand Focus States
+- All input fields retain clean static borders (`border-sage`).
+- Focus states utilize TripMind forest green (`border-sage focus:border-forest focus:ring-forest`), removing any misplaced blue rings.
 
 
 

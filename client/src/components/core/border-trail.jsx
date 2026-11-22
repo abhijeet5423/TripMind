@@ -17,10 +17,10 @@ import { motion } from 'motion/react'
  * @param {number} [props.delay=0] - Initial start delay.
  */
 export default function BorderTrail({
-  className = '',
-  size = 60,
+  className = 'bg-gradient-to-r from-forest via-[#2E5B3D] to-forest',
+  size = 80,
   transition = {
-    duration: 6,
+    duration: 8,
     ease: 'linear',
     repeat: Infinity,
   },

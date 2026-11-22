@@ -13,7 +13,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import Button from '../common/Button.jsx'
-import AnimatedFormField from '../core/animated-form-field.jsx'
+import BorderTrail from '../core/border-trail.jsx'
 
 const CATEGORY_OPTIONS = [
   { value: 'activity', label: 'Attraction / Culture', icon: Compass },
@@ -176,8 +176,14 @@ export default function EditActivityModal({
         }
       }}
     >
-      <div className="relative w-full max-w-xl bg-white rounded-2xl border border-sage shadow-[0_20px_60px_-15px_rgba(23,61,53,0.3)] overflow-hidden my-auto max-h-[92vh] flex flex-col">
-        {/* Header */}
+      <div className="relative w-full max-w-xl rounded-2xl p-[1.5px] overflow-hidden bg-sage/80 shadow-[0_20px_60px_-15px_rgba(23,61,53,0.3)] my-auto max-h-[92vh] flex flex-col">
+        <BorderTrail
+          className="bg-gradient-to-r from-forest via-[#2E5B3D] to-forest"
+          size={120}
+          transition={{ duration: 8, ease: 'linear', repeat: Infinity }}
+        />
+        <div className="relative z-10 w-full h-full bg-white rounded-[14.5px] overflow-hidden flex flex-col max-h-[calc(92vh-3px)]">
+          {/* Header */}
         <div className="px-4 sm:px-6 py-4 sm:py-5 bg-sand-ivory border-b border-sage/70 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-forest text-sand-ivory flex items-center justify-center shrink-0">
@@ -222,22 +228,20 @@ export default function EditActivityModal({
             >
               Activity Title <span className="text-burnt-crimson">*</span>
             </label>
-            <AnimatedFormField hasError={Boolean(validationErrors.title)} disabled={isSaving}>
-              <input
-                id="edit-activity-title"
-                name="title"
-                type="text"
-                value={formData.title}
-                onChange={(e) => handleChange('title', e.target.value)}
-                placeholder="e.g. Fushimi Inari Shrine Morning Walk"
-                disabled={isSaving}
-                className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-sans transition-all focus:outline-none focus:ring-1 focus:ring-blue-500 ${
-                  validationErrors.title
-                    ? 'border-burnt-crimson bg-burnt-crimson/5 text-burnt-crimson'
-                    : 'border-sage/90 bg-white text-charcoal'
-                }`}
-              />
-            </AnimatedFormField>
+            <input
+              id="edit-activity-title"
+              name="title"
+              type="text"
+              value={formData.title}
+              onChange={(e) => handleChange('title', e.target.value)}
+              placeholder="e.g. Fushimi Inari Shrine Morning Walk"
+              disabled={isSaving}
+              className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-sans transition-all focus:outline-none focus:ring-1 focus:ring-forest focus:border-forest ${
+                validationErrors.title
+                  ? 'border-burnt-crimson bg-burnt-crimson/5 text-burnt-crimson'
+                  : 'border-sage/90 bg-white text-charcoal'
+              }`}
+            />
             {validationErrors.title && (
               <p className="mt-1 text-xs text-burnt-crimson">{validationErrors.title}</p>
             )}
@@ -352,21 +356,19 @@ export default function EditActivityModal({
             >
               Location / Venue Name
             </label>
-            <AnimatedFormField hasError={Boolean(validationErrors.locationName)} disabled={isSaving}>
-              <div className="relative">
-                <MapPin className="w-4 h-4 text-terracotta absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  id="edit-activity-locationName"
-                  name="locationName"
-                  type="text"
-                  value={formData.locationName}
-                  onChange={(e) => handleChange('locationName', e.target.value)}
-                  placeholder="e.g. Kinkaku-ji (Golden Pavilion)"
-                  disabled={isSaving}
-                  className="w-full pl-10 pr-3.5 py-2 rounded-xl border border-sage/90 bg-white text-charcoal text-sm font-sans transition-all focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-            </AnimatedFormField>
+            <div className="relative">
+              <MapPin className="w-4 h-4 text-terracotta absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                id="edit-activity-locationName"
+                name="locationName"
+                type="text"
+                value={formData.locationName}
+                onChange={(e) => handleChange('locationName', e.target.value)}
+                placeholder="e.g. Kinkaku-ji (Golden Pavilion)"
+                disabled={isSaving}
+                className="w-full pl-10 pr-3.5 py-2 rounded-xl border border-sage/90 bg-white text-charcoal text-sm font-sans transition-all focus:outline-none focus:ring-1 focus:ring-forest focus:border-forest"
+              />
+            </div>
             {validationErrors.locationName && (
               <p className="mt-1 text-xs text-burnt-crimson">{validationErrors.locationName}</p>
             )}
@@ -478,6 +480,7 @@ export default function EditActivityModal({
             </Button>
           </div>
         </form>
+        </div>
       </div>
     </div>
   )
