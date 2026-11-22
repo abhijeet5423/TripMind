@@ -88,8 +88,12 @@ export default function AssistantChat({ trip, className = '', compact = false })
   // ---------------------------------------------------------------------------
   const partySize = trip?.numberOfTravellers || 1
   const partyStr = `${partySize} ${partySize === 1 ? 'traveler' : 'travelers'}`
-  const currency = trip?.currency || 'USD'
-  const budgetStr = trip?.budget ? `${trip.budget} ${currency}` : null
+  const currency = trip?.currency || 'INR'
+  const budgetStr = trip?.budget
+    ? (currency === 'INR'
+        ? `₹${Number(trip.budget).toLocaleString('en-IN')}`
+        : `${trip.budget} ${currency}`)
+    : null
 
   // ---------------------------------------------------------------------------
   // Message Transmission Handler

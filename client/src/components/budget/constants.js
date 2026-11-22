@@ -52,19 +52,22 @@ export const CANONICAL_BUDGET_CATEGORIES = Object.freeze([
  * Format a number into currency representation.
  *
  * @param {number} amount - Numerical currency amount
- * @param {string} currency - 3-letter ISO currency code (default: 'USD')
+ * @param {string} [currency='INR'] - 3-letter ISO currency code (default: 'INR')
  * @returns {string} Formatted currency string
  */
-export function formatCurrency(amount, currency = 'USD') {
-  if (amount === undefined || amount === null || isNaN(amount)) return '$0'
+export function formatCurrency(amount, currency = 'INR') {
+  const safeCurrency = currency || 'INR'
+  const numericAmount =
+    amount === undefined || amount === null || isNaN(amount) ? 0 : amount
   try {
-    return new Intl.NumberFormat('en-US', {
+    const locale = safeCurrency === 'INR' ? 'en-IN' : 'en-US'
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: currency || 'USD',
+      currency: safeCurrency,
       maximumFractionDigits: 0,
-    }).format(amount)
+    }).format(numericAmount)
   } catch {
-    return `${amount} ${currency}`
+    return `${safeCurrency === 'INR' ? '₹' : ''}${numericAmount} ${safeCurrency !== 'INR' ? safeCurrency : ''}`.trim()
   }
 }
 

@@ -4,7 +4,7 @@ import {
   MapPin,
   Calendar,
   Users,
-  DollarSign,
+  Wallet,
   Compass,
   Edit3,
   Trash2,
@@ -37,16 +37,18 @@ function formatTripDates(departureDate, returnDate) {
 /**
  * Formats a budget number with currency symbol and thousands separator.
  */
-function formatBudget(amount, currency = 'USD') {
+function formatBudget(amount, currency = 'INR') {
   if (amount === undefined || amount === null || isNaN(amount)) return ''
+  const safeCurrency = currency || 'INR'
   try {
-    return new Intl.NumberFormat('en-US', {
+    const locale = safeCurrency === 'INR' ? 'en-IN' : 'en-US'
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: currency || 'USD',
+      currency: safeCurrency,
       maximumFractionDigits: 0,
     }).format(amount)
   } catch {
-    return `${amount} ${currency}`
+    return `${safeCurrency === 'INR' ? '₹' : ''}${amount} ${safeCurrency !== 'INR' ? safeCurrency : ''}`.trim()
   }
 }
 
@@ -256,7 +258,7 @@ export default function PinnedTripCard({ trip, index = 0, onEdit, onDelete }) {
 
             {budgetStr && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/90 text-terracotta font-medium border border-[#E2D8C3]">
-                <DollarSign className="w-3.5 h-3.5" />
+                <Wallet className="w-3.5 h-3.5" />
                 <span>{budgetStr}</span>
               </span>
             )}

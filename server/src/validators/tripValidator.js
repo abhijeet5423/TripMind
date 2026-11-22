@@ -288,7 +288,7 @@ export function validateCreateTrip(req, res, next) {
     if (typeof req.body.currency !== 'string' || req.body.currency.trim().length !== 3) {
       details.push({
         field: 'currency',
-        message: 'Currency code must be a 3-character string (e.g. USD)',
+        message: 'Currency code must be a 3-character string (e.g. INR)',
       })
     } else {
       req.body.currency = req.body.currency.trim().toUpperCase()
@@ -817,7 +817,7 @@ export function validateUpdateTrip(req, res, next) {
     if (typeof req.body.currency !== 'string' || req.body.currency.trim().length !== 3) {
       details.push({
         field: 'currency',
-        message: 'Currency code must be a 3-character string (e.g. USD)',
+        message: 'Currency code must be a 3-character string (e.g. INR)',
       })
     } else {
       req.body.currency = req.body.currency.trim().toUpperCase()

@@ -5,7 +5,7 @@ import {
   MapPin,
   Calendar,
   Users,
-  DollarSign,
+  Wallet,
   Loader2,
   AlertCircle,
 } from 'lucide-react'
@@ -34,16 +34,18 @@ function formatTripDates(departureDate, returnDate) {
 /**
  * Formats a budget number with currency symbol and thousands separator.
  */
-function formatBudget(amount, currency = 'USD') {
+function formatBudget(amount, currency = 'INR') {
   if (amount === undefined || amount === null || isNaN(amount)) return ''
+  const safeCurrency = currency || 'INR'
   try {
-    return new Intl.NumberFormat('en-US', {
+    const locale = safeCurrency === 'INR' ? 'en-IN' : 'en-US'
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: currency || 'USD',
+      currency: safeCurrency,
       maximumFractionDigits: 0,
     }).format(amount)
   } catch {
-    return `${amount} ${currency}`
+    return `${safeCurrency === 'INR' ? '₹' : ''}${amount} ${safeCurrency !== 'INR' ? safeCurrency : ''}`.trim()
   }
 }
 
@@ -219,7 +221,7 @@ function DeleteTripDialog({ trip, onClose, onSuccess }) {
 
               {budgetStr && (
                 <div className="flex items-center gap-1.5 truncate">
-                  <DollarSign className="w-3.5 h-3.5 text-terracotta shrink-0" />
+                  <Wallet className="w-3.5 h-3.5 text-terracotta shrink-0" />
                   <span>{budgetStr}</span>
                 </div>
               )}

@@ -303,10 +303,10 @@ export function createMarkerSvg(categoryKey = 'activity', dayNumber = 1) {
  * Builds safe, sanitized, mobile-responsive HTML content for Leaflet activity popups.
  *
  * @param {Object} activity - Plottable activity object
- * @param {string} [currency='USD'] - Trip currency symbol or code
+ * @param {string} [currency='INR'] - Trip currency symbol or code
  * @returns {string} - Sanitized HTML string
  */
-export function buildActivityPopupContent(activity, currency = 'USD') {
+export function buildActivityPopupContent(activity, currency = 'INR') {
   if (!activity || typeof activity !== 'object') return ''
 
   const title = escapeHtml(activity.title || activity.name || 'Untitled Activity')
@@ -326,7 +326,7 @@ export function buildActivityPopupContent(activity, currency = 'USD') {
   )
   const cost =
     typeof activity.estimatedCost === 'number' && activity.estimatedCost > 0
-      ? `${escapeHtml(currency)} ${activity.estimatedCost.toFixed(0)}`
+      ? `${currency === 'INR' ? '₹' : escapeHtml(currency)} ${activity.estimatedCost.toFixed(0)}`
       : activity.estimatedCost === 0
       ? 'Free'
       : ''

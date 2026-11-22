@@ -33,6 +33,62 @@
 
 ## 2. Session History
 
+### [2026-11-22] — Feature: Default New Trips to INR Currency and Cash/Wallet Icon Standard
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Standardize trip currency presentation by defaulting all new trip creation and initialization flows to INR (Indian Rupee), displaying monetary amounts cleanly with the ₹ symbol or INR code, and replacing all legacy dollar ($ / `DollarSign`) icons with the universally recognized `Wallet` cash/budget icon across all trip, budget, itinerary, and modal components without altering underlying financial math or corrupting existing trips in other currencies.
+
+#### 1. Files Created / Modified
+- [`client/src/components/budget/constants.js`](./client/src/components/budget/constants.js) — *Modified.* Updated `formatCurrency` to default to `'INR'`, format zero/empty amounts using the active currency symbol (`₹0` instead of hardcoded `'$0'`), and apply `en-IN` numbering formatting for INR amounts.
+- [`client/src/components/common/CreateTripModal.jsx`](./client/src/components/common/CreateTripModal.jsx) — *Modified.* Set `currency: 'INR'` as the default form state, positioned INR first in `CURRENCY_OPTIONS`, labeled currency dropdown options with `INR (₹)`, dynamically displayed `₹` or currency code prefix inside the budget input, and formatted review summaries with `en-IN` numbering.
+- [`client/src/components/common/EditTripModal.jsx`](./client/src/components/common/EditTripModal.jsx) — *Modified.* Replaced `DollarSign` tab icon with `Wallet`, prioritized INR in `CURRENCY_OPTIONS`, defaulted fallback currency to `INR`, labeled budget input with active currency symbol, and preserved saved currency for existing trips during delta generation.
+- [`client/src/components/common/DeleteTripModal.jsx`](./client/src/components/common/DeleteTripModal.jsx) — *Modified.* Replaced `DollarSign` with `Wallet` and updated `formatBudget` to default to `INR` with `en-IN` locale formatting.
+- [`client/src/components/dashboard/PinnedTripCard.jsx`](./client/src/components/dashboard/PinnedTripCard.jsx) — *Modified.* Replaced `DollarSign` badge icon with `Wallet` and updated `formatBudget` to default to `INR` with `en-IN` locale formatting.
+- [`client/src/components/itinerary/ActivityCard.jsx`](./client/src/components/itinerary/ActivityCard.jsx) — *Modified.* Replaced `DollarSign` cost icon with `Wallet` and updated `formatActivityCost` to default to `INR` with `en-IN` locale formatting.
+- [`client/src/components/itinerary/AddActivityModal.jsx`](./client/src/components/itinerary/AddActivityModal.jsx) — *Modified.* Replaced `DollarSign` cost input icon with `Wallet`, defaulted `currency` prop to `'INR'`, and updated label to display active currency symbol (`₹`).
+- [`client/src/components/itinerary/EditActivityModal.jsx`](./client/src/components/itinerary/EditActivityModal.jsx) — *Modified.* Replaced `DollarSign` cost input icon with `Wallet`, defaulted `currency` prop to `'INR'`, and updated label to display active currency symbol (`₹`).
+- [`client/src/components/itinerary/BudgetBreakdown.jsx`](./client/src/components/itinerary/BudgetBreakdown.jsx) — *Modified.* Replaced `DollarSign` header icon with `Wallet`, defaulted `currency` prop to `'INR'`, and updated `formatCurrency` helper to format zero amounts and INR with `en-IN` locale.
+- [`client/src/components/budget/BudgetComparisonChart.jsx`](./client/src/components/budget/BudgetComparisonChart.jsx) — *Modified.* Replaced `DollarSign` empty-state icon with `Wallet` and defaulted `currency` prop to `'INR'`.
+- [`client/src/components/budget/ExpenseDonutChart.jsx`](./client/src/components/budget/ExpenseDonutChart.jsx) — *Modified.* Defaulted `currency` prop and tooltip default to `'INR'`.
+- [`client/src/components/map/ActivityMarkers.jsx`](./client/src/components/map/ActivityMarkers.jsx) — *Modified.* Defaulted `currency` prop to `'INR'`.
+- [`client/src/utils/mapUtils.js`](./client/src/utils/mapUtils.js) — *Modified.* Defaulted `currency` parameter to `'INR'` in `buildActivityPopupContent` and formatted popup cost strings with `₹` for INR.
+- [`client/src/pages/TripDetailPage.jsx`](./client/src/pages/TripDetailPage.jsx) — *Modified.* Replaced `DollarSign` budget icon with `Wallet`, updated `formatCurrency` to default to `INR` with `en-IN` locale, and defaulted child component props to `trip.currency || 'INR'`.
+- [`client/src/components/assistant/AssistantChat.jsx`](./client/src/components/assistant/AssistantChat.jsx) — *Modified.* Defaulted fallback currency to `INR` and formatted welcome card target budget with `en-IN` formatting.
+- [`server/src/models/Trip.js`](./server/src/models/Trip.js) — *Modified.* Set schema `currency.default: 'INR'`.
+- [`server/src/validators/tripValidator.js`](./server/src/validators/tripValidator.js) — *Modified.* Updated validation example messages to reference `INR`.
+- [`server/src/services/aiService.js`](./server/src/services/aiService.js) — *Modified.* Defaulted unconfigured trip currency in `buildTripContext` to `'INR'`.
+- [`server/src/services/assistantContextService.js`](./server/src/services/assistantContextService.js) — *Modified.* Defaulted assistant trip currency context to `'INR'`.
+- [`server/src/validators/itineraryValidator.js`](./server/src/validators/itineraryValidator.js) — *Modified.* Defaulted semantic validation trip currency fallback to `'INR'`.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — *Modified.* Updated ER diagram entity attributes to document `string currency "INR"`.
+- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — *Modified.* Updated Section 5.14 to reflect `Wallet` icon usage for currency-denominated cost inputs.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Logged session details, component updates, and test verification.
+
+#### 2. Key Implementation Details & Concepts
+- **Default Currency Transition:**
+  - New trips initiated through `CreateTripModal.jsx` default to `currency: 'INR'`.
+  - Backend Mongoose `Trip` schema establishes `default: 'INR'`.
+  - Gemini prompt construction (`aiService.js`) dynamically receives `INR`, generating itinerary budgets and activity costs in Indian Rupees.
+- **Icon Standardization:**
+  - Replaced all 9 occurrences of `DollarSign` icon with Lucide `Wallet` icon across budget cards, overview headers, activity cards, and cost inputs.
+- **Currency Display & Formatting:**
+  - Currency inputs display `₹` when INR is selected, with adjusted input padding (`pl-8` vs `pl-14` for 3-letter codes).
+  - Currency formatters use `Intl.NumberFormat('en-IN', ...)` for INR amounts, rendering proper Indian numbering notation (`₹1,00,000`).
+  - Empty or NaN amounts gracefully format as `₹0` (or matching currency zero) instead of a hardcoded `$0`.
+- **Backward Compatibility & Preservation:**
+  - Existing trips retaining `currency: 'USD'`, `'EUR'`, etc., continue to render their saved currency without forced conversion.
+  - No automatic exchange rates or artificial conversions were introduced.
+
+#### 3. Verification & Testing Performed
+- **Linting & Code Quality:** Executed `npm --prefix client exec eslint` across all 15 modified client components. Zero errors or warnings.
+- **Production Build:** Ran `npm --prefix client run build` with Vite 8.3.8. Output bundled successfully in 1.00s with zero errors.
+- **Node Syntax Checks:** Ran `node -c` on all 5 modified server files with zero errors.
+- **Currency Formatter Verification:** Validated `formatCurrency` across INR, USD, EUR, 0, NaN, and undefined amounts in Node.js.
+- **Model Default Verification:** Validated Mongoose `Trip` model default currency defaults to `INR` while explicitly preserving `USD` when provided.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- None. All currency representations and cash/wallet icons are standardized and verified.
+
+---
+
 ### [2026-11-22] — Feature: Dedicated "How to Use TripMind" Section & Landing Page Workflow Guide
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Design, implement, and integrate an editorial-grade "How to Use TripMind" section (`HowItWorks.jsx`) on the public landing page. Guides travelers through the core 5-step journey: (1) Discover Your Destination, (2) Create Your Trip, (3) Generate Your AI Itinerary, (4) Customize Your Itinerary, and (5) Manage Your Trip. Connects desktop/mobile navigation links and footer navigation seamlessly.

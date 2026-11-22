@@ -6,7 +6,7 @@ import {
   Calendar,
   MapPin,
   Users,
-  DollarSign,
+  Wallet,
   Sparkles,
   RefreshCw,
   AlertCircle,
@@ -73,16 +73,18 @@ function formatDayDate(dateStr) {
 /**
  * Formats budget amount.
  */
-function formatCurrency(amount, currency = 'USD') {
+function formatCurrency(amount, currency = 'INR') {
   if (amount === undefined || amount === null || isNaN(amount)) return ''
+  const safeCurrency = currency || 'INR'
   try {
-    return new Intl.NumberFormat('en-US', {
+    const locale = safeCurrency === 'INR' ? 'en-IN' : 'en-US'
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: currency || 'USD',
+      currency: safeCurrency,
       maximumFractionDigits: 0,
     }).format(amount)
   } catch {
-    return `${amount} ${currency}`
+    return `${safeCurrency === 'INR' ? '₹' : ''}${amount} ${safeCurrency !== 'INR' ? safeCurrency : ''}`.trim()
   }
 }
 
@@ -738,7 +740,7 @@ export default function TripDetailPage() {
 
                 {budgetStr && (
                   <div className="flex items-center gap-1.5">
-                    <DollarSign className="w-4 h-4 text-terracotta shrink-0" />
+                    <Wallet className="w-4 h-4 text-terracotta shrink-0" />
                     <span>Target Budget: {budgetStr}</span>
                   </div>
                 )}
@@ -975,7 +977,7 @@ export default function TripDetailPage() {
               <BudgetBreakdown
                 budgetSummary={trip.budgetSummary}
                 targetBudget={trip.budget}
-                currency={trip.currency || 'USD'}
+                currency={trip.currency || 'INR'}
                 numberOfTravellers={trip.numberOfTravellers}
               />
 
@@ -1022,7 +1024,7 @@ export default function TripDetailPage() {
                 >
                   <ActivityMarkers
                     days={trip.days}
-                    currency={trip.currency || 'USD'}
+                    currency={trip.currency || 'INR'}
                   />
                 </LeafletMapContainer>
 
@@ -1134,7 +1136,7 @@ export default function TripDetailPage() {
                             <ActivityCard
                               key={act._id || act.id || actIdx}
                               activity={act}
-                              currency={trip.currency || 'USD'}
+                              currency={trip.currency || 'INR'}
                               index={actIdx}
                               onEdit={handleOpenEditActivity}
                               onDelete={(targetAct) => {
@@ -1205,7 +1207,7 @@ export default function TripDetailPage() {
           activity={editingActivity}
           onSave={handleSaveActivity}
           isSaving={isUpdatingActivity}
-          currency={trip?.currency || 'USD'}
+          currency={trip?.currency || 'INR'}
         />
       )}
 
@@ -1215,7 +1217,7 @@ export default function TripDetailPage() {
         onClose={() => setIsAddingActivity(false)}
         onSave={handleSaveNewActivity}
         isSaving={isCreatingActivity}
-        currency={trip?.currency || 'USD'}
+        currency={trip?.currency || 'INR'}
         dayNumber={selectedDay?.dayNumber || selectedDayNumber}
       />
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
   X,
   MapPin,
-  DollarSign,
+  Wallet,
   Sparkles,
   AlertCircle,
   Loader2,
@@ -15,7 +15,7 @@ import { useTrip } from '../../hooks/useTrip.js'
 
 const VALID_PACES = ['relaxed', 'moderate', 'fast-paced']
 const VALID_STATUSES = ['draft', 'upcoming', 'completed']
-const CURRENCY_OPTIONS = ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'INR']
+const CURRENCY_OPTIONS = ['INR', 'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF']
 
 const POPULAR_INTERESTS = [
   'Architecture',
@@ -88,7 +88,7 @@ function initializeFormState(trip) {
       departureDate: '',
       returnDate: '',
       budget: '',
-      currency: 'USD',
+      currency: 'INR',
       numberOfTravellers: 1,
       title: '',
       status: 'draft',
@@ -110,7 +110,7 @@ function initializeFormState(trip) {
     departureDate: toDateInputValue(trip.departureDate),
     returnDate: toDateInputValue(trip.returnDate),
     budget: trip.budget !== undefined && trip.budget !== null ? String(trip.budget) : '',
-    currency: trip.currency || 'USD',
+    currency: trip.currency || 'INR',
     numberOfTravellers: trip.numberOfTravellers || 1,
     title: trip.title || '',
     status: trip.status || 'draft',
@@ -365,7 +365,7 @@ function EditTripDialog({ trip, onClose, onSuccess }) {
     }
 
     if (formData.currency && formData.currency.trim().length !== 3) {
-      newErrors.currency = 'Currency must be a 3-character code (e.g. USD)'
+      newErrors.currency = 'Currency must be a 3-character code (e.g. INR)'
       earliestTabWithError = earliestTabWithError || 'budget'
     }
 
@@ -475,8 +475,8 @@ function EditTripDialog({ trip, onClose, onSuccess }) {
     }
 
     // 8. Currency
-    const origCurrency = (trip.currency || 'USD').toUpperCase()
-    const newCurrency = (formData.currency || 'USD').trim().toUpperCase()
+    const origCurrency = (trip.currency || 'INR').toUpperCase()
+    const newCurrency = (formData.currency || 'INR').trim().toUpperCase()
     if (newCurrency !== origCurrency) {
       payload.currency = newCurrency
     }
@@ -690,7 +690,7 @@ function EditTripDialog({ trip, onClose, onSuccess }) {
                 : 'border-transparent text-stone hover:text-forest'
             }`}
           >
-            <DollarSign className="w-3.5 h-3.5" />
+            <Wallet className="w-3.5 h-3.5" />
             <span>Budget & Party</span>
             {(errors.budget || errors.numberOfTravellers || errors.currency || errors.title || errors.coverImageUrl) && (
               <span className="w-2 h-2 rounded-full bg-burnt-crimson" />
@@ -924,7 +924,7 @@ function EditTripDialog({ trip, onClose, onSuccess }) {
                     htmlFor="edit-budget"
                     className="block text-xs font-semibold uppercase tracking-wider text-stone mb-1.5"
                   >
-                    Total Estimated Budget <span className="text-terracotta">*</span>
+                    Total Estimated Budget ({formData.currency === 'INR' ? '₹' : formData.currency}) <span className="text-terracotta">*</span>
                   </label>
                   <div className="relative">
                     <input
@@ -969,7 +969,7 @@ function EditTripDialog({ trip, onClose, onSuccess }) {
                   >
                     {CURRENCY_OPTIONS.map((code) => (
                       <option key={code} value={code}>
-                        {code}
+                        {code === 'INR' ? 'INR (₹)' : code}
                       </option>
                     ))}
                   </select>

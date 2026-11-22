@@ -5,7 +5,7 @@ import {
   Bed,
   Bus,
   MapPin,
-  DollarSign,
+  Wallet,
   Edit3,
   Trash2,
 } from 'lucide-react'
@@ -66,17 +66,19 @@ function formatTimeSlot(timeSlot = '') {
 /**
  * Formats a monetary amount into trip currency.
  */
-function formatActivityCost(amount, currency = 'USD') {
+function formatActivityCost(amount, currency = 'INR') {
   if (amount === undefined || amount === null || isNaN(amount)) return null
   if (amount === 0) return 'Free admission'
+  const safeCurrency = currency || 'INR'
   try {
-    return new Intl.NumberFormat('en-US', {
+    const locale = safeCurrency === 'INR' ? 'en-IN' : 'en-US'
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: currency || 'USD',
+      currency: safeCurrency,
       maximumFractionDigits: 0,
     }).format(amount)
   } catch {
-    return `${amount} ${currency}`
+    return `${safeCurrency === 'INR' ? '₹' : ''}${amount} ${safeCurrency !== 'INR' ? safeCurrency : ''}`.trim()
   }
 }
 
@@ -89,7 +91,7 @@ function formatActivityCost(amount, currency = 'USD') {
  */
 export default function ActivityCard({
   activity,
-  currency = 'USD',
+  currency = 'INR',
   index = 0,
   onEdit,
   onDelete,
@@ -226,7 +228,7 @@ export default function ActivityCard({
         {costStr && (
           <div className="flex flex-col sm:items-end shrink-0">
             <span className="inline-flex items-center gap-1 font-semibold text-forest text-xs sm:text-sm">
-              <DollarSign className="w-3.5 h-3.5 text-terracotta shrink-0" />
+              <Wallet className="w-3.5 h-3.5 text-terracotta shrink-0" />
               <span>{costStr}</span>
             </span>
             {costBreakdown && (

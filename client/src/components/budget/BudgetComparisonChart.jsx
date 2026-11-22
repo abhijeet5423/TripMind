@@ -7,7 +7,7 @@ import {
   Tooltip,
   Cell,
 } from 'recharts'
-import { BarChart3, AlertTriangle, CheckCircle2, DollarSign } from 'lucide-react'
+import { BarChart3, AlertTriangle, CheckCircle2, Wallet } from 'lucide-react'
 import {
   formatCurrency,
   transformComparisonChartData,
@@ -16,7 +16,7 @@ import {
 /**
  * Custom Tooltip for the Comparison Bar Chart
  */
-function ComparisonTooltip({ active, payload, currency = 'USD' }) {
+function ComparisonTooltip({ active, payload, currency = 'INR' }) {
   if (active && payload && payload.length) {
     const data = payload[0].payload
     return (
@@ -52,7 +52,7 @@ export default function BudgetComparisonChart({
   totalEstimated = 0,
   remaining = 0,
   budgetUtilization = 0,
-  currency = 'USD',
+  currency = 'INR',
 }) {
   const {
     target,
@@ -169,7 +169,7 @@ export default function BudgetComparisonChart({
           /* Graceful Empty State when neither target nor expenses exist */
           <div className="flex flex-col items-center justify-center text-center p-6 bg-sand-ivory/40 rounded-xl border border-dashed border-sage/70 w-full my-auto">
             <div className="w-12 h-12 rounded-full border-2 border-dashed border-sage flex items-center justify-center text-stone/60 mb-2">
-              <DollarSign className="w-5 h-5 text-stone/50" />
+              <Wallet className="w-5 h-5 text-stone/50" />
             </div>
             <p className="text-xs font-semibold text-forest mb-0.5">
               No Budget Parameters Set

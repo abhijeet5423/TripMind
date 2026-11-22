@@ -8,7 +8,7 @@ import {
   Bed,
   Bus,
   MapPin,
-  DollarSign,
+  Wallet,
   AlertCircle,
   Loader2,
 } from 'lucide-react'
@@ -41,7 +41,7 @@ const TIME_SLOT_OPTIONS = [
  * @param {Function} props.onClose - Dismiss modal callback
  * @param {Function} props.onSave - Async callback (formData) => Promise
  * @param {boolean} [props.isSaving=false] - Submission in-flight indicator
- * @param {string} [props.currency='USD'] - Trip currency code
+ * @param {string} [props.currency='INR'] - Trip currency code
  * @param {number} [props.dayNumber=1] - Target day number for editorial headline
  */
 export default function AddActivityModal({
@@ -49,7 +49,7 @@ export default function AddActivityModal({
   onClose,
   onSave,
   isSaving = false,
-  currency = 'USD',
+  currency = 'INR',
   dayNumber = 1,
 }) {
   const [formData, setFormData] = useState({
@@ -397,10 +397,10 @@ export default function AddActivityModal({
                 htmlFor="add-activity-cost"
                 className="block text-xs font-semibold uppercase tracking-wider text-forest mb-1.5"
               >
-                Estimated Cost ({currency})
+                Estimated Cost ({currency === 'INR' ? '₹' : currency})
               </label>
               <div className="relative">
-                <DollarSign className="w-4 h-4 text-stone absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Wallet className="w-4 h-4 text-stone absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   id="add-activity-cost"
                   name="estimatedCost"

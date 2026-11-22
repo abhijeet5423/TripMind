@@ -22,7 +22,7 @@ const INITIAL_FORM_STATE = {
   departureDate: '',
   returnDate: '',
   budget: '',
-  currency: 'USD',
+  currency: 'INR',
   numberOfTravellers: 1,
   title: '',
   pace: 'moderate',
@@ -36,7 +36,7 @@ const INITIAL_FORM_STATE = {
 }
 
 const VALID_PACES = ['relaxed', 'moderate', 'fast-paced']
-const CURRENCY_OPTIONS = ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'INR']
+const CURRENCY_OPTIONS = ['INR', 'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF']
 
 const POPULAR_INTERESTS = [
   'Architecture',
@@ -383,7 +383,7 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
     }
 
     if (formData.currency && formData.currency.trim().length !== 3) {
-      stepErrors.currency = 'Currency must be a 3-character code (e.g. USD)'
+      stepErrors.currency = 'Currency must be a 3-character code (e.g. INR)'
     }
 
     setErrors(stepErrors)
@@ -464,7 +464,7 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
       returnDate: formData.returnDate,
       budget: Number(formData.budget),
       numberOfTravellers: Number(formData.numberOfTravellers) || 1,
-      currency: formData.currency ? formData.currency.trim().toUpperCase() : 'USD',
+      currency: formData.currency ? formData.currency.trim().toUpperCase() : 'INR',
     }
 
     if (formData.title.trim()) {
@@ -864,7 +864,7 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
                     >
                       {CURRENCY_OPTIONS.map((c) => (
                         <option key={c} value={c}>
-                          {c}
+                          {c === 'INR' ? 'INR (₹)' : c}
                         </option>
                       ))}
                     </select>
@@ -872,7 +872,7 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
 
                   <div className="relative flex-1">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone font-semibold text-base">
-                      {formData.currency}
+                      {formData.currency === 'INR' ? '₹' : formData.currency}
                     </span>
                     <input
                       id="budget"
@@ -884,8 +884,10 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
                       disabled={isCreating}
                       value={formData.budget}
                       onChange={handleChange}
-                      placeholder="4500"
-                      className={`w-full pl-14 pr-4 py-3 rounded-lg border bg-white text-charcoal font-serif text-xl font-bold placeholder:font-sans placeholder:text-base placeholder:text-stone/40 focus:outline-none focus:ring-1 transition-colors ${
+                      placeholder={formData.currency === 'INR' ? '50000' : '4500'}
+                      className={`w-full ${
+                        formData.currency === 'INR' ? 'pl-8' : 'pl-14'
+                      } pr-4 py-3 rounded-lg border bg-white text-charcoal font-serif text-xl font-bold placeholder:font-sans placeholder:text-base placeholder:text-stone/40 focus:outline-none focus:ring-1 transition-colors ${
                         errors.budget
                           ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
                           : 'border-sage focus:border-forest focus:ring-forest'
@@ -1274,7 +1276,8 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
                       Budget & Party
                     </span>
                     <p className="font-serif text-base font-bold text-forest">
-                      {formData.currency} {Number(formData.budget).toLocaleString()}
+                      {formData.currency === 'INR' ? '₹' : formData.currency}{' '}
+                      {Number(formData.budget).toLocaleString(formData.currency === 'INR' ? 'en-IN' : 'en-US')}
                     </p>
                     <p className="text-xs text-stone">
                       Party size: <strong className="text-forest font-semibold">{formData.numberOfTravellers} {formData.numberOfTravellers === 1 ? 'traveler' : 'travelers'}</strong>

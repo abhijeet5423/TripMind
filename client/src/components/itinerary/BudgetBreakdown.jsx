@@ -1,20 +1,23 @@
-import { DollarSign, Info } from 'lucide-react'
+import { Wallet, Info } from 'lucide-react'
 import ExpenseDonutChart from '../budget/ExpenseDonutChart.jsx'
 import BudgetComparisonChart from '../budget/BudgetComparisonChart.jsx'
 
 /**
  * Format a number into currency representation.
  */
-function formatCurrency(amount, currency = 'USD') {
-  if (amount === undefined || amount === null || isNaN(amount)) return '$0'
+function formatCurrency(amount, currency = 'INR') {
+  const safeCurrency = currency || 'INR'
+  const numericAmount =
+    amount === undefined || amount === null || isNaN(amount) ? 0 : amount
   try {
-    return new Intl.NumberFormat('en-US', {
+    const locale = safeCurrency === 'INR' ? 'en-IN' : 'en-US'
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: currency || 'USD',
+      currency: safeCurrency,
       maximumFractionDigits: 0,
-    }).format(amount)
+    }).format(numericAmount)
   } catch {
-    return `${amount} ${currency}`
+    return `${safeCurrency === 'INR' ? '₹' : ''}${numericAmount} ${safeCurrency !== 'INR' ? safeCurrency : ''}`.trim()
   }
 }
 
@@ -76,7 +79,7 @@ const CATEGORY_CONFIG = [
 export default function BudgetBreakdown({
   budgetSummary,
   targetBudget,
-  currency = 'USD',
+  currency = 'INR',
   numberOfTravellers = 1,
 }) {
   if (!budgetSummary) return null
@@ -116,7 +119,7 @@ export default function BudgetBreakdown({
             Financial Architecture
           </span>
           <h3 className="font-serif text-2xl font-bold text-forest flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-terracotta" />
+            <Wallet className="w-5 h-5 text-terracotta" />
             <span>Budget Breakdown</span>
           </h3>
         </div>

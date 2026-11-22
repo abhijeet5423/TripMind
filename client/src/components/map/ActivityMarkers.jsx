@@ -18,7 +18,7 @@ import {
  */
 export default function ActivityMarkers({
   days = [],
-  currency = 'USD',
+  currency = 'INR',
   map: propMap,
   fitBoundsOnUpdate = true,
   onMarkerClick,

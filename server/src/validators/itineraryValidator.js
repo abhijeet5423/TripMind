@@ -206,7 +206,7 @@ export function validateItinerarySemantic(itinerary, trip) {
   const tripDest = rawTrip.destination || ''
   const tripDep = rawTrip.departureDate || rawTrip.startDate
   const tripRet = rawTrip.returnDate || rawTrip.endDate
-  const tripCurrency = (rawTrip.currency || 'USD').toUpperCase().trim()
+  const tripCurrency = (rawTrip.currency || 'INR').toUpperCase().trim()
 
   // 3. Destination Consistency Check (Segment- & Token-Aware Deterministic Validation)
   const itinDest = (itinerary.destination || '').trim()

@@ -405,7 +405,7 @@ The typographic identity balances literary prestige with modern legibility throu
   - *Category Selector:* Custom responsive 5-option pill selector (Attraction/Culture, Food & Dining, Accommodation, Transit & Transfer, Other Exploration) with active state highlighting (`bg-forest text-sand-ivory border-forest`).
   - *Time Slot & Time Row:* Two-column grid matching time slot dropdown (Morning, Afternoon, Evening, Night) with clock-adorned time input.
   - *Duration & Location Inputs:* Pre-filled estimated duration and venue/location name with `MapPin` icon.
-  - *Estimated Cost & Breakdown Row:* Currency-denominated cost input with `DollarSign` icon alongside qualitative cost breakdown notes.
+  - *Estimated Cost & Breakdown Row:* Currency-denominated cost input with `Wallet` icon alongside qualitative cost breakdown notes.
   - *Description & Notes:* Multiline narrative textarea for sensory travel details and tips.
 - **State Management & Feedback:**
   - Zero-Effect Remount Pattern: Keyed by `editingActivity._id` in parent, ensuring clean state initialization without React 19 cascading-render warnings.

@@ -82,7 +82,7 @@ export function extractTripContext(tripData) {
   const budget = Math.max(0, Number(raw.budget ?? raw.totalBudget ?? 0) || 0)
   const currency = typeof raw.currency === 'string' && /^[A-Z]{3}$/.test(raw.currency.trim().toUpperCase())
     ? raw.currency.trim().toUpperCase()
-    : 'USD'
+    : 'INR'
 
   // Budget summary extraction
   const rawBudgetSummary = raw.budgetSummary || raw.budgetBreakdown || {}

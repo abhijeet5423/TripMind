@@ -382,8 +382,8 @@ export function buildTripContext(tripData) {
   // Budget & Currency
   const rawBudget = raw.budget ?? raw.totalBudget ?? 0
   const budget = Math.max(0, Number(rawBudget) || 0)
-  const rawCurrency = typeof raw.currency === 'string' ? raw.currency.trim().toUpperCase() : 'USD'
-  const currency = /^[A-Z]{3}$/.test(rawCurrency) ? rawCurrency : 'USD'
+  const rawCurrency = typeof raw.currency === 'string' ? raw.currency.trim().toUpperCase() : 'INR'
+  const currency = /^[A-Z]{3}$/.test(rawCurrency) ? rawCurrency : 'INR'
 
   // Interests array (max 30 items)
   const interests = Array.isArray(raw.interests)

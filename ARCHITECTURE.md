@@ -234,7 +234,7 @@ erDiagram
         date returnDate "alias: endDate"
         number budget "alias: totalBudget"
         number numberOfTravellers "alias: travellers"
-        string currency "USD"
+        string currency "INR"
         string coverImageUrl
         string status "draft | upcoming | completed"
         array interests

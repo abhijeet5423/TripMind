@@ -14,7 +14,7 @@ import {
 /**
  * Custom Tooltip for the Donut Chart
  */
-function DonutTooltip({ active, payload, currency = 'USD' }) {
+function DonutTooltip({ active, payload, currency = 'INR' }) {
   if (active && payload && payload.length) {
     const data = payload[0].payload
     return (
@@ -48,7 +48,7 @@ function DonutTooltip({ active, payload, currency = 'USD' }) {
 export default function ExpenseDonutChart({
   categories = {},
   totalEstimated = 0,
-  currency = 'USD',
+  currency = 'INR',
 }) {
   const chartData = transformCategoryChartData(categories, totalEstimated)
   const activeSlices = chartData.filter((item) => item.value > 0)
