@@ -33,6 +33,44 @@
 
 ## 2. Session History
 
+### [2026-11-22] — AI/API Bug Investigation 01: Generate Itinerary HTTP 503 & Intermittent Failures
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Investigate and resolve production error `POST /api/trips/:id/generate-itinerary` returning HTTP 503 (Service Unavailable) and intermittent AI itinerary generation failures on the deployed platform (`https://trip-mind-brown.vercel.app/` / `https://tripmind-0b2x.onrender.com/`).
+- **Scope Boundaries:** Backend AI service layer, trip controller error mapping, and client error normalization helper. Zero unrelated UI feature modifications. Zero broad Git operations (`git add`, `git commit`, `git push`, deployments).
+
+#### 1. Files Created / Modified
+- [`server/src/services/aiService.js`](./server/src/services/aiService.js) — *Modified.* Added `isRetryableError` classifier, bounded exponential backoff retries (max 2 retries) with jitter for transient provider failures (HTTP 503, 429, network disconnects), and a 45s total / 30s per-attempt timeout guard producing `AI_TIMEOUT`. Client validation and schema errors fail fast with zero retries.
+- [`server/src/controllers/tripController.js`](./server/src/controllers/tripController.js) — *Modified.* Updated `mapAiErrorToStatusCode` to map `AI_TIMEOUT` to HTTP 504 Gateway Timeout while preserving existing status code mappings.
+- [`client/src/utils/itineraryErrorHelper.js`](./client/src/utils/itineraryErrorHelper.js) — *Modified.* Added `AI_TIMEOUT` case alongside `TIMEOUT_ERROR` providing friendly timeout guidance to travelers.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Documented root cause analysis, implementation details, regression tests, and verification findings.
+
+#### 2. Key Implementation Details & Root Cause Analysis
+- **Empirical Reproduction & Root Cause:**
+  1. *Root Cause:* The Google Gemini free-tier provider (`gemini-3.5-flash-lite`) periodically sheds load during transient peak moments by immediately returning HTTP 503 with status `UNAVAILABLE` (`"The model is overloaded. Please try again later."`).
+  2. *Zero Bounded Retries:* Previously, `generateItinerary` in `aiService.js` executed an un-retried call to `client.models.generateContent`. A single momentary provider blip caused the entire request to fail immediately.
+  3. *Controller Mapping:* `formatGeminiError` normalized `status >= 500 && status < 600` into `GEMINI_SERVICE_UNAVAILABLE`. `mapAiErrorToStatusCode` in `tripController.js` returned HTTP 503, sending `503 Service Unavailable` to Vercel and the traveler's browser.
+  4. *Lack of Timeout Guards:* `generateItinerary` lacked a timeout guard, risking hung upstream connections.
+- **Bounded Exponential Backoff Fix:**
+  - Implemented `isRetryableError(error)` to strictly filter retryable errors: HTTP 503, HTTP 429, and transient network errors.
+  - Client errors (`INVALID_TRIP_CONTEXT`, `GEMINI_AUTH_FAILED`, `GEMINI_PARSE_ERROR`, `GEMINI_EMPTY_RESPONSE`) fail fast with zero retries to preserve budget and prevent loops.
+  - Added bounded retry loop (max 2 retries, 3 attempts total) with exponential backoff (1000ms, 2000ms) and random jitter (0-200ms).
+  - Added a 45s operational timeout limit with 30s per-attempt timeout guard.
+- **Data Protection Invariant Preserved:**
+  - Database persistence (`saveTripItinerary`) executes in `tripController.js` strictly AFTER itinerary generation and Tier-2 validation succeed. Failed attempts leave MongoDB documents 100% untouched.
+
+#### 3. Verification & Testing Performed
+- **Live Empirical Reproduction:** Demonstrated 503 error on live Gemini API call and verified recovery on subsequent attempts.
+- **Comprehensive Test Suite (`scratch/test_ai_fix.mjs`):** 18 of 18 assertions passed covering classification (503, transient 429, permanent daily quota 429), transient 503 recovery, persistent 503 exhaustion, 429 recovery/exhaustion, timeout guards and AbortSignal cancellation, fast-fail on malformed JSON, and status code mapping.
+- **Regression Unit Tests (`scratch/test_day26_ai_service.mjs`):** 33 of 33 tests passed (100%).
+- **API Integration Tests (`scratch/test_day27_itinerary_api.mjs`):** 67 of 67 tests passed (100%).
+- **Semantic Validation & Persistence Tests (`scratch/test_day28_itinerary_validation.mjs`):** 112 of 112 tests passed (100%).
+- **Frontend Production Build:** `npm --prefix client run build` completed cleanly in 1.42s (2,607 modules transformed, zero errors).
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Production verification requires deploying the backend fix to Render (`https://tripmind-0b2x.onrender.com/`). All verification is currently verified locally with unit, integration, and live API test runs.
+- No Git operations (`git add`, `git commit`, `git push`) performed per instructions.
+
+
 ### [2026-11-22] — Production Bug Fix 01: Background Video Not Playing
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Diagnose and resolve the production defect where the landing page background video does not play on the deployed Vercel production frontend (`https://trip-mind-brown.vercel.app/`).

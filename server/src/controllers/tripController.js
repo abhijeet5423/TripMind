@@ -304,6 +304,8 @@ export function mapAiErrorToStatusCode(code) {
       return 400
     case 'GEMINI_QUOTA_EXCEEDED':
       return 429
+    case 'AI_TIMEOUT':
+      return 504
     case 'GEMINI_SERVICE_UNAVAILABLE':
       return 503
     case 'GEMINI_AUTH_FAILED':

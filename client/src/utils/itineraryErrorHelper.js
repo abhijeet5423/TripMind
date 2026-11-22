@@ -63,6 +63,7 @@ export function mapItineraryError(error) {
     case 'PERSISTENCE_FAILED':
       return 'The itinerary was generated successfully but could not be saved to your account. Please try again.'
 
+    case 'AI_TIMEOUT':
     case 'TIMEOUT_ERROR':
       return 'The generation request timed out. AI itinerary generation can take up to 30 seconds; please try again.'
 

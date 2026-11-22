@@ -78,7 +78,7 @@ export function formatGeminiError(error) {
   if (
     error.code &&
     typeof error.code === 'string' &&
-    (error.code.startsWith('GEMINI_') || error.code === 'INVALID_TRIP_CONTEXT')
+    (error.code.startsWith('GEMINI_') || error.code === 'INVALID_TRIP_CONTEXT' || error.code === 'AI_TIMEOUT')
   ) {
     return {
       code: error.code,
@@ -518,6 +518,74 @@ MANDATORY GENERATION INSTRUCTIONS:
 }
 
 /**
+ * Determines whether a caught error represents a transient failure that is safe to retry.
+ * Only transient server errors (HTTP 503, 500, 502, 504), rate limit bursts (HTTP 429),
+ * and transient network connectivity dropouts are retried. Client errors, validation failures,
+ * authentication rejections, and schema parse errors are failed immediately.
+ *
+ * @param {Error|any} error - Caught error from Gemini SDK or network
+ * @returns {boolean} True if the error is transient and safe to retry
+ */
+export function isRetryableError(error) {
+  if (!error) return false
+
+  // Never retry client validation, non-transient configuration/auth errors, or aborted timeouts
+  if (
+    error.name === 'AbortError' ||
+    error.code === 'INVALID_TRIP_CONTEXT' ||
+    error.code === 'GEMINI_CONFIG_ERROR' ||
+    error.code === 'GEMINI_AUTH_FAILED' ||
+    error.code === 'GEMINI_INVALID_ARGUMENT' ||
+    error.code === 'GEMINI_MODEL_NOT_FOUND' ||
+    error.code === 'GEMINI_PARSE_ERROR' ||
+    error.code === 'GEMINI_EMPTY_RESPONSE' ||
+    error.code === 'AI_TIMEOUT'
+  ) {
+    return false
+  }
+
+  const status = error.status || (error.response && error.response.status)
+
+  // HTTP 503 (Service Unavailable / Model Overloaded) and 5xx provider server errors
+  if (status >= 500 && status < 600) {
+    return true
+  }
+
+  // HTTP 429 (Transient rate limit / quota burst vs permanent daily quota exhaustion)
+  if (status === 429) {
+    const msg = String(error.message || '').toLowerCase()
+    // If provider explicitly signals daily quota limit or billing tier exhaustion, do not retry
+    if (
+      msg.includes('per day') ||
+      msg.includes('daily') ||
+      msg.includes('quota metric') ||
+      msg.includes('billing') ||
+      msg.includes('credit')
+    ) {
+      return false
+    }
+    return true
+  }
+
+  // Transient network / socket connectivity dropouts
+  const msg = String(error.message || '').toLowerCase()
+  if (
+    msg.includes('fetch failed') ||
+    msg.includes('econnrefused') ||
+    msg.includes('econnreset') ||
+    msg.includes('enotfound') ||
+    msg.includes('network') ||
+    msg.includes('socket hang up') ||
+    msg.includes('overloaded') ||
+    msg.includes('timed out')
+  ) {
+    return true
+  }
+
+  return false
+}
+
+/**
  * Asynchronously generates a complete structured multi-day travel itinerary
  * through Google Gemini (gemini-3.5-flash-lite) using the official @google/genai SDK.
  *
@@ -527,6 +595,8 @@ MANDATORY GENERATION INSTRUCTIONS:
  * - Extracts and validates real Trip model fields.
  * - Reuses centralized singleton client and model configuration.
  * - Normalizes provider errors and parses output JSON safely.
+ * - Bounded retry behavior on transient provider blips (HTTP 503, 429, network).
+ * - Enforces timeout guards to prevent hung upstream requests.
  * - Never leaks API credentials, session secrets, or full internal prompts.
  *
  * @param {object} tripData - Mongoose Trip document or plain trip payload
@@ -534,15 +604,25 @@ MANDATORY GENERATION INSTRUCTIONS:
  * @param {boolean} [options.throwOnError=false] - Whether to throw an Error on failure
  * @param {number} [options.temperature=0.7] - Model temperature (0.0 to 1.0)
  * @param {object} [options.client] - Optional mock/override Gemini client for testing
+ * @param {number} [options.maxRetries=2] - Maximum number of retry attempts for transient errors
+ * @param {number} [options.initialRetryDelayMs=1000] - Base backoff delay in ms (1000ms default)
+ * @param {number} [options.timeoutMs=45000] - Total operational timeout limit in ms
  * @returns {Promise<{ success: boolean, data?: object, meta?: object, error?: object, message?: string }>}
  */
 export async function generateItinerary(tripData, options = {}) {
-  const { throwOnError = false, temperature = 0.7, client: clientOverride } = options
+  const {
+    throwOnError = false,
+    temperature = 0.7,
+    client: clientOverride,
+    maxRetries = 2,
+    initialRetryDelayMs = 1000,
+    timeoutMs = 45000,
+  } = options
   const startTime = Date.now()
   const model = getGeminiModel()
 
   try {
-    // 1. Build and validate trip context
+    // 1. Build and validate trip context (fail fast on bad inputs before API call)
     const tripContext = buildTripContext(tripData)
 
     if (!tripContext.destination) {
@@ -565,18 +645,83 @@ export async function generateItinerary(tripData, options = {}) {
     // 3. Resolve Gemini client singleton (validates GEMINI_API_KEY)
     const client = clientOverride || getGeminiClient()
 
-    // 4. Invoke Gemini API with structured output configuration
-    // Free Tier budget: ₹0 — no paid grounding tools or search integrations
-    const response = await client.models.generateContent({
-      model,
-      contents: userPrompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: geminiItinerarySchema,
-        systemInstruction: SYSTEM_INSTRUCTION,
-        temperature,
-      },
-    })
+    // 4. Bounded execution with per-attempt timeout guard and exponential backoff retry
+    let lastError = null
+    let response = null
+    const totalAttempts = Math.max(1, maxRetries + 1)
+
+    for (let attempt = 1; attempt <= totalAttempts; attempt++) {
+      try {
+        const elapsed = Date.now() - startTime
+        const remainingTimeout = timeoutMs - elapsed
+        if (remainingTimeout <= 0) {
+          const timeoutErr = new Error('Itinerary generation timed out. Google Gemini service took too long to respond.')
+          timeoutErr.code = 'AI_TIMEOUT'
+          throw timeoutErr
+        }
+
+        const abortController = new AbortController()
+        const attemptTimeout = Math.min(remainingTimeout, 30000)
+        let timer = null
+        const timeoutPromise = new Promise((_, reject) => {
+          timer = setTimeout(() => {
+            // Abort underlying Gemini HTTP request on timeout to release sockets and resources
+            abortController.abort()
+            const err = new Error('Itinerary generation attempt timed out.')
+            err.code = 'AI_TIMEOUT'
+            reject(err)
+          }, attemptTimeout)
+        })
+
+        // Generate content with attempt-level timeout guard and abortSignal
+        const generatePromise = client.models.generateContent({
+          model,
+          contents: userPrompt,
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: geminiItinerarySchema,
+            systemInstruction: SYSTEM_INSTRUCTION,
+            temperature,
+            abortSignal: abortController.signal,
+          },
+        })
+
+        try {
+          response = await Promise.race([generatePromise, timeoutPromise])
+        } finally {
+          if (timer) clearTimeout(timer)
+        }
+
+        // Generation succeeded cleanly
+        lastError = null
+        break
+      } catch (err) {
+        lastError = err
+
+        // AbortError is triggered by our abortController upon timeout
+        if (err.name === 'AbortError' || err.code === 'AI_TIMEOUT') {
+          const timeoutErr = new Error('Itinerary generation attempt timed out.')
+          timeoutErr.code = 'AI_TIMEOUT'
+          lastError = timeoutErr
+          throw timeoutErr
+        }
+
+        // Check if error is transient and retry attempts remain
+        const canRetry = attempt < totalAttempts && isRetryableError(err)
+        if (!canRetry) {
+          throw err
+        }
+
+        // Exponential backoff with jitter (e.g. 1000ms * 2^(attempt-1) + jitter)
+        const jitter = Math.floor(Math.random() * 200)
+        const backoffMs = Math.min(initialRetryDelayMs * Math.pow(2, attempt - 1) + jitter, 5000)
+        await new Promise((resolve) => setTimeout(resolve, backoffMs))
+      }
+    }
+
+    if (lastError) {
+      throw lastError
+    }
 
     const latencyMs = Date.now() - startTime
 
