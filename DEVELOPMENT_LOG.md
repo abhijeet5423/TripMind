@@ -33,6 +33,46 @@
 
 ## 2. Session History
 
+### [2026-11-22] — Feature: Dedicated "How to Use TripMind" Section & Landing Page Workflow Guide
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Design, implement, and integrate an editorial-grade "How to Use TripMind" section (`HowItWorks.jsx`) on the public landing page. Guides travelers through the core 5-step journey: (1) Discover Your Destination, (2) Create Your Trip, (3) Generate Your AI Itinerary, (4) Customize Your Itinerary, and (5) Manage Your Trip. Connects desktop/mobile navigation links and footer navigation seamlessly.
+
+#### 1. Files Created / Modified
+- [`client/src/components/landing/HowItWorks.jsx`](./client/src/components/landing/HowItWorks.jsx) — *Created.* Dedicated 5-step workflow component rendered between `Hero` and `DestinationDiscovery`. Adheres to TripMind's warm ivory, forest green, terracotta, and muted sage palette with Playfair Display serif headings and DM Sans body text. Implements responsive 5-column / 2-column / 1-column card grids, Lucide icons (`Compass`, `CalendarPlus`, `Sparkles`, `Sliders`, `Wallet`, `ArrowRight`, `CheckCircle2`), accessible `<ol>` list structure, and contextual action CTA banner.
+- [`client/src/pages/LandingPage.jsx`](./client/src/pages/LandingPage.jsx) — *Modified.* Mounted `<HowItWorks />` between `<Hero />` and `<DestinationDiscovery />`, creating an intuitive user progression: brand inspiration -> 5-step workflow understanding -> interactive destination exploration.
+- [`client/src/components/layout/Navbar.jsx`](./client/src/components/layout/Navbar.jsx) — *Modified.* Added `{ label: 'How It Works', href: '/#how-it-works' }` to `navLinks`, providing direct smooth-scroll anchor navigation across desktop and mobile hamburger menus.
+- [`client/src/components/layout/Footer.jsx`](./client/src/components/layout/Footer.jsx) — *Modified.* Added `{ label: 'How It Works', href: '/#how-it-works' }` to platform links in the footer.
+- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — *Modified.* Documented Section 5.15 covering the "How to Use TripMind" workflow section, design tokens, typography, responsive grid specifications, and micro-interaction standards.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — *Modified.* Documented Section 4.7 detailing Landing Page Component Hierarchy and navigation anchor routing.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Logged session details, component specifications, and verification results.
+
+#### 2. Key Implementation Details & Concepts
+- **Core 5-Step Workflow Specification:**
+  1. *Discover Your Destination:* Explore curated travel spots by vibe, highlights, seasons, and budgets.
+  2. *Create Your Trip:* Define dates, total budget ceiling, traveler party size, and tailored interests.
+  3. *Generate Your AI Itinerary:* Intelligent geographic clustering, balanced daily pacing, and smart cost estimates.
+  4. *Customize Your Itinerary:* Seamlessly add, edit, or remove activities with instant atomic persistence.
+  5. *Manage Your Trip:* Review interactive Leaflet maps, category budget tracking, and AI Travel Assistant advice.
+- **Responsive Grid & Viewport Ergonomics:**
+  - Desktop ($\ge 1024\text{px}$): 5-column balanced cards (`lg:grid-cols-5`) displaying sequential workflow steps side by side.
+  - Tablet ($768\text{px} - 1023\text{px}$): 2-column grid (`md:grid-cols-2`) with the 5th card spanning both columns (`md:col-span-2`) for balanced symmetry.
+  - Mobile ($< 768\text{px}$): Single-column natural vertical flow with comfortable touch targets.
+- **Accessibility & Smooth Scroll:**
+  - `id="how-it-works"` paired with `scroll-mt-20` accounts for the 80px fixed navbar height.
+  - Semantic `<ol>` with numbered steps and `aria-labelledby="how-it-works-heading"`.
+  - Decorative icons equipped with `aria-hidden="true"`.
+
+#### 3. Verification & Testing Performed
+- **Linting & Code Quality:** Executed `npm --prefix client exec eslint` across all newly created and modified files (`HowItWorks.jsx`, `LandingPage.jsx`, `Navbar.jsx`, `Footer.jsx`). Zero ESLint errors or warnings.
+- **Production Build:** Ran `npm --prefix client run build` with Vite 8.3.8. Output bundled in 938ms with zero errors.
+- **Responsive Layout Verification:** Verified CSS grid breakpoints for mobile (<768px), tablet (768px-1024px), and desktop (>=1024px).
+- **Navigation Anchor Verification:** Verified `/#how-it-works` anchor target, smooth-scrolling behaviors, and navbar/footer links.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- None. Section is fully implemented, verified, and integrated into the landing page flow.
+
+---
+
 ### [2026-11-22] — Bug Fix: Resolve Add Activity Intermittent Failure (Persisted Day IDs & Synchronous Concurrency Guard)
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Resolve the intermittent failure of the "Add Activity" functionality on the itinerary page by addressing the root causes identified during diagnostic investigation: (1) itinerary generation returning raw AI JSON lacking MongoDB subdocument `_id` values, causing the frontend handler to silently exit, and (2) rapid double-clicks dispatching concurrent requests, triggering Mongoose `VersionError` (HTTP 500).

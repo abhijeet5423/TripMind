@@ -33,6 +33,7 @@ export default function Navbar({ className = '' }) {
   const profileTimeoutRef = useRef(null)
 
   const navLinks = [
+    { label: 'How It Works', href: '/#how-it-works' },
     { label: 'Destinations', href: '/#destinations' },
     { label: 'Itineraries', href: '/#itineraries' },
     { label: 'Budget Planner', href: '/#budget' },

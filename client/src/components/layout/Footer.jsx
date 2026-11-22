@@ -13,6 +13,7 @@ export default function Footer({ className = '' }) {
   const currentYear = new Date().getFullYear()
 
   const platformLinks = [
+    { label: 'How It Works', href: '/#how-it-works' },
     { label: 'Curated Destinations', href: '/#destinations' },
     { label: 'Sample Itinerary Concept', href: '/#itineraries' },
     { label: 'Budget Insights', href: '/#budget' },

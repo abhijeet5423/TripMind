@@ -541,6 +541,16 @@ All backend network calls must be routed through dedicated API modules in `clien
   - Multi-line textarea supports `Enter` to submit and `Shift + Enter` for newlines.
   - Real-time character counter (`${input.length}/1000`) alerts travelers before hitting backend payload bounds.
 
+### 4.7 Landing Page Architecture & Workflow Guide (`HowItWorks.jsx`)
+- **Landing Page Component Hierarchy (`client/src/pages/LandingPage.jsx`):**
+  1. **`<Hero />`:** Full-bleed cinematic video background, core brand value proposition, and quick-start CTAs.
+  2. **`<HowItWorks />`:** Dedicated 5-step workflow section (`#how-it-works`) explaining the journey from destination discovery to AI itinerary generation and trip management.
+  3. **`<DestinationDiscovery />`:** Curated destination showcase (`#destinations`) with debounced search, category filters, and photography cards.
+  4. **`<HomepageAssistantLauncher />`:** Global floating action button (FAB) for contextual AI travel assistant access.
+- **Navigation & Routing Integration:**
+  - Desktop navbar (`Navbar.jsx`) and mobile drawer provide direct smooth-scroll anchor navigation to `/#how-it-works`.
+  - Reusable footer (`Footer.jsx`) includes "How It Works" under platform navigation.
+
 ---
 
 ## 5. Security & Authentication Architecture

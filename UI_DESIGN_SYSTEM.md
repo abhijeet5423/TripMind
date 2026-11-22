@@ -413,4 +413,35 @@ The typographic identity balances literary prestige with modern legibility throu
   - Server Error Banner: Prominent `AlertCircle` notification box if the PATCH API rejects the update.
   - Submission Lock: Save button displays `Loader2` spinner with disabled state to prevent duplicate submissions.
 
+---
+
+### 5.15 "How to Use TripMind" Section Conventions (`HowItWorks.jsx`)
+
+#### 1. Spatial Placement & Narrative Progression
+- **Landing Page Flow:** Positioned immediately below `<Hero />` and above `<DestinationDiscovery />` on `LandingPage.jsx`.
+- **Narrative Logic:** Connects aspirational wanderlust from the cinematic Hero video directly to a concrete, approachable 5-step operational model before inviting travelers to explore the destination catalog.
+- **Anchor Offset:** Bound to `id="how-it-works"` with `scroll-mt-20`, ensuring smooth-scroll transitions from desktop and mobile navigation links dock cleanly below the 80px (`h-20`) sticky navbar.
+
+#### 2. Design Tokens & Visual Anatomy
+- **Section Canvas:** Warm Ivory foundation (`bg-sand-ivory`, `#F7F5EF`) framed with top border rule (`border-t border-sage`).
+- **Editorial Eyebrow:** Muted sage pill (`bg-sage/50 border border-sage text-forest text-xs font-sans font-semibold tracking-widest uppercase`) paired with a terracotta `Sparkles` icon (`text-terracotta`).
+- **Typography:**
+  - Section Headline: Playfair Display serif (`font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-forest tracking-tight`).
+  - Section Subtitle: DM Sans modern body (`font-sans text-stone text-base sm:text-lg leading-relaxed`).
+  - Step Numbers: Editorial Playfair Display numbers (`font-serif text-2xl font-bold text-terracotta`).
+  - Step Titles: Playfair Display card headers (`font-serif text-lg font-bold text-forest leading-snug`).
+  - Step Core Summaries: Semi-bold DM Sans callouts (`font-sans text-xs sm:text-sm font-semibold text-charcoal/90`).
+  - Step Descriptions: High-readability weathered stone text (`font-sans text-xs text-stone leading-relaxed`).
+
+#### 3. Responsive Grid Architecture
+- **Desktop ($\ge 1024\text{px}$):** 5-column linear grid (`lg:grid-cols-5 gap-4 xl:gap-5`) displaying all five chronological steps in a single cohesive row.
+- **Tablet ($768\text{px} - 1023\text{px}$):** 2-column grid (`md:grid-cols-2 gap-6`) where the final 5th card spans both columns (`md:col-span-2 lg:col-span-1`) for balanced symmetry.
+- **Mobile ($< 768\text{px}$):** Single-column stacked card sequence (`grid-cols-1 gap-6`) with generous touch targets and comfortable reading hierarchy.
+
+#### 4. Card Anatomy & Micro-Interactions
+- **Card Container:** Pure Linen White surface (`bg-white rounded-2xl p-6 border border-sage shadow-xs hover:shadow-md hover:border-forest/40 transition-all duration-200 group`).
+- **Icon Container:** Warm Ivory circular container (`w-10 h-10 rounded-xl bg-sand-ivory border border-sage/70 text-forest flex items-center justify-center shrink-0 group-hover:bg-forest group-hover:text-sand-ivory group-hover:border-forest transition-colors duration-200`).
+- **Feature Badges & Highlights:** Category micro-tag (`text-[10px] uppercase tracking-wider text-stone/80`) paired with a terracotta accent dot, accompanied by itemized feature bullets adorned with olive grove checkmarks (`CheckCircle2`).
+- **Editorial Callout Banner:** Elevated white banner card with dual calls-to-action ("Browse Destinations" scrolling to `#destinations`, and "Start Planning Free" leading to `/dashboard` or `/register`).
+
 
