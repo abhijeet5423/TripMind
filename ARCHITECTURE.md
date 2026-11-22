@@ -164,7 +164,7 @@ server/
 │   │   ├── auth.routes.js # POST /register, POST /login, POST /logout, GET /me
 │   │   ├── destination.routes.js # GET /api/destinations, GET /api/destinations/:identifier
 │   │   ├── health.routes.js # GET /api/health endpoint
-│   │   └── trip.routes.js # GET/POST /api/trips, GET/PATCH/DELETE /api/trips/:id
+│   │   └── trip.routes.js # GET/POST /api/trips, GET/PATCH/DELETE /api/trips/:id, GET /api/trips/shared/:token, GET/POST /api/trips/:id/share
 │   ├── middleware/        # Auth guards, validation, error handlers
 │   │   └── authMiddleware.js # HttpOnly cookie JWT verification & req.user guard
 │   ├── schemas/           # Structured response & JSON schema contracts
@@ -645,6 +645,24 @@ TripMind utilizes JWT for stateless authentication and `bcrypt` for salted passw
   - Consumed directly by `AssistantChat.jsx` mounted within `TripDetailPage.jsx` (Section 4.6) and globally via `AssistantLauncher.jsx`.
   - Safe Markdown Sanitization (`MarkdownContent.jsx`): Strictly validates token URLs with `/^https?:\/\//i`, rejecting dangerous `javascript:` and `data:` schemes.
   - Multi-Trip Stale Response Prevention: `AssistantChat.jsx` compares the active `tripId` reference on resolution; if the user switched trips while a query was in flight, the resolving response is silently discarded, eliminating cross-trip state corruption.
+
+### 5.6 Shareable Itinerary Links & Public Read-Only Security
+- **Public Resource Route:** `GET /api/trips/shared/:token` (unauthenticated, mounted before `/:id`).
+- **Owner Control Routes:** `GET /api/trips/:id/share` and `POST /api/trips/:id/share` (protected by `authenticateToken` and `validateTripId`).
+- **Cryptographic Token Architecture:**
+  - **Generation:** High-entropy 32-byte (256-bit) CSPRNG tokens generated via `crypto.randomBytes(32).toString('hex')` (64 hexadecimal characters).
+  - **Database Indexing:** Lookups are performed against a one-way SHA-256 hash (`shareSettings.shareTokenHash`) indexed with a unique partial filter expression (`{ 'shareSettings.shareTokenHash': { $type: 'string' } }`). This provides $O(1)$ lookup performance without storing raw tokens in plaintext or suffering duplicate null key collisions.
+  - **At-Rest Encryption:** Raw tokens are encrypted at rest via AES-256-GCM (`shareSettings.shareTokenEncrypted`) using a 96-bit random IV and 128-bit authentication tag. This enables the authenticated owner to inspect and copy their active URL without invalidating links already distributed to travel companions.
+  - **Revocation & Rotation:** Toggling `isShared: false` instantly nullifies the token hash, revoking public access with immediate effect. Passing `regenerateToken: true` generates a new random token, immediately invalidating previous links.
+- **Data Minimization & Sanitization:**
+  - Unauthenticated endpoint returns a strictly minimized public DTO. Fields completely excluded: `userId`, `user`, `__v`, internal credentials, `shareTokenHash`, `shareTokenEncrypted`, and user email addresses.
+  - **Granular Privacy:** The owner may toggle `includeBudget: false`, which completely strips `budget` and `budgetSummary` from the public DTO.
+- **Anti-Enumeration Defense:**
+  - Non-existent tokens, malformed tokens, unshared trips, and revoked tokens return uniform HTTP 404 `NOT_FOUND` responses with the exact message: `"Shared itinerary not found or has been revoked"`.
+- **Public Rate Limiting:**
+  - `publicShareRateLimiter` enforces a strict ceiling of 60 requests/minute per IP, preventing automated scanning and token brute-forcing.
+- **Frontend Read-Only Interface (`/shared/:token`):**
+  - Displays complete itinerary, interactive Leaflet map, and client-side PDF export without rendering any trip mutation controls (no edit, delete, or add activity buttons) or AI Assistant launchers.
 
 ---
 

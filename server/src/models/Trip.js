@@ -281,6 +281,47 @@ const travelPreferencesSchema = new mongoose.Schema(
 )
 
 /**
+ * Share Settings Subdocument Schema
+ *
+ * Manages public, read-only itinerary link sharing.
+ * Stores cryptographically secure SHA-256 token hash for indexed lookup,
+ * AES-256-GCM encrypted token for authenticated owner retrieval,
+ * and toggles for public status and budget visibility.
+ */
+const shareSettingsSchema = new mongoose.Schema(
+  {
+    isShared: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    shareTokenHash: {
+      type: String,
+      default: null,
+      index: {
+        unique: true,
+        partialFilterExpression: {
+          'shareSettings.shareTokenHash': { $type: 'string' },
+        },
+      },
+    },
+    shareTokenEncrypted: {
+      type: String,
+      default: null,
+    },
+    sharedAt: {
+      type: Date,
+      default: null,
+    },
+    includeBudget: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  { _id: false }
+)
+
+/**
  * Trip Schema
  *
  * Core travel itinerary entity for TripMind. Stores trip metadata, traveler
@@ -429,6 +470,16 @@ const tripSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    shareSettings: {
+      type: shareSettingsSchema,
+      default: () => ({
+        isShared: false,
+        shareTokenHash: null,
+        shareTokenEncrypted: null,
+        sharedAt: null,
+        includeBudget: true,
+      }),
+    },
   },
   {
     timestamps: true,
@@ -436,6 +487,10 @@ const tripSchema = new mongoose.Schema(
       virtuals: true,
       transform: (doc, ret) => {
         delete ret.__v
+        if (ret.shareSettings) {
+          delete ret.shareSettings.shareTokenHash
+          delete ret.shareSettings.shareTokenEncrypted
+        }
         return ret
       },
     },
@@ -443,6 +498,10 @@ const tripSchema = new mongoose.Schema(
       virtuals: true,
       transform: (doc, ret) => {
         delete ret.__v
+        if (ret.shareSettings) {
+          delete ret.shareSettings.shareTokenHash
+          delete ret.shareSettings.shareTokenEncrypted
+        }
         return ret
       },
     },

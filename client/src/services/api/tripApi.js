@@ -134,6 +134,41 @@ export async function deleteActivity(tripId, dayId, activityId) {
   return response.data
 }
 
+/**
+ * Retrieves share settings for an authenticated user's trip.
+ *
+ * @param {string} tripId - The MongoDB ObjectId of the trip.
+ * @returns {Promise<Object>} Standardized API response with shareSettings data.
+ */
+export async function getShareSettings(tripId) {
+  const response = await apiClient.get(`/trips/${tripId}/share`)
+  return response.data
+}
+
+/**
+ * Enables, updates, or revokes share settings for an authenticated user's trip.
+ *
+ * @param {string} tripId - The MongoDB ObjectId of the trip.
+ * @param {Object} payload - { isShared: boolean, includeBudget?: boolean, regenerateToken?: boolean }.
+ * @returns {Promise<Object>} Standardized API response with updated shareSettings.
+ */
+export async function updateShareSettings(tripId, payload) {
+  const response = await apiClient.post(`/trips/${tripId}/share`, payload)
+  return response.data
+}
+
+/**
+ * Retrieves a public, read-only shared itinerary by its cryptographic token.
+ * Unauthenticated public endpoint.
+ *
+ * @param {string} token - 64-character raw hex share token.
+ * @returns {Promise<Object>} Standardized API response containing public trip DTO.
+ */
+export async function getSharedTrip(token) {
+  const response = await apiClient.get(`/trips/shared/${token}`)
+  return response.data
+}
+
 
 
 

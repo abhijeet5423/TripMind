@@ -648,5 +648,129 @@ export async function removeActivity(req, res, next) {
   }
 }
 
+/**
+ * Updates or revokes share settings for an authenticated user's trip.
+ * POST /api/trips/:id/share
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
+export async function updateTripShareSettings(req, res, next) {
+  try {
+    const userId = req.user.id
+    const tripId = req.params.id
+
+    const result = await tripService.updateShareSettings(userId, tripId, req.body)
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        shareSettings: result,
+      },
+      message: result.isShared
+        ? 'Trip itinerary sharing enabled successfully'
+        : 'Trip itinerary sharing disabled successfully',
+    })
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        success: false,
+        error: {
+          code: error.code || 'ERROR',
+          message: error.message,
+          details: error.details || [],
+        },
+      })
+    }
+    next(error)
+  }
+}
+
+/**
+ * Retrieves current share settings for an authenticated user's trip.
+ * GET /api/trips/:id/share
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
+export async function getTripShareSettings(req, res, next) {
+  try {
+    const userId = req.user.id
+    const tripId = req.params.id
+
+    const result = await tripService.getShareSettings(userId, tripId)
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        shareSettings: result,
+      },
+      message: 'Share settings retrieved successfully',
+    })
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        success: false,
+        error: {
+          code: error.code || 'ERROR',
+          message: error.message,
+          details: error.details || [],
+        },
+      })
+    }
+    next(error)
+  }
+}
+
+/**
+ * Retrieves a public, read-only shared itinerary by its cryptographic token.
+ * GET /api/trips/shared/:token
+ * Unauthenticated public endpoint.
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
+export async function getSharedTrip(req, res, next) {
+  try {
+    const token = req.params.token
+
+    const publicTrip = await tripService.getPublicSharedTrip(token)
+
+    if (!publicTrip) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Shared itinerary not found or has been revoked',
+          details: [],
+        },
+      })
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        trip: publicTrip,
+      },
+      message: 'Shared itinerary retrieved successfully',
+    })
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        success: false,
+        error: {
+          code: error.code || 'ERROR',
+          message: error.message,
+          details: error.details || [],
+        },
+      })
+    }
+    next(error)
+  }
+}
+
 
 

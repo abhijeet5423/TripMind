@@ -1,6 +1,13 @@
 import mongoose from 'mongoose'
+import { config } from '../config/env.js'
 import User from '../models/User.js'
 import Trip from '../models/Trip.js'
+import {
+  generateRawShareToken,
+  hashShareToken,
+  encryptShareToken,
+  decryptShareToken,
+} from '../utils/shareToken.js'
 import {
   recalculateTripBudgetSummary,
   calculateTripBudget,
@@ -817,6 +824,211 @@ export async function removeTripActivity(userId, tripId, dayId, activityId) {
     }
     throw error
   }
+}
+
+/**
+ * Updates or revokes share settings for an authenticated user's trip.
+ *
+ * @param {string} userId - Authenticated owner's user ID.
+ * @param {string} tripId - Target trip ID.
+ * @param {Object} options - Sharing configuration options.
+ * @param {boolean} options.isShared - Whether sharing should be active.
+ * @param {boolean} [options.includeBudget=true] - Whether to include budget in shared view.
+ * @param {boolean} [options.regenerateToken=false] - Whether to generate a fresh token.
+ * @returns {Promise<Object>} Share settings descriptor containing raw shareToken for owner.
+ */
+export async function updateShareSettings(userId, tripId, options = {}) {
+  if (!userId || !mongoose.Types.ObjectId.isValid(userId) || !tripId || !mongoose.Types.ObjectId.isValid(tripId)) {
+    const formatError = new Error('Invalid ID format')
+    formatError.statusCode = 400
+    formatError.code = 'INVALID_ID'
+    formatError.details = []
+    throw formatError
+  }
+
+  const trip = await Trip.findOne({ _id: tripId, userId })
+  if (!trip) {
+    const notFoundError = new Error('Trip not found')
+    notFoundError.statusCode = 404
+    notFoundError.code = 'NOT_FOUND'
+    notFoundError.details = []
+    throw notFoundError
+  }
+
+  const { isShared, includeBudget = true, regenerateToken = false } = options
+
+  if (isShared) {
+    let rawToken
+    if (trip.shareSettings?.isShared && trip.shareSettings?.shareTokenEncrypted && !regenerateToken) {
+      rawToken = decryptShareToken(trip.shareSettings.shareTokenEncrypted)
+    }
+
+    if (!rawToken) {
+      rawToken = generateRawShareToken()
+      const tokenHash = hashShareToken(rawToken)
+      const encryptedToken = encryptShareToken(rawToken)
+
+      trip.shareSettings = {
+        isShared: true,
+        shareTokenHash: tokenHash,
+        shareTokenEncrypted: encryptedToken,
+        sharedAt: new Date(),
+        includeBudget: Boolean(includeBudget),
+      }
+    } else {
+      trip.shareSettings.isShared = true
+      trip.shareSettings.includeBudget = Boolean(includeBudget)
+    }
+
+    await trip.save()
+
+    return {
+      isShared: true,
+      shareToken: rawToken,
+      shareUrl: `${config.clientUrl}/shared/${rawToken}`,
+      sharedAt: trip.shareSettings.sharedAt,
+      includeBudget: trip.shareSettings.includeBudget,
+    }
+  } else {
+    // Revoke sharing immediately
+    trip.shareSettings = {
+      isShared: false,
+      shareTokenHash: null,
+      shareTokenEncrypted: null,
+      sharedAt: null,
+      includeBudget: true,
+    }
+
+    await trip.save()
+
+    return {
+      isShared: false,
+      shareToken: null,
+      shareUrl: null,
+      sharedAt: null,
+      includeBudget: true,
+    }
+  }
+}
+
+/**
+ * Retrieves current share settings for an authenticated user's trip.
+ *
+ * @param {string} userId - Authenticated owner's user ID.
+ * @param {string} tripId - Target trip ID.
+ * @returns {Promise<Object>} Share settings descriptor.
+ */
+export async function getShareSettings(userId, tripId) {
+  if (!userId || !mongoose.Types.ObjectId.isValid(userId) || !tripId || !mongoose.Types.ObjectId.isValid(tripId)) {
+    const formatError = new Error('Invalid ID format')
+    formatError.statusCode = 400
+    formatError.code = 'INVALID_ID'
+    formatError.details = []
+    throw formatError
+  }
+
+  const trip = await Trip.findOne({ _id: tripId, userId })
+  if (!trip) {
+    const notFoundError = new Error('Trip not found')
+    notFoundError.statusCode = 404
+    notFoundError.code = 'NOT_FOUND'
+    notFoundError.details = []
+    throw notFoundError
+  }
+
+  const isShared = Boolean(trip.shareSettings?.isShared)
+  let rawToken = null
+
+  if (isShared && trip.shareSettings?.shareTokenEncrypted) {
+    rawToken = decryptShareToken(trip.shareSettings.shareTokenEncrypted)
+  }
+
+  return {
+    isShared,
+    shareToken: rawToken,
+    shareUrl: rawToken ? `${config.clientUrl}/shared/${rawToken}` : null,
+    sharedAt: trip.shareSettings?.sharedAt || null,
+    includeBudget: trip.shareSettings?.includeBudget ?? true,
+  }
+}
+
+/**
+ * Retrieves a sanitized public shared trip by its raw share token.
+ * Validates the token against the stored SHA-256 hash.
+ * Enforces data minimization: excludes userId, __v, and internal credentials.
+ * Conditionally excludes budget details if includeBudget is disabled.
+ *
+ * @param {string} rawToken - The 64-character raw hex share token.
+ * @returns {Promise<Object|null>} Sanitized public trip DTO, or null if not found/unshared.
+ */
+export async function getPublicSharedTrip(rawToken) {
+  if (!rawToken || typeof rawToken !== 'string') {
+    return null
+  }
+
+  const tokenHash = hashShareToken(rawToken)
+  if (!tokenHash) return null
+
+  const trip = await Trip.findOne({
+    'shareSettings.shareTokenHash': tokenHash,
+    'shareSettings.isShared': true,
+  }).lean()
+
+  if (!trip) {
+    return null
+  }
+
+  const includeBudget = trip.shareSettings?.includeBudget ?? true
+
+  const publicTrip = {
+    _id: trip._id.toString(),
+    title: trip.title,
+    destination: trip.destination,
+    startingLocation: trip.startingLocation,
+    departureDate: trip.departureDate,
+    returnDate: trip.returnDate,
+    numberOfTravellers: trip.numberOfTravellers,
+    currency: trip.currency,
+    status: trip.status,
+    coverImageUrl: trip.coverImageUrl,
+    summary: trip.summary,
+    travelTips: trip.travelTips,
+    travelPreferences: trip.travelPreferences,
+    days: (trip.days || []).map((day) => ({
+      _id: day._id ? day._id.toString() : undefined,
+      dayNumber: day.dayNumber,
+      date: day.date,
+      theme: day.theme,
+      notes: day.notes,
+      activities: (day.activities || []).map((act) => ({
+        _id: act._id ? act._id.toString() : undefined,
+        title: act.title,
+        description: act.description,
+        timeSlot: act.timeSlot,
+        time: act.time,
+        duration: act.duration,
+        locationName: act.locationName,
+        latitude: act.latitude,
+        longitude: act.longitude,
+        category: act.category,
+        location: act.location,
+        ...(includeBudget
+          ? {
+              estimatedCost: act.estimatedCost,
+              costBreakdown: act.costBreakdown,
+            }
+          : {}),
+      })),
+    })),
+    ...(includeBudget
+      ? {
+          budget: trip.budget,
+          budgetSummary: trip.budgetSummary,
+        }
+      : {}),
+  }
+
+  return publicTrip
 }
 
 

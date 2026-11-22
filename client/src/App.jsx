@@ -7,6 +7,7 @@ import RegisterPage from './pages/RegisterPage.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
 import TripDetailPage from './pages/TripDetailPage.jsx'
 import TripExportPage from './pages/TripExportPage.jsx'
+import SharedTripPage from './pages/SharedTripPage.jsx'
 import NotFoundPage from './pages/NotFoundPage.jsx'
 import ProtectedRoute from './components/common/ProtectedRoute.jsx'
 import PublicOnlyRoute from './components/common/PublicOnlyRoute.jsx'
@@ -41,6 +42,16 @@ export default function App() {
           element={
             <PublicLayout>
               <LandingPage />
+            </PublicLayout>
+          }
+        />
+
+        {/* Public Shared Itinerary Route (Accessible with cryptographic token) */}
+        <Route
+          path="/shared/:token"
+          element={
+            <PublicLayout>
+              <SharedTripPage />
             </PublicLayout>
           }
         />

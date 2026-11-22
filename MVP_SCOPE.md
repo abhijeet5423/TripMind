@@ -159,6 +159,17 @@ Stage 5: AI Itinerary, Maps & Budget Analytics
   - [x] **Global AI Assistant Launcher (`AssistantLauncher.jsx`):** Floating circular launcher button mounted across every page with accessible tooltip, journey switcher dropdown, mobile drawer/desktop popover, and deep linking to the active trip workspace *(Completed Day 41/42)*.
 - **Current Status:** 🟢 Completed (Backend API, frontend API client, in-trip chat interface, and global launcher fully verified across all viewports).
 
+### 3.11 Stage 5: Shareable Itinerary Links & Read-Only Public View
+- **Description:** Secure, read-only itinerary sharing with cryptographic token architecture, anti-enumeration, and data minimization.
+- **Acceptance Criteria:**
+  - [x] Dedicated modal in trip header to enable/disable sharing, copy link, preview, and toggle budget visibility *(Completed Day 44)*.
+  - [x] Cryptographic 256-bit entropy tokens (`crypto.randomBytes(32)`), indexed via SHA-256 hash with unique partial filter expression and encrypted at rest via AES-256-GCM *(Completed Day 44)*.
+  - [x] Dedicated public read-only route (`/shared/:token`) rendering destination overview, interactive Leaflet map, day-wise activities, and optional budget breakdown *(Completed Day 44)*.
+  - [x] Strict data minimization (scrubbing `userId`, `__v`, internal credentials, and user emails) and uniform 404 anti-enumeration responses *(Completed Day 44)*.
+  - [x] Dedicated public endpoint rate limiting (60 req/min per IP) preventing brute-force token scanning *(Completed Day 44)*.
+  - [x] Client-side PDF export directly accessible from the shared itinerary view *(Completed Day 44)*.
+- **Current Status:** 🟢 Completed Day 44 (Backend cryptographic service, public routes, rate limiter, ShareTripModal, and SharedTripPage fully integrated and verified across desktop and mobile).
+
 ---
 
 ## 4. Optional Extensions (Tier 2 — Post-MVP Polish)
@@ -176,8 +187,6 @@ These features provide incremental value and should only be initiated once all T
 The following capabilities are explicitly deferred to future milestones. **Agents must not implement, scaffold, or install dependencies for these features during MVP development:**
 
 - ❌ **Persistent Multi-Channel Chatbot Infrastructure:** Persistent multi-user channels or MongoDB conversation collections (stateless bounded-turn assistant is in scope for Days 40–41).
-- ❌ **PDF Export:** Server-side or client-side PDF document generation.
-- ❌ **Shareable Public Itineraries:** Public sharing links, read-only guest tokens, or social preview generation.
 - ❌ **Flight & Hotel Booking Integrations:** Live booking APIs (e.g., Amadeus, Skyscanner, Booking.com).
 - ❌ **Collaborative Planning:** Multi-user real-time editing via WebSockets or CRDTs.
 
@@ -202,3 +211,5 @@ The following capabilities are explicitly deferred to future milestones. **Agent
 | Third-party hotel/flight booking checkout | | ❌ |
 | Client-side credential clearing on logout | ✅ | |
 | Server-side JWT blacklisting / active revocation | | ❌ |
+| PDF Itinerary Export (Client-side HTML paged media) | ✅ | |
+| Secure Shareable Itinerary Links (Crypto tokens & Public Read-Only) | ✅ | |

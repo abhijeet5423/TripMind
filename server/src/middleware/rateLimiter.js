@@ -105,6 +105,18 @@ export function createRateLimiter(options = {}) {
 }
 
 /**
+ * Public Share Endpoint Rate Limiter
+ * Limits public unauthenticated visitors to 60 requests per minute per IP address.
+ */
+export const publicShareRateLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  maxRequests: 60,
+  errorCode: 'RATE_LIMIT_EXCEEDED',
+  message: 'Too many requests for shared itineraries. Please wait before retrying.',
+  keyGenerator: (req) => req.ip || 'anonymous',
+})
+
+/**
  * Assistant endpoint rate limiter: Max 15 messages per minute per user/IP.
  */
 export const assistantLimiter = createRateLimiter({

@@ -33,6 +33,66 @@
 
 ## 2. Session History
 
+### [2026-11-22] — Week 7, Day 44: Secure Shareable Itinerary Links
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement secure, shareable, read-only itinerary links allowing travelers to share their curated itineraries without exposing private user accounts, authentication tokens, or trip management capabilities.
+
+#### 1. Files Created / Modified
+- [`server/src/utils/shareToken.js`](./server/src/utils/shareToken.js) — *Created.* Cryptographic token generator and AES-256-GCM / SHA-256 cipher utility. Implements `generateRawShareToken()` (32 bytes / 256 bits of CSPRNG entropy), `hashShareToken(rawToken)` (SHA-256 for fast indexed lookups), `encryptShareToken(rawToken)` (AES-256-GCM at-rest encryption with unique 12-byte IV and 16-byte auth tag), and `decryptShareToken(ciphertext)` (authenticated decryption for owner link retrieval).
+- [`server/src/models/Trip.js`](./server/src/models/Trip.js) — *Modified.* Added `shareSettingsSchema` with `isShared` (boolean indexed), `shareTokenHash` (string with unique partial index filtering on `{ 'shareSettings.shareTokenHash': { $type: 'string' } }`), `shareTokenEncrypted`, `sharedAt`, and `includeBudget` (boolean, default true). Configured schema transforms to scrub `shareTokenHash` and `shareTokenEncrypted` from all JSON/Object transforms.
+- [`server/src/validators/shareValidator.js`](./server/src/validators/shareValidator.js) — *Created.* Input validation middleware for share settings updates (`validateUpdateShareSettings`) and token validation (`validateShareToken`). Enforces 64-character hexadecimal regex format, returning uniform HTTP 404 anti-enumeration responses for malformed tokens.
+- [`server/src/middleware/rateLimiter.js`](./server/src/middleware/rateLimiter.js) — *Modified.* Exported `publicShareRateLimiter` configured for 60 requests per 1-minute window per IP to prevent automated token brute-forcing.
+- [`server/src/services/tripService.js`](./server/src/services/tripService.js) — *Modified.* Added `updateShareSettings(userId, tripId, payload)`, `getShareSettings(userId, tripId)`, and `getPublicSharedTrip(rawToken)`. Enforces strict ownership checks on mutation, and strict data minimization on public retrieval (scrubbing `userId`, `__v`, internal credentials, and conditionally hiding budget when `includeBudget` is false).
+- [`server/src/controllers/tripController.js`](./server/src/controllers/tripController.js) — *Modified.* Added controllers `updateTripShareSettings`, `getTripShareSettings`, and `getSharedTrip`.
+- [`server/src/routes/trip.routes.js`](./server/src/routes/trip.routes.js) — *Modified.* Mounted `GET /api/trips/shared/:token` (before parameterized `/:id`), `GET /api/trips/:id/share`, and `POST /api/trips/:id/share`.
+- [`client/src/services/api/tripApi.js`](./client/src/services/api/tripApi.js) — *Modified.* Added `getShareSettings(tripId)`, `updateShareSettings(tripId, payload)`, and `getSharedTrip(token)`.
+- [`client/src/components/itinerary/ShareTripModal.jsx`](./client/src/components/itinerary/ShareTripModal.jsx) — *Created.* Dedicated owner modal allowing travelers to enable sharing, copy the link with instant clipboard feedback, preview in new tab, regenerate/rotate share tokens, toggle budget visibility, and instantly revoke public access.
+- [`client/src/pages/SharedTripPage.jsx`](./client/src/pages/SharedTripPage.jsx) — *Created.* Dedicated public read-only route (`/shared/:token`) rendering top shared banner, destination header, interactive Leaflet map, day navigation tabs, activity cards with costs and category badges, optional budget breakdown, client-side PDF export, and reassuring unavailable/revoked card. Completely omits edit/delete buttons and AI Assistant launcher.
+- [`client/src/pages/TripDetailPage.jsx`](./client/src/pages/TripDetailPage.jsx) — *Modified.* Integrated "Share" button with `Share2` icon next to "Download PDF" in the Journey Header, opening `ShareTripModal`.
+- [`client/src/App.jsx`](./client/src/App.jsx) — *Modified.* Mounted public `/shared/:token` route under `PublicLayout`.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — *Modified.* Documented Section 2.4, Section 3, and Section 5.6 for shareable link security, cryptography, and data minimization.
+- [`MVP_SCOPE.md`](./MVP_SCOPE.md) — *Modified.* Marked "Shareable Public Itineraries" as Completed.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Documented session progress, architecture, and verification.
+
+#### 2. Key Implementation Details & Concepts
+- Cryptographic Token Architecture:
+  - 32 bytes (256 bits) of CSPRNG entropy generated via `crypto.randomBytes(32).toString('hex')`.
+  - Database lookups perform $O(1)$ equality against `shareSettings.shareTokenHash` (SHA-256 hex digest) with a unique partial filter index (`{ 'shareSettings.shareTokenHash': { $type: 'string' } }`), eliminating duplicate key issues while preventing plaintext token storage.
+  - At-rest reversible encryption via AES-256-GCM (`shareSettings.shareTokenEncrypted`) with 96-bit random IV and 128-bit auth tag allows authenticated owners to retrieve and view their active share link without forcing link regeneration.
+- Anti-Enumeration & Uniform 404s:
+  - Any request with an unshared trip, revoked token, tampered token, malformed token, or non-existent token uniformly returns HTTP 404 NOT_FOUND with the identical message `"Shared itinerary not found or has been revoked"`.
+- Data Minimization & Privacy:
+  - Public DTO explicitly constructs an unprivileged view, scrubbing `userId`, `__v`, internal hashes, passwords, and user profile fields.
+  - Granular budget toggle allows the owner to exclude total budget and category breakdown from the shared page.
+- Visual & Responsive Fidelity:
+  - Read-only public page conforms to TripMind design system (Playfair Display, DM Sans, warm ivory, forest green, terracotta).
+  - Includes interactive Leaflet map with plottable activity pins and editorial popups.
+  - Supports client-side PDF export directly from the shared itinerary.
+
+#### 3. Verification & Testing Performed
+- Automated Test Suite (`scratch/test_shareable_links.mjs`):
+  - Verified all 12 core criteria across 79 assertions:
+    1. Private trip inaccessible publicly (404 Not Found & 401 on private endpoint).
+    2. Owner enabling sharing generates 64-char hex token and returns shareUrl (200 OK).
+    3. Public access via valid share token returns complete sanitized trip DTO (200 OK).
+    4. Malformed/invalid tokens rejected with uniform 404.
+    5. Tampered tokens rejected with uniform 404.
+    6. Disabling sharing immediately revokes token (subsequent request returns 404).
+    7. Re-enabling sharing issues a brand-new token; old token remains dead (404).
+    8. Public visitors cannot mutate trip data (POST/PUT/DELETE return 404/405, unauthenticated mutation returns 401).
+    9. Strict token isolation between User A and User B.
+    10. Owner-only endpoints strictly protected against unauthenticated and cross-user access.
+    11. Public DTO data minimization verified (no userId, __v, hashes, or passwords; budget omitted when includeBudget is false).
+    12. Headless Edge CDP visual and interactive verification: Desktop (1280x900) and Mobile (375x812) layouts rendered with zero horizontal overflow; captured screenshots (`scratch/shared_itinerary_desktop.png`, `scratch/shared_itinerary_mobile.png`, `scratch/shared_itinerary_revoked.png`).
+- Linter & Build:
+  - ESLint ran with 0 errors and 0 warnings.
+  - Client production build (`npm --prefix client run build`) succeeded cleanly.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- None. Shareable itinerary links feature is fully operational and production-ready.
+
+---
+
 ### [2026-11-22] — Feature: PDF Itinerary Export
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Implement an editorial, high-fidelity, client-side PDF Itinerary Export feature for TripMind conforming to the brand design system (Playfair Display serif, DM Sans, Warm Ivory #F7F5EF, Forest Green #173D35, Terracotta #C25E3E). Support complete cover overview, multi-day scheduled itinerary with activity cards, financial architecture and categorical budget table, clean A4 paged media margins, zero awkward card splitting (`break-inside: avoid;`), and native Indian Rupee (`₹`) and multi-currency formatting without heavy binary backend dependencies.
@@ -169,7 +229,67 @@
 
 ---
 
-## 2. Session History (Continued)
+## 2. Session History
+
+### [2026-11-22] — Week 7, Day 44: Secure Shareable Itinerary Links
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement secure, shareable, read-only itinerary links allowing travelers to share their curated itineraries without exposing private user accounts, authentication tokens, or trip management capabilities.
+
+#### 1. Files Created / Modified
+- [`server/src/utils/shareToken.js`](./server/src/utils/shareToken.js) — *Created.* Cryptographic token generator and AES-256-GCM / SHA-256 cipher utility. Implements `generateRawShareToken()` (32 bytes / 256 bits of CSPRNG entropy), `hashShareToken(rawToken)` (SHA-256 for fast indexed lookups), `encryptShareToken(rawToken)` (AES-256-GCM at-rest encryption with unique 12-byte IV and 16-byte auth tag), and `decryptShareToken(ciphertext)` (authenticated decryption for owner link retrieval).
+- [`server/src/models/Trip.js`](./server/src/models/Trip.js) — *Modified.* Added `shareSettingsSchema` with `isShared` (boolean indexed), `shareTokenHash` (string with unique partial index filtering on `{ 'shareSettings.shareTokenHash': { $type: 'string' } }`), `shareTokenEncrypted`, `sharedAt`, and `includeBudget` (boolean, default true). Configured schema transforms to scrub `shareTokenHash` and `shareTokenEncrypted` from all JSON/Object transforms.
+- [`server/src/validators/shareValidator.js`](./server/src/validators/shareValidator.js) — *Created.* Input validation middleware for share settings updates (`validateUpdateShareSettings`) and token validation (`validateShareToken`). Enforces 64-character hexadecimal regex format, returning uniform HTTP 404 anti-enumeration responses for malformed tokens.
+- [`server/src/middleware/rateLimiter.js`](./server/src/middleware/rateLimiter.js) — *Modified.* Exported `publicShareRateLimiter` configured for 60 requests per 1-minute window per IP to prevent automated token brute-forcing.
+- [`server/src/services/tripService.js`](./server/src/services/tripService.js) — *Modified.* Added `updateShareSettings(userId, tripId, payload)`, `getShareSettings(userId, tripId)`, and `getPublicSharedTrip(rawToken)`. Enforces strict ownership checks on mutation, and strict data minimization on public retrieval (scrubbing `userId`, `__v`, internal credentials, and conditionally hiding budget when `includeBudget` is false).
+- [`server/src/controllers/tripController.js`](./server/src/controllers/tripController.js) — *Modified.* Added controllers `updateTripShareSettings`, `getTripShareSettings`, and `getSharedTrip`.
+- [`server/src/routes/trip.routes.js`](./server/src/routes/trip.routes.js) — *Modified.* Mounted `GET /api/trips/shared/:token` (before parameterized `/:id`), `GET /api/trips/:id/share`, and `POST /api/trips/:id/share`.
+- [`client/src/services/api/tripApi.js`](./client/src/services/api/tripApi.js) — *Modified.* Added `getShareSettings(tripId)`, `updateShareSettings(tripId, payload)`, and `getSharedTrip(token)`.
+- [`client/src/components/itinerary/ShareTripModal.jsx`](./client/src/components/itinerary/ShareTripModal.jsx) — *Created.* Dedicated owner modal allowing travelers to enable sharing, copy the link with instant clipboard feedback, preview in new tab, regenerate/rotate share tokens, toggle budget visibility, and instantly revoke public access.
+- [`client/src/pages/SharedTripPage.jsx`](./client/src/pages/SharedTripPage.jsx) — *Created.* Dedicated public read-only route (`/shared/:token`) rendering top shared banner, destination header, interactive Leaflet map, day navigation tabs, activity cards with costs and category badges, optional budget breakdown, client-side PDF export, and reassuring unavailable/revoked card. Completely omits edit/delete buttons and AI Assistant launcher.
+- [`client/src/pages/TripDetailPage.jsx`](./client/src/pages/TripDetailPage.jsx) — *Modified.* Integrated "Share" button with `Share2` icon next to "Download PDF" in the Journey Header, opening `ShareTripModal`.
+- [`client/src/App.jsx`](./client/src/App.jsx) — *Modified.* Mounted public `/shared/:token` route under `PublicLayout`.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — *Modified.* Documented Section 2.4, Section 3, and Section 5.6 for shareable link security, cryptography, and data minimization.
+- [`MVP_SCOPE.md`](./MVP_SCOPE.md) — *Modified.* Marked "Shareable Public Itineraries" as Completed.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Documented session progress, architecture, and verification.
+
+#### 2. Key Implementation Details & Concepts
+- Cryptographic Token Architecture:
+  - 32 bytes (256 bits) of CSPRNG entropy generated via `crypto.randomBytes(32).toString('hex')`.
+  - Database lookups perform $O(1)$ equality against `shareSettings.shareTokenHash` (SHA-256 hex digest) with a unique partial filter index (`{ 'shareSettings.shareTokenHash': { $type: 'string' } }`), eliminating duplicate key issues while preventing plaintext token storage.
+  - At-rest reversible encryption via AES-256-GCM (`shareSettings.shareTokenEncrypted`) with 96-bit random IV and 128-bit auth tag allows authenticated owners to retrieve and view their active share link without forcing link regeneration.
+- Anti-Enumeration & Uniform 404s:
+  - Any request with an unshared trip, revoked token, tampered token, malformed token, or non-existent token uniformly returns HTTP 404 NOT_FOUND with the identical message `"Shared itinerary not found or has been revoked"`.
+- Data Minimization & Privacy:
+  - Public DTO explicitly constructs an unprivileged view, scrubbing `userId`, `__v`, internal hashes, passwords, and user profile fields.
+  - Granular budget toggle allows the owner to exclude total budget and category breakdown from the shared page.
+- Visual & Responsive Fidelity:
+  - Read-only public page conforms to TripMind design system (Playfair Display, DM Sans, warm ivory, forest green, terracotta).
+  - Includes interactive Leaflet map with plottable activity pins and editorial popups.
+  - Supports client-side PDF export directly from the shared itinerary.
+
+#### 3. Verification & Testing Performed
+- Automated Test Suite (`scratch/test_shareable_links.mjs`):
+  - Verified all 12 core criteria across 79 assertions:
+    1. Private trip inaccessible publicly (404 Not Found & 401 on private endpoint).
+    2. Owner enabling sharing generates 64-char hex token and returns shareUrl (200 OK).
+    3. Public access via valid share token returns complete sanitized trip DTO (200 OK).
+    4. Malformed/invalid tokens rejected with uniform 404.
+    5. Tampered tokens rejected with uniform 404.
+    6. Disabling sharing immediately revokes token (subsequent request returns 404).
+    7. Re-enabling sharing issues a brand-new token; old token remains dead (404).
+    8. Public visitors cannot mutate trip data (POST/PUT/DELETE return 404/405, unauthenticated mutation returns 401).
+    9. Strict token isolation between User A and User B.
+    10. Owner-only endpoints strictly protected against unauthenticated and cross-user access.
+    11. Public DTO data minimization verified (no userId, __v, hashes, or passwords; budget omitted when includeBudget is false).
+    12. Headless Edge CDP visual and interactive verification: Desktop (1280x900) and Mobile (375x812) layouts rendered with zero horizontal overflow; captured screenshots (`scratch/shared_itinerary_desktop.png`, `scratch/shared_itinerary_mobile.png`, `scratch/shared_itinerary_revoked.png`).
+- Linter & Build:
+  - ESLint ran with 0 errors and 0 warnings.
+  - Client production build (`npm --prefix client run build`) succeeded cleanly.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- None. Shareable itinerary links feature is fully operational and production-ready.
+
+--- (Continued)
 
 ### [2026-11-22] — Feature: Default New Trips to INR Currency and Cash/Wallet Icon Standard
 - **Author / Agent:** Antigravity (AI Coding Assistant)

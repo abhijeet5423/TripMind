@@ -9,6 +9,9 @@ import {
   updateActivity,
   addActivity,
   removeActivity,
+  updateTripShareSettings,
+  getTripShareSettings,
+  getSharedTrip,
 } from '../controllers/tripController.js'
 import {
   validateCreateTrip,
@@ -22,10 +25,22 @@ import {
   validateUpdateActivity,
   validateAddActivity,
 } from '../validators/activityValidator.js'
+import {
+  validateUpdateShareSettings,
+  validateShareToken,
+} from '../validators/shareValidator.js'
 import { authenticateToken } from '../middleware/authMiddleware.js'
+import { publicShareRateLimiter } from '../middleware/rateLimiter.js'
 import assistantRoutes from './assistant.routes.js'
 
 const router = Router()
+
+/**
+ * @route   GET /api/trips/shared/:token
+ * @desc    Retrieve a public read-only shared itinerary by its cryptographic token
+ * @access  Public (Rate-limited, unauthenticated)
+ */
+router.get('/shared/:token', publicShareRateLimiter, validateShareToken, getSharedTrip)
 
 /**
  * @route   GET /api/trips
@@ -33,6 +48,26 @@ const router = Router()
  * @access  Private (Requires valid HttpOnly JWT cookie)
  */
 router.get('/', authenticateToken, validateGetTrips, getTrips)
+
+/**
+ * @route   GET /api/trips/:id/share
+ * @desc    Retrieve current share settings for an authenticated user's trip
+ * @access  Private (Requires valid HttpOnly JWT cookie)
+ */
+router.get('/:id/share', authenticateToken, validateTripId, getTripShareSettings)
+
+/**
+ * @route   POST /api/trips/:id/share
+ * @desc    Enable, update, or revoke share settings for an authenticated user's trip
+ * @access  Private (Requires valid HttpOnly JWT cookie)
+ */
+router.post(
+  '/:id/share',
+  authenticateToken,
+  validateTripId,
+  validateUpdateShareSettings,
+  updateTripShareSettings
+)
 
 /**
  * @route   GET /api/trips/:id

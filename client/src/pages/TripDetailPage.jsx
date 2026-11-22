@@ -18,6 +18,7 @@ import {
   BookOpen,
   Plus,
   Download,
+  Share2,
 } from 'lucide-react'
 import Container from '../components/common/Container.jsx'
 import Button from '../components/common/Button.jsx'
@@ -27,6 +28,7 @@ import RegenerateItineraryModal from '../components/itinerary/RegenerateItinerar
 import EditActivityModal from '../components/itinerary/EditActivityModal.jsx'
 import AddActivityModal from '../components/itinerary/AddActivityModal.jsx'
 import DeleteActivityModal from '../components/itinerary/DeleteActivityModal.jsx'
+import ShareTripModal from '../components/itinerary/ShareTripModal.jsx'
 import LeafletMapContainer from '../components/map/LeafletMapContainer.jsx'
 import ActivityMarkers from '../components/map/ActivityMarkers.jsx'
 import AssistantChat from '../components/assistant/AssistantChat.jsx'
@@ -133,6 +135,9 @@ export default function TripDetailPage() {
   // PDF Export States
   const [isExportingPdf, setIsExportingPdf] = useState(false)
   const [exportPdfError, setExportPdfError] = useState(null)
+
+  // Itinerary Sharing State (Day 44)
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
 
   // Destination Photograph (Task B2)
   const destinationPhoto = trip?.destination
@@ -823,6 +828,18 @@ export default function TripDetailPage() {
                     </>
                   )}
                 </Button>
+
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  onClick={() => setIsShareModalOpen(true)}
+                  disabled={loadingTrip}
+                  className="w-full sm:w-auto justify-center gap-2 font-semibold text-sm sm:text-base px-5 py-3.5 border-sage/80 hover:border-forest text-forest hover:bg-sand-ivory shadow-xs hover:shadow-md transition-all cursor-pointer"
+                  aria-label="Share trip itinerary via secure link"
+                >
+                  <Share2 className="w-4 h-4 text-forest" />
+                  <span>Share</span>
+                </Button>
               </div>
 
               {exportPdfError && (
@@ -1287,6 +1304,13 @@ export default function TripDetailPage() {
         isDeleting={isRemovingActivity}
         activity={deletingActivity}
         serverError={removeActivityError}
+      />
+
+      {/* Share Trip Modal (Day 44) */}
+      <ShareTripModal
+        trip={trip}
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
       />
     </div>
   )
