@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Sparkles, Search, X, RefreshCw, Compass, Loader2 } from 'lucide-react'
+import { Sparkles, RefreshCw, Compass } from 'lucide-react'
 import Container from '../common/Container.jsx'
 import DestinationCard from './DestinationCard.jsx'
 import * as destinationApi from '../../services/api/destinationApi.js'
@@ -22,29 +22,19 @@ const FILTER_CATEGORIES = [
  *
  * Curated destination showcase section for the TripMind landing page.
  * Powered dynamically by the Express backend API (/api/destinations).
- * Supports debounced keyword search, synchronized category/vibe filter pills,
- * verified local WebP photography resolution, and accessible loading/empty/error states.
+ * Supports category/vibe filter pills, verified local WebP photography resolution,
+ * accessible loading/empty/error states, and direct Create Itinerary actions.
  */
 export default function DestinationDiscovery() {
   const [destinations, setDestinations] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activeFilter, setActiveFilter] = useState('All')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   const latestRequestId = useRef(0)
 
-  // 1. Debounce search input by 300ms
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery.trim())
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [searchQuery])
-
-  // 2. Fetch destinations from backend API whenever filter, search or retry triggers
+  // Fetch destinations from backend API whenever filter or retry triggers
   useEffect(() => {
     let isMounted = true
     const requestId = ++latestRequestId.current
@@ -54,9 +44,6 @@ export default function DestinationDiscovery() {
       const params = {}
       if (activeFilter && activeFilter !== 'All') {
         params.category = activeFilter
-      }
-      if (debouncedSearch && debouncedSearch.trim()) {
-        params.search = debouncedSearch.trim()
       }
 
       try {
@@ -99,7 +86,7 @@ export default function DestinationDiscovery() {
       isMounted = false
       controller.abort()
     }
-  }, [activeFilter, debouncedSearch, refreshTrigger])
+  }, [activeFilter, refreshTrigger])
 
   // Event handlers
   const handleCategoryChange = (category) => {
@@ -108,20 +95,7 @@ export default function DestinationDiscovery() {
     setLoading(true)
   }
 
-  const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value)
-    setLoading(true)
-  }
-
-  const handleClearSearch = () => {
-    setSearchQuery('')
-    setDebouncedSearch('')
-    setLoading(true)
-  }
-
   const handleResetFilters = () => {
-    setSearchQuery('')
-    setDebouncedSearch('')
     setActiveFilter('All')
     setLoading(true)
   }
@@ -161,47 +135,8 @@ export default function DestinationDiscovery() {
           </p>
         </div>
 
-        {/* 2. Interactive Search & Filter Controls */}
+        {/* 2. Interactive Category Filter Pills */}
         <div className="mt-8 sm:mt-10 flex flex-col gap-6">
-          {/* Search Input Bar */}
-          <div className="w-full max-w-md sm:max-w-lg" role="search">
-            <label htmlFor="destination-search" className="sr-only">
-              Search destinations by name, region, or travel vibes
-            </label>
-            <div className="relative flex items-center">
-              {loading && destinations.length > 0 ? (
-                <Loader2
-                  className="absolute left-3.5 w-4 h-4 text-terracotta animate-spin pointer-events-none"
-                  aria-hidden="true"
-                />
-              ) : (
-                <Search
-                  className="absolute left-3.5 w-4 h-4 text-stone/60 pointer-events-none"
-                  aria-hidden="true"
-                />
-              )}
-              <input
-                id="destination-search"
-                type="text"
-                value={searchQuery}
-                onChange={handleSearchChange}
-                placeholder="Search destinations, countries, or vibes (e.g. temples, alpine)..."
-                className="w-full pl-10 pr-10 py-2.5 bg-white/90 border border-sage rounded-xl text-sm font-sans text-charcoal placeholder:text-stone/60 focus:outline-none focus:ring-2 focus:ring-forest/25 focus:border-forest shadow-2xs transition-colors"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={handleClearSearch}
-                  aria-label="Clear destination search"
-                  className="absolute right-3 p-1 rounded-full text-stone hover:text-forest hover:bg-sand-ivory transition-colors cursor-pointer"
-                >
-                  <X className="w-4 h-4" aria-hidden="true" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Interactive Category Filter Pills */}
           <div
             role="group"
             aria-label="Filter destinations by travel category"
@@ -218,24 +153,31 @@ export default function DestinationDiscovery() {
                   className={`min-h-[40px] px-4 py-2 sm:px-4.5 sm:py-2 rounded-full text-xs sm:text-sm font-sans font-medium transition-colors duration-200 cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 ${
                     isActive
                       ? 'bg-forest text-sand-ivory border border-forest shadow-xs'
-                      : 'bg-white/80 text-stone border border-sage hover:bg-white hover:text-forest hover:border-forest/40 active:bg-sand-ivory'
-                  }`.trim()}
+                      : 'bg-white border border-sage/80 text-stone hover:border-forest/40 hover:text-forest'
+                  }`}
                 >
                   {category}
                 </button>
               )
             })}
           </div>
+
+          {/* Results Counter */}
+          {!loading && !error && (
+            <div className="text-xs font-sans text-stone" aria-live="polite">
+              Showing <span className="font-semibold text-forest">{destinations.length}</span> curated destination{destinations.length === 1 ? '' : 's'}
+              {activeFilter !== 'All' && <span> in <span className="font-medium text-forest">{activeFilter}</span></span>}
+            </div>
+          )}
         </div>
 
-        {/* 3. Dynamic Destination Card Grid, Loading, Empty & Error States */}
-        <div className="mt-10 lg:mt-14 min-h-[360px]" aria-live="polite">
-          {/* Loading Skeleton State */}
-          {loading && destinations.length === 0 && (
+        {/* 3. Destination Cards Grid */}
+        <div className="mt-8 sm:mt-10">
+          {/* Loading Skeleton Grid */}
+          {loading && (
             <div
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"
-              role="status"
-              aria-label="Loading curated destinations"
+              aria-busy="true"
             >
               {[1, 2, 3, 4, 5, 6].map((idx) => (
                 <div
@@ -290,38 +232,16 @@ export default function DestinationDiscovery() {
                 No destinations found
               </h3>
               <p className="font-sans text-sm text-stone mb-6 leading-relaxed">
-                {searchQuery
-                  ? `We couldn't find any places matching "${searchQuery}"${
-                      activeFilter !== 'All' ? ` in ${activeFilter}` : ''
-                    }. Try searching for a different vibe or country.`
-                  : `There are currently no destinations listed under "${activeFilter}".`}
+                There are currently no destinations listed under &ldquo;{activeFilter}&rdquo;.
               </p>
               <div className="flex flex-wrap items-center justify-center gap-3">
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={handleClearSearch}
-                    className="px-4 py-2 rounded-lg bg-sand-ivory border border-sage text-forest font-sans text-xs sm:text-sm font-medium hover:bg-sage/40 transition-colors cursor-pointer"
-                  >
-                    Clear search query
-                  </button>
-                )}
                 {activeFilter !== 'All' && (
                   <button
                     type="button"
-                    onClick={() => handleCategoryChange('All')}
+                    onClick={handleResetFilters}
                     className="px-4 py-2 rounded-lg bg-forest text-sand-ivory font-sans text-xs sm:text-sm font-medium hover:bg-forest-dark transition-colors cursor-pointer"
                   >
-                    View all categories
-                  </button>
-                )}
-                {searchQuery && activeFilter !== 'All' && (
-                  <button
-                    type="button"
-                    onClick={handleResetFilters}
-                    className="px-4 py-2 rounded-lg bg-terracotta text-white font-sans text-xs sm:text-sm font-medium hover:bg-terracotta-dark transition-colors cursor-pointer"
-                  >
-                    Reset all filters
+                    View All Destinations
                   </button>
                 )}
               </div>

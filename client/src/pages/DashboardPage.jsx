@@ -311,6 +311,9 @@ export default function DashboardPage() {
         onClose={() => {
           setIsCreateModalOpen(false)
           setActiveDestination('')
+          if (location.search.includes('destination=')) {
+            navigate('/dashboard', { replace: true })
+          }
         }}
         onSuccess={handleTripCreated}
       />

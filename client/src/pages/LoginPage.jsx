@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Eye, EyeOff, AlertCircle, ArrowLeft, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -29,7 +29,16 @@ export default function LoginPage() {
   const [apiError, setApiError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const destination = location.state?.from?.pathname || '/dashboard'
+  const fromLocation = location.state?.from
+  const searchParams = new URLSearchParams(location.search)
+  const destParam = searchParams.get('destination')
+
+  let redirectTarget = '/dashboard'
+  if (fromLocation) {
+    redirectTarget = `${fromLocation.pathname}${fromLocation.search || ''}`
+  } else if (destParam) {
+    redirectTarget = `/dashboard?destination=${encodeURIComponent(destParam)}`
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -76,7 +85,7 @@ export default function LoginPage() {
         email: formData.email.trim(),
         password: formData.password,
       })
-      navigate(destination, { replace: true })
+      navigate(redirectTarget, { replace: true })
     } catch (err) {
       // Backend error envelope normalization: generic message on 401
       const errorMessage =
@@ -241,7 +250,7 @@ export default function LoginPage() {
             <p className="text-sm font-sans text-stone">
               New to TripMind?{' '}
               <Link
-                to="/register"
+                to={destParam ? `/register?destination=${encodeURIComponent(destParam)}` : '/register'}
                 className="text-terracotta hover:text-terracotta-dark font-medium transition-colors"
               >
                 Create an account

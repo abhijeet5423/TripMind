@@ -1,4 +1,3 @@
-import React from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 
@@ -23,8 +22,17 @@ export default function PublicOnlyRoute({ children }) {
   }
 
   if (isAuthenticated) {
-    const destination = location.state?.from?.pathname || '/dashboard'
-    return <Navigate to={destination} replace />
+    const from = location.state?.from
+    const searchParams = new URLSearchParams(location.search)
+    const destParam = searchParams.get('destination')
+
+    let target = '/dashboard'
+    if (from) {
+      target = `${from.pathname}${from.search || ''}`
+    } else if (destParam) {
+      target = `/dashboard?destination=${encodeURIComponent(destParam)}`
+    }
+    return <Navigate to={target} replace />
   }
 
   return children

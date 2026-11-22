@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Eye, EyeOff, AlertCircle, ArrowLeft, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 import Container from '../components/common/Container.jsx'
@@ -19,7 +19,14 @@ const BCRYPT_MAX_BYTES = 72
  */
 export default function RegisterPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { register } = useAuth()
+
+  const searchParams = new URLSearchParams(location.search)
+  const destParam = searchParams.get('destination')
+  const redirectTarget = destParam
+    ? `/dashboard?destination=${encodeURIComponent(destParam)}`
+    : '/dashboard'
 
   const [formData, setFormData] = useState({
     name: '',
@@ -96,7 +103,7 @@ export default function RegisterPage() {
         email: formData.email.trim(),
         password: formData.password, // Raw, untrimmed password
       })
-      navigate('/dashboard', { replace: true })
+      navigate(redirectTarget, { replace: true })
     } catch (err) {
       const errorMessage =
         err?.message || 'Registration failed. Please check your information and try again.'
@@ -294,7 +301,7 @@ export default function RegisterPage() {
             <p className="text-sm font-sans text-stone">
               Already have an account?{' '}
               <Link
-                to="/login"
+                to={destParam ? `/login?destination=${encodeURIComponent(destParam)}` : '/login'}
                 className="text-forest hover:text-forest-dark font-medium transition-colors"
               >
                 Sign in

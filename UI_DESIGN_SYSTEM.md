@@ -562,6 +562,33 @@ The typographic identity balances literary prestige with modern legibility throu
 - **Touch Target Ergonomics:** All interactive buttons, tabs, links, and modal dismiss triggers enforce minimum heights of $\ge 34\text{px}$ (`min-h-[34px]`) on desktop/tablet and $\ge 42\text{px}$ on primary mobile actions, with touch padding preventing mis-taps.
 - **Dialog Accessibility:** All modal dialogs implement `role="dialog"`, `aria-modal="true"`, explicit heading association (`aria-labelledby`), visible focus rings (`focus-visible:ring-2 focus-visible:ring-forest`), and keyboard Escape key listeners.
 
+---
+
+### 5.20 Hero Section Redesign, Location Discovery & Navigation Standards (Day 51)
+
+#### 1. Responsive Hero Background Video Degradation
+- **Responsive Viewport Gating:** Background video (`hero-video.mp4`) only renders in DOM on desktop and tablet viewports ($\ge 768\text{px}$) when `prefers-reduced-motion` is not requested.
+- **Mobile Degradation ($< 768\text{px}$):** Video is completely omitted on mobile viewports. On smartphone screens (aspect ratio ~9:19.5), a 16:9 landscape video forces an aggressive ~74% horizontal crop that centers on unreadable blurry pixels while imposing an unnecessary 4.76MB data transfer.
+- **Foundational Visual Poster Layer:** Mobile displays a crisp, high-resolution WebP hero poster (`fetchPriority="high"`) overlaid with an atmospheric multi-stop directional scrim (`from-forest-dark/90 via-forest-dark/60 to-forest-dark/35`) providing $\ge 4.5:1$ contrast against editorial headline and subcopy.
+- **Preview Card Removal:** The dummy "Illustrative Preview" Dolomites card is removed from the hero grid, streamlining focus onto the core value proposition, primary CTAs ("Start Planning" and "Explore Destinations"), and the three mindful travel pillars.
+
+#### 2. Destination Discovery Architecture
+- **Search Box Elimination:** The full-width search input in the homepage Destination Discovery section is removed. Search functionality is intentionally reserved for the authenticated dashboard's Noticeboard, eliminating redundant filtering across a curated 6-card editorial showcase.
+- **Category Filter Pills:** 6 themed category filter pills (`All`, `Beach`, `Mountain`, `Cultural`, `Adventure`, `City`, `Relaxing`) are retained with dynamic location count badges.
+- **Action Semantics:** Card actions are standardized as explicit "Create Itinerary" buttons linking into the trip creation funnel.
+
+#### 3. Destination Preselection & Route Handshake
+- **Deep-Link Contract:** Location discovery cards generate targeted funnel links:
+  - Unauthenticated users: `/register?destination=<encodedDestination>`
+  - Authenticated users: `/dashboard?destination=<encodedDestination>`
+- **Auth Gate Forwarding:** `PublicOnlyRoute`, `LoginPage`, and `RegisterPage` preserve destination query parameters across auth state toggles and post-auth redirects.
+- **Modal Mounting & URL Sanitization:** Upon landing on `/dashboard?destination=...`, `DashboardPage` automatically opens `CreateTripModal` with the preselected destination field. When the modal is dismissed, the URL is replaced with `/dashboard` via `navigate('/dashboard', { replace: true })`, eliminating stale parameters from browser history.
+
+#### 4. Navigation Information Architecture Cleanup
+- **Budget Planner Navbar Link Removal:** "Budget Planner" link is removed from both desktop navbar and mobile slide-out drawer. The underlying budget calculation engines, activity cost recalculation, and modal budget inputs remain completely intact.
+- **Direct Itineraries Routing:** The "Itineraries" navbar link routes directly to `/dashboard` (the user's saved itineraries noticeboard) with visual active state indicator (`border-terracotta text-terracotta`).
+
+
 
 
 

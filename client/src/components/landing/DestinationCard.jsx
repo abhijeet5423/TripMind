@@ -117,21 +117,25 @@ export default function DestinationCard({ destination }) {
           {destination.description}
         </p>
 
-        {/* Card Interactive Action Footer */}
-        <div className="pt-4 mt-4 border-t border-sage/60 flex items-center justify-between">
+        {/* Card Interactive Action Footer with Clear Create Itinerary Action */}
+        <div className="pt-4 mt-4 border-t border-sage/60 flex items-center justify-between gap-3">
           <Link
             to={
               isAuthenticated
-                ? `/dashboard?destination=${encodeURIComponent(destination.name)}`
-                : `/register?destination=${encodeURIComponent(destination.name)}`
+                ? `/dashboard?destination=${encodeURIComponent(
+                    destination.country ? `${destination.name}, ${destination.country}` : destination.name
+                  )}`
+                : `/register?destination=${encodeURIComponent(
+                    destination.country ? `${destination.name}, ${destination.country}` : destination.name
+                  )}`
             }
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-terracotta hover:text-terracotta-dark hover:underline transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terracotta rounded py-1"
-            aria-label={`Plan a journey to ${destination.name}`}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-forest text-sand-ivory text-xs font-sans font-semibold hover:bg-forest-dark transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-forest shadow-2xs group/btn cursor-pointer"
+            aria-label={`Create Itinerary for ${destination.name}`}
           >
-            <span>Plan Journey</span>
-            <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1" />
+            <span>Create Itinerary</span>
+            <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:translate-x-0.5" />
           </Link>
-          <span className="text-[11px] text-stone font-medium">Curated Guide</span>
+          <span className="text-[11px] text-stone font-medium shrink-0">Curated Guide</span>
         </div>
       </div>
     </article>

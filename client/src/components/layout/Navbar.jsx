@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
   Menu,
   X,
@@ -29,14 +29,14 @@ export default function Navbar({ className = '' }) {
   const { user, isAuthenticated, logout } = useAuth()
   const navigate = useNavigate()
 
+  const location = useLocation()
   const profileRef = useRef(null)
   const profileTimeoutRef = useRef(null)
 
   const navLinks = [
     { label: 'How It Works', href: '/#how-it-works' },
     { label: 'Destinations', href: '/#destinations' },
-    { label: 'Itineraries', href: '/#itineraries' },
-    { label: 'Budget Planner', href: '/#budget' },
+    { label: 'Itineraries', to: '/dashboard' },
     { label: 'About', href: '/#about' },
   ]
 
@@ -126,15 +126,33 @@ export default function Navbar({ className = '' }) {
             className="hidden md:flex items-center gap-4 lg:gap-8 text-sm font-sans font-medium text-stone"
             aria-label="Main Navigation"
           >
-            {navLinks.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                className="hover:text-forest transition-colors duration-150 relative py-1"
-              >
-                {link.label}
-              </a>
-            ))}
+            {navLinks.map((link) => {
+              if (link.to) {
+                const isActive = location.pathname === link.to
+                return (
+                  <Link
+                    key={link.label}
+                    to={link.to}
+                    className={`transition-colors duration-150 relative py-1 ${
+                      isActive
+                        ? 'text-forest font-semibold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-forest'
+                        : 'hover:text-forest'
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                )
+              }
+              return (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  className="hover:text-forest transition-colors duration-150 relative py-1"
+                >
+                  {link.label}
+                </a>
+              )
+            })}
           </nav>
 
           {/* Desktop Call to Actions & Profile Hover Menu */}
@@ -333,32 +351,70 @@ export default function Navbar({ className = '' }) {
 
                 {/* Section Navigation Links (Clean, No Duplicate Dashboard Link) */}
                 <nav className="pt-3 border-t border-sage flex flex-col gap-1 font-sans font-medium text-stone" aria-label="Mobile Navigation">
-                  {navLinks.map((link) => (
-                    <a
-                      key={link.label}
-                      href={link.href}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="py-2 px-3 rounded-md hover:bg-sage/20 hover:text-forest transition-colors text-sm"
-                    >
-                      {link.label}
-                    </a>
-                  ))}
+                  {navLinks.map((link) => {
+                    if (link.to) {
+                      const isActive = location.pathname === link.to
+                      return (
+                        <Link
+                          key={link.label}
+                          to={link.to}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`py-2 px-3 rounded-md transition-colors text-sm ${
+                            isActive
+                              ? 'bg-sage/35 text-forest font-semibold'
+                              : 'hover:bg-sage/20 hover:text-forest'
+                          }`}
+                        >
+                          {link.label}
+                        </Link>
+                      )
+                    }
+                    return (
+                      <a
+                        key={link.label}
+                        href={link.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="py-2 px-3 rounded-md hover:bg-sage/20 hover:text-forest transition-colors text-sm"
+                      >
+                        {link.label}
+                      </a>
+                    )
+                  })}
                 </nav>
               </>
             ) : (
               <>
                 {/* Non-authenticated Navigation Links */}
                 <nav className="flex flex-col gap-1 font-sans font-medium text-stone mb-4" aria-label="Mobile Navigation">
-                  {navLinks.map((link) => (
-                    <a
-                      key={link.label}
-                      href={link.href}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="py-2 px-3 rounded-md hover:bg-sage/20 hover:text-forest transition-colors text-sm"
-                    >
-                      {link.label}
-                    </a>
-                  ))}
+                  {navLinks.map((link) => {
+                    if (link.to) {
+                      const isActive = location.pathname === link.to
+                      return (
+                        <Link
+                          key={link.label}
+                          to={link.to}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`py-2 px-3 rounded-md transition-colors text-sm ${
+                            isActive
+                              ? 'bg-sage/35 text-forest font-semibold'
+                              : 'hover:bg-sage/20 hover:text-forest'
+                          }`}
+                        >
+                          {link.label}
+                        </Link>
+                      )
+                    }
+                    return (
+                      <a
+                        key={link.label}
+                        href={link.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="py-2 px-3 rounded-md hover:bg-sage/20 hover:text-forest transition-colors text-sm"
+                      >
+                        {link.label}
+                      </a>
+                    )
+                  })}
                 </nav>
 
                 {/* Non-authenticated Action Buttons */}
