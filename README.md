@@ -143,7 +143,7 @@ flowchart TD
         SecurityMW["Security Middleware (Helmet, CORS, CSRF, RateLimiters)"]
         AuthMW["authMiddleware (HttpOnly JWT, Cross-Device Revocation)"]
         Controllers["Controllers Layer (auth, trip, assistant, destination)"]
-        Services["Services Layer (authService, aiService, budgetService, emailService)"]
+        Services["Services Layer (authService, aiService, budgetService)"]
         Validators["Validators (Joi/Custom Schema Validation)"]
         Models["Models Layer (User, Trip Mongoose Schemas)"]
     end
@@ -152,7 +152,6 @@ flowchart TD
         Mongo[("MongoDB Atlas Cloud Database")]
         Gemini["Google Gemini 2.5 Flash Lite API"]
         OSM["OpenStreetMap Tile Servers"]
-        SMTP["Transactional SMTP Provider"]
     end
 
     UI --> Router
@@ -174,7 +173,6 @@ flowchart TD
     Models -->|"Persist / Query Documents"| Mongo
 
     Services -->|"Structured LLM Prompts"| Gemini
-    Services -.->|"Transactional HTML Emails"| SMTP
     LeafletRenderer -.->|"Fetch Map Tiles (Attribution Required)"| OSM
 ```
 
