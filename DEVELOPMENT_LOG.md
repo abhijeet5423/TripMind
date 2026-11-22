@@ -33,6 +33,72 @@
 
 ## 2. Session History
 
+### [2026-11-22] — Day 56: Restoration of Pre-SMTP Direct Authentication & Email Delivery Removal
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Restore TripMind's working direct registration and login experience without requiring SMTP, Gmail credentials, Nodemailer, or email verification:
+  1. **Direct Registration Restored:** A valid `POST /api/auth/register` creates user accounts immediately without dispatching email, awaiting SMTP, or rolling back persistence.
+  2. **Direct Login Restored:** A valid `POST /api/auth/login` authenticates users immediately without checking `isEmailVerified` or blocking unverified accounts.
+  3. **Security Standards Preserved:** Single-point password hashing retained in Mongoose `pre('save')` hook (`bcrypt` 10 rounds); cross-device session invalidation retained via `user.passwordChangedAt` and `user.changedPasswordAfter(decoded.iat)` in `authenticateToken`; HttpOnly secure session cookie lifecycle retained; rate limiting on registration and login retained.
+  4. **Database & Existing-User Safety:** Zero destructive migrations; existing MongoDB Atlas user accounts (unverified, verified, or legacy) can all log in immediately.
+  5. **Clean Dependency & Code Removal:** Nodemailer completely removed from dependencies; transactional email service, diagnostic router, email token utilities, and recovery pages deleted.
+
+#### 1. Files Created / Modified / Deleted
+- [`server/package.json`](./server/package.json) — *Modified.* Removed `nodemailer` dependency.
+- [`server/package-lock.json`](./server/package-lock.json) — *Modified.* Synchronized lockfile without nodemailer.
+- [`server/src/services/authService.js`](./server/src/services/authService.js) — *Modified.* Restored direct `registerUser` and `loginUser` without email verification or rollback logic. Removed `verifyEmail`, `resendVerification`, `forgotPassword`, `resetPassword`.
+- [`server/src/controllers/authController.js`](./server/src/controllers/authController.js) — *Modified.* Removed recovery handlers (`forgotPassword`, `resetPassword`, `verifyEmail`, `resendVerification`). Restored direct `register`, `login`, `getProfile`, `logout`.
+- [`server/src/routes/auth.routes.js`](./server/src/routes/auth.routes.js) — *Modified.* Restored minimal auth route table (`/register`, `/login`, `/logout`, `/me`).
+- [`server/src/validators/authValidator.js`](./server/src/validators/authValidator.js) — *Modified.* Retained strictly `validateRegistration` and `validateLogin`.
+- [`server/src/models/User.js`](./server/src/models/User.js) — *Modified.* Removed email verification and password reset token hash/expiration fields; preserved `passwordChangedAt` and `changedPasswordAfter`.
+- [`server/src/middleware/rateLimiter.js`](./server/src/middleware/rateLimiter.js) — *Modified.* Removed email-related rate limiters (`forgotPasswordLimiter`, `resetPasswordLimiter`, `resendVerificationLimiter`, `verifyEmailLimiter`, `smtpDiagnosticLimiter`).
+- [`server/src/config/env.js`](./server/src/config/env.js) — *Modified.* Removed `config.email` and `config.smtpDiagnostic` configurations.
+- [`server/src/app.js`](./server/src/app.js) — *Modified.* Removed diagnostic router mounting (`/api/diagnostic`).
+- [`server/.env.example`](./server/.env.example) — *Modified.* Cleaned out SMTP configuration keys and diagnostic token settings.
+- [`server/src/services/emailService.js`](./server/src/services/emailService.js) — *Deleted.* Transactional email service removed.
+- [`server/src/routes/diagnostic.routes.js`](./server/src/routes/diagnostic.routes.js) — *Deleted.* Temporary SMTP diagnostic router removed.
+- [`server/src/utils/crypto.js`](./server/src/utils/crypto.js) — *Deleted.* Email verification token utility removed.
+- [`client/src/App.jsx`](./client/src/App.jsx) — *Modified.* Removed routes for `/forgot-password`, `/reset-password`, `/verify-email`, `/resend-verification`.
+- [`client/src/context/AuthContext.jsx`](./client/src/context/AuthContext.jsx) — *Modified.* Restored registration flow to automatically authenticate and navigate to `/dashboard`.
+- [`client/src/pages/LoginPage.jsx`](./client/src/pages/LoginPage.jsx) — *Modified.* Restored clean login form inside `BorderTrail` container without unverified email banner or recovery links.
+- [`client/src/pages/RegisterPage.jsx`](./client/src/pages/RegisterPage.jsx) — *Modified.* Restored direct registration form inside `BorderTrail` container without email-sent banner.
+- [`client/src/services/api/authApi.js`](./client/src/services/api/authApi.js) — *Modified.* Retained `register`, `login`, `logout`, `getMe`.
+- [`client/src/pages/ForgotPasswordPage.jsx`](./client/src/pages/ForgotPasswordPage.jsx) — *Deleted.*
+- [`client/src/pages/ResetPasswordPage.jsx`](./client/src/pages/ResetPasswordPage.jsx) — *Deleted.*
+- [`client/src/pages/VerifyEmailPage.jsx`](./client/src/pages/VerifyEmailPage.jsx) — *Deleted.*
+- [`client/src/pages/ResendVerificationPage.jsx`](./client/src/pages/ResendVerificationPage.jsx) — *Deleted.*
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — *Modified.* Documented restored direct authentication architecture.
+- [`DECISIONS.md`](./DECISIONS.md) — *Modified.* Added ADR-032; marked ADR-030 email delivery superseded; marked ADR-031 decommissioned.
+- [`PROJECT_CONTEXT.md`](./PROJECT_CONTEXT.md) — *Modified.* Updated Technology Stack Authentication specification.
+- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — *Modified.* Updated Section 5.15 with restored direct Login and Register UI documentation.
+- [`README.md`](./README.md) — *Modified.* Cleaned dependencies, authentication endpoints, limitations, and direct auth architecture.
+- [`docs/API.md`](./docs/API.md) — *Modified.* Updated active auth endpoints and rate limiting tiers; removed deleted recovery endpoints.
+- [`docs/DATABASE.md`](./docs/DATABASE.md) — *Modified.* Updated User schema ER diagram and field definitions to remove unused token fields.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Recorded Day 56 operational log.
+
+#### 2. Key Implementation Details & Concepts
+- **Unblocked Production Registration:** Accounts are created instantly in MongoDB upon valid `POST /api/auth/register`, setting the traveler up for immediate trip creation.
+- **Immediate Login:** `loginUser` checks candidate password against bcrypt hash and returns JWT session without checking verification flags.
+- **Cross-Device Session Invalidation Retained:** The non-SMTP security improvement from Day 54 (`passwordChangedAt` in Mongoose and `user.changedPasswordAfter(decoded.iat)` in `authenticateToken`) was completely retained.
+- **Zero-Secret Footprint:** Clean removal of all SMTP configuration keys (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `SMTP_DIAGNOSTIC_TOKEN`).
+
+#### 3. Verification & Testing Performed
+- **Automated Verification Suite (`scratch/test_day56_restore_auth.mjs`):** Executed comprehensive 47-assertion suite covering:
+  - Clean filesystem & dependency removal (Nodemailer, emailService, diagnostic routes, client recovery pages).
+  - Single-point password hashing and `changedPasswordAfter` contracts.
+  - Route table verification: deleted recovery endpoints return HTTP 404.
+  - Registration & login validation contracts (anti-enumeration, duplicate email 409).
+  - Backward compatibility: unverified legacy user (`isEmailVerified: false`) logs in successfully and receives signed JWT cookie.
+  - Protected route access (`GET /api/auth/me`) with session cookie and stale-token rejection after password change.
+  - Result: 47 passed, 0 failed out of 47 tests.
+- **Client Build & Lint Verification:**
+  - `npm run lint` in `client/`: 0 warnings, 0 errors.
+  - `npm run build` in `client/`: production build succeeded in 1.69s (`dist/` generated).
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Production deployment can be executed by committing the reviewed changes and updating hosting platforms (Render/Vercel) to restore instant registration.
+
+---
+
 ### [2026-11-22] — Day 55: Temporary Protected Production SMTP Diagnostic (Render Free Plan)
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Render Shell is unavailable on the Render Free Plan. Implement a temporary, securely protected, non-destructive diagnostic mechanism to verify the live production Gmail SMTP connection directly from inside the running Render backend (`https://tripmind-0b2x.onrender.com`):

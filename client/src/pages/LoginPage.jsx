@@ -28,8 +28,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState({})
   const [apiError, setApiError] = useState('')
-  const [isUnverified, setIsUnverified] = useState(false)
-  const [unverifiedEmail, setUnverifiedEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const fromLocation = location.state?.from
@@ -52,7 +50,6 @@ export default function LoginPage() {
     }
     if (apiError) {
       setApiError('')
-      setIsUnverified(false)
     }
   }
 
@@ -91,16 +88,10 @@ export default function LoginPage() {
       })
       navigate(redirectTarget, { replace: true })
     } catch (err) {
-      if (err?.code === 'EMAIL_NOT_VERIFIED') {
-        setIsUnverified(true)
-        setUnverifiedEmail(formData.email.trim())
-        setApiError(err.message || 'Please verify your email address before signing in.')
-      } else {
-        setIsUnverified(false)
-        const errorMessage =
-          err?.message || 'Invalid email or password. Please check your credentials.'
-        setApiError(errorMessage)
-      }
+      // Backend error envelope normalization: generic message on 401
+      const errorMessage =
+        err?.message || 'Invalid email or password. Please check your credentials.'
+      setApiError(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -153,37 +144,15 @@ export default function LoginPage() {
             {/* API Error Alert */}
             {apiError && (
               <div
-                className={`mb-6 p-4 rounded-lg border text-sm flex flex-col gap-2 animate-fadeIn ${
-                  isUnverified
-                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-900'
-                    : 'bg-burnt-crimson/10 border-burnt-crimson/25 text-burnt-crimson'
-                }`}
+                className="mb-6 p-3.5 rounded-lg bg-burnt-crimson/10 border border-burnt-crimson/25 text-burnt-crimson text-sm flex items-start gap-2.5 animate-fadeIn"
                 role="alert"
               >
-                <div className="flex items-start gap-2.5">
-                  <AlertCircle
-                    className={`w-5 h-5 shrink-0 mt-0.5 ${
-                      isUnverified ? 'text-amber-700' : 'text-burnt-crimson'
-                    }`}
-                  />
-                  <div className="flex-1">
-                    <p className="font-medium">{apiError}</p>
-                    {isUnverified && (
-                      <p className="mt-2">
-                        <Link
-                          to={`/resend-verification?email=${encodeURIComponent(unverifiedEmail)}`}
-                          className="inline-flex items-center gap-1 font-semibold text-forest hover:text-forest-dark underline underline-offset-2 transition-colors"
-                        >
-                          Resend verification email &rarr;
-                        </Link>
-                      </p>
-                    )}
-                  </div>
-                </div>
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                <span>{apiError}</span>
               </div>
             )}
 
-            {/* Login Form */}
+            {/* Form */}
             <form onSubmit={handleSubmit} noValidate className="space-y-5">
               {/* Email Field */}
               <div>
@@ -227,16 +196,6 @@ export default function LoginPage() {
                   >
                     Password
                   </label>
-                  <Link
-                    to={
-                      formData.email
-                        ? `/forgot-password?email=${encodeURIComponent(formData.email.trim())}`
-                        : '/forgot-password'
-                    }
-                    className="text-xs text-forest hover:text-forest-dark font-medium transition-colors"
-                  >
-                    Forgot password?
-                  </Link>
                 </div>
                 <div className="relative">
                   <input

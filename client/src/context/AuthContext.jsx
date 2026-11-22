@@ -81,15 +81,18 @@ export function AuthProvider({ children }) {
   }, [])
 
   /**
-   * Registers a new user account with unverified email status.
+   * Registers a new user and automatically logs them in to establish session.
    *
    * @param {Object} data - { name, email, password }
-   * @returns {Promise<Object>} The newly registered user object
+   * @returns {Promise<Object>} The authenticated user object
    */
   const register = useCallback(async ({ name, email, password }) => {
-    const response = await authApi.registerUser({ name, email, password })
-    const registeredUser = response?.data?.user || null
-    return registeredUser
+    await authApi.registerUser({ name, email, password })
+    // Automatically log in after successful registration to issue session cookie
+    const loginResponse = await authApi.loginUser({ email, password })
+    const authenticatedUser = loginResponse?.data?.user || null
+    setUser(authenticatedUser)
+    return authenticatedUser
   }, [])
 
   /**

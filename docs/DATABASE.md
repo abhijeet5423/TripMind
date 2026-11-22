@@ -22,11 +22,6 @@ erDiagram
         string email UK "indexed, normalized"
         string password "bcrypt hash, select: false"
         string role "default: 'user'"
-        boolean isEmailVerified "undefined for legacy"
-        string emailVerificationTokenHash "SHA-256, select: false"
-        date emailVerificationExpires "select: false"
-        string passwordResetTokenHash "SHA-256, select: false"
-        date passwordResetExpires "select: false"
         date passwordChangedAt "revocation timestamp"
         date createdAt
         date updatedAt
@@ -108,26 +103,18 @@ Manages traveler accounts, authentication credentials, and cryptographic recover
 | `email` | `String` | Yes | — | Trimmed, lowercase, unique index, max 255 chars. |
 | `password` | `String` | Yes | — | Stored as bcrypt hash (10 salt rounds). Hidden from queries (`select: false`). |
 | `role` | `String` | Yes | `'user'` | Enum: `['user', 'admin']`. Protected from client mutation. |
-| `isEmailVerified` | `Boolean` | No | — | `false` for new users; `true` once verified. **No default value**, allowing legacy accounts to hydrate as `undefined` (grandfathered in). |
-| `emailVerificationTokenHash` | `String` | No | — | SHA-256 hex hash of the raw token. Hidden (`select: false`). |
-| `emailVerificationExpires` | `Date` | No | — | 24-hour expiration window. Hidden (`select: false`). |
-| `passwordResetTokenHash` | `String` | No | — | SHA-256 hex hash of the recovery token. Hidden (`select: false`). |
-| `passwordResetExpires` | `Date` | No | — | 30-minute expiration window. Hidden (`select: false`). |
-| `passwordChangedAt` | `Date` | No | — | Timestamp set on password reset. Compared against JWT `iat` to invalidate stale sessions. |
+| `passwordChangedAt` | `Date` | No | — | Timestamp set on password change. Compared against JWT `iat` to invalidate stale sessions. |
 | `createdAt` | `Date` | Auto | `now` | Managed via `{ timestamps: true }`. |
 | `updatedAt` | `Date` | Auto | `now` | Managed via `{ timestamps: true }`. |
 
 #### Indexes
 - `{ email: 1 }`: Unique index on normalized email.
-- `{ emailVerificationTokenHash: 1 }`: Sparse index for verification lookups.
-- `{ passwordResetTokenHash: 1 }`: Sparse index for password reset lookups.
 
 #### Hooks & Methods
 - **`pre('save')` Hook:** Enforces single-point password hashing using `bcrypt.hash(password, 10)` only when `isModified('password')` is true.
 - **`methods.comparePassword(candidate)`:** Compares candidate plaintext against stored bcrypt hash.
-- **`methods.isVerified()`:** Returns `this.isEmailVerified !== false` (evaluates `true` for `true` and legacy `undefined`).
 - **`methods.changedPasswordAfter(jwtIat)`:** Returns `jwtIat < Math.floor(this.passwordChangedAt.getTime() / 1000)` to detect tokens issued prior to credential modification.
-- **`toJSON` / `toObject` Transform:** Explicitly scrubs `password`, `emailVerificationTokenHash`, `emailVerificationExpires`, `passwordResetTokenHash`, `passwordResetExpires`, and `__v`.
+- **`toJSON` / `toObject` Transform:** Explicitly scrubs `password` and `__v`.
 
 ---
 

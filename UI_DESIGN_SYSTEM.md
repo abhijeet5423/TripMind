@@ -708,27 +708,22 @@ To prevent gradient bleed into the card's surface:
 
 ---
 
-### 5.15 Authentication & Account Recovery Screens (Day 54)
+### 5.15 Authentication Screens (Restored Day 56)
 
 #### 1. Screen Inventory & Visual Roles
 1. **Login Page (`/login`):**
-   - Includes "Forgot password?" inline text link adjacent to password field label, routing to `/forgot-password` with email prefill query if entered.
-   - Detects `EMAIL_NOT_VERIFIED` code upon failed login and renders a dedicated amber warning banner (`bg-amber-500/10 border-amber-500/30 text-amber-900`) with an explicit "Resend verification email" action link.
-2. **Forgot Password Page (`/forgot-password`):**
-   - Single email input form inside dual-layer `BorderTrail` container.
-   - On submission, transitions smoothly into a neutral confirmation view ("Check Your Email") without exposing account existence.
-3. **Reset Password Page (`/reset-password`):**
-   - Consumes reset token from URL query string.
-   - Features new password and confirm password inputs, password length indicator (min 8 chars), and independent visibility toggle controls (`Eye` / `EyeOff`).
-   - Handles missing, expired, and invalid token states with clear editorial alert banners.
-4. **Verify Email Page (`/verify-email`):**
-   - Automatic verification on mount.
-   - Distinct visual states: Verifying (animated spinner), Success ("Email Confirmed!" with green badge and Sign In CTA), Expired ("Verification Link Expired" with Resend CTA), and Invalid ("Invalid Verification Link").
-5. **Resend Verification Page (`/resend-verification`):**
-   - Pre-populates email from query parameter if provided.
-   - Transitions to a neutral confirmation state ("Check Your Inbox") ensuring anti-enumeration.
-6. **Register Page (`/register`):**
-   - Upon successful registration, replaces the form with a "Check Your Inbox" confirmation card, instructing the user to activate their account before signing in.
+   - Clean login form inside dual-layer animated `BorderTrail` container with subtle ambient ivory border.
+   - Email address and password input fields with client-side validation.
+   - Independent password visibility toggle control (`Eye` / `EyeOff`).
+   - Direct form submission issuing credentials to `POST /api/auth/login`.
+   - Clear editorial error alert banner for invalid credentials.
+   - Seamless navigation link to `/register`.
+2. **Register Page (`/register`):**
+   - Direct account creation form inside dual-layer animated `BorderTrail` container.
+   - Full name, email address, and password input fields with client-side validation.
+   - Password reveal toggle control.
+   - Submits directly to `POST /api/auth/register`, which persists the traveler account and immediately authenticates the session, redirecting to `/dashboard`.
+   - Navigation link to `/login` for existing travelers.
 
 
 

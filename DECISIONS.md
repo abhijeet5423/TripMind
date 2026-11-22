@@ -690,7 +690,7 @@
 ---
 
 ### ADR-030: Email Verification and Password Recovery Architecture
-- **Status:** 🟢 CONFIRMED
+- **Status:** 🟡 SUPERSEDED (Transactional email delivery, verification, and recovery superseded by ADR-032; Single-Point Password Hashing & Cross-Device Session Invalidation retained)
 - **Context:** TripMind accounts require self-service password recovery and verified email communication to protect user itineraries, prevent account takeover, and avoid fake account creation, while preserving the existing stateless HttpOnly cookie architecture (ADR-010) and guaranteeing that legacy accounts predating this feature in MongoDB Atlas retain uninterrupted access.
 - **Decision:**
   1. **Token Cryptography & Storage:**
@@ -729,7 +729,7 @@
 ---
 
 ### ADR-031: Temporary Protected Production SMTP Diagnostic Mechanism for Constrained Hosting (Render Free Plan)
-- **Status:** 🟢 CONFIRMED (Implemented Day 55)
+- **Status:** 🔴 DECOMMISSIONED (Diagnostic removed in Day 56 via ADR-032)
 - **Context:** Render Free Plan does not provide an interactive SSH Shell or CLI access to running container environments. While SMTP environment variables (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`) were configured on Render, production registration failures required definitive verification of actual Gmail SMTP connectivity and authentication without guessing, exposing credentials, sending test emails, or creating fake user accounts.
 - **Decision:**
   1. **Direct Transporter Reuse:** Reuse `emailService.getTransporter()` rather than creating a separate or duplicated SMTP client, ensuring verification reflects the exact configuration and transport used by production registration.
@@ -745,6 +745,34 @@
   - Immune to brute-force attacks via rate limiting and timing-safe authentication.
 - **Consequences:**
   - Facilitates immediate identification of Gmail App Password misconfiguration or cloud egress restrictions without impacting production users.
+
+---
+
+### ADR-032: Restoration of Pre-SMTP Direct Authentication and Removal of Email Delivery Dependency
+- **Status:** 🟢 CONFIRMED (Implemented Day 56)
+- **Context:** Day 54 introduced mandatory synchronous email delivery during user registration alongside self-service password recovery and email verification. In production hosting environments (e.g. Render Free Plan), establishing external SMTP egress and Gmail app password authentication proved operationally constrained and blocked user registration entirely. The user explicitly requested restoring the earlier, reliable authentication workflow without SMTP dependencies.
+- **Decision:**
+  1. **Restore Direct Registration Without SMTP:** Re-enable immediate user account creation upon valid `POST /api/auth/register` without dispatching transactional emails, generating verification tokens, or rolling back accounts due to delivery errors.
+  2. **Restore Direct Login Without Verification Gating:** Allow any valid email/password combination to authenticate immediately upon `POST /api/auth/login`. Completely remove `isEmailVerified === false` gating from login authorization.
+  3. **Preserve Single-Point Password Hashing:** Keep password hashing strictly isolated to the Mongoose `User` model `pre('save')` hook (`bcrypt` 10 rounds). Services pass validated raw passwords without pre-hashing.
+  4. **Preserve Cross-Device Session Invalidation (`passwordChangedAt`):** Retain `passwordChangedAt` on the `User` model and the `user.changedPasswordAfter(decoded.iat)` verification in `authenticateToken` middleware (`authMiddleware.js`), ensuring any password update invalidates all prior JWT sessions across all devices without needing external state stores.
+  5. **Remove Email Delivery & Recovery Routes/Services:**
+     - Delete `server/src/services/emailService.js`, `server/src/routes/diagnostic.routes.js`, and `server/src/utils/crypto.js`.
+     - Remove `nodemailer` from `server/package.json` dependencies.
+     - Remove email verification and password reset endpoints (`POST /verify-email`, `POST /resend-verification`, `POST /forgot-password`, `POST /reset-password`).
+     - Remove unused rate limiters (`forgotPasswordLimiter`, `resetPasswordLimiter`, `resendVerificationLimiter`, `verifyEmailLimiter`, `smtpDiagnosticLimiter`).
+     - Remove email and diagnostic configuration blocks from `server/src/config/env.js` and `server/.env.example`.
+  6. **Remove Unused Frontend Pages & Flow Gating:**
+     - Delete `ForgotPasswordPage.jsx`, `ResetPasswordPage.jsx`, `VerifyEmailPage.jsx`, `ResendVerificationPage.jsx`.
+     - Update `RegisterPage.jsx` and `LoginPage.jsx` to direct forms inside `BorderTrail` containers without unverified warning banners or "Check your email" transitions.
+     - Update `AuthContext.jsx` to register and immediately authenticate the traveler session, redirecting to `/dashboard`.
+  7. **Preserve Existing Database Records:** Zero destructive migrations or user drops in MongoDB Atlas. Accounts registered in Day 54 (`isEmailVerified: false`), pre-Day-54 (`isEmailVerified: undefined`), or verified (`isEmailVerified: true`) can all log in immediately.
+- **Rationale:**
+  - Restores 100% operational availability for production user registration and login on Render and Vercel.
+  - Eliminates fragile external cloud SMTP dependencies while preserving all core authentication security standards (bcrypt hashing, JWT cookies, rate limiting, and session invalidation).
+- **Consequences:**
+  - Production registration works reliably and immediately without waiting for SMTP provider approvals.
+  - Self-service password recovery is temporarily absent; password updates can be handled through profile management or administrative intervention.
 
 ---
 

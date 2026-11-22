@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { Eye, EyeOff, AlertCircle, ArrowLeft, Loader2, Mail } from 'lucide-react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Eye, EyeOff, AlertCircle, ArrowLeft, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 import Container from '../components/common/Container.jsx'
 import Button from '../components/common/Button.jsx'
@@ -16,14 +16,18 @@ const BCRYPT_MAX_BYTES = 72
  * Polished editorial registration interface adhering to TripMind design principles.
  * Features a shared starry night sky backdrop displayed in its natural colors,
  * client-side validation mirroring backend constraints (including bcrypt's
- * 72-byte limit), and post-registration email verification workflow.
+ * 72-byte limit), and automatic HttpOnly session establishment upon creation.
  */
 export default function RegisterPage() {
+  const navigate = useNavigate()
   const location = useLocation()
   const { register } = useAuth()
 
   const searchParams = new URLSearchParams(location.search)
   const destParam = searchParams.get('destination')
+  const redirectTarget = destParam
+    ? `/dashboard?destination=${encodeURIComponent(destParam)}`
+    : '/dashboard'
 
   const [formData, setFormData] = useState({
     name: '',
@@ -34,8 +38,6 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState({})
   const [apiError, setApiError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isSuccess, setIsSuccess] = useState(false)
-  const [registeredEmail, setRegisteredEmail] = useState('')
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -102,8 +104,7 @@ export default function RegisterPage() {
         email: formData.email.trim(),
         password: formData.password, // Raw, untrimmed password
       })
-      setRegisteredEmail(formData.email.trim())
-      setIsSuccess(true)
+      navigate(redirectTarget, { replace: true })
     } catch (err) {
       const errorMessage =
         err?.message || 'Registration failed. Please check your information and try again.'
@@ -143,215 +144,177 @@ export default function RegisterPage() {
             transition={{ duration: 8, ease: 'linear', repeat: Infinity }}
           />
           <div className="relative z-10 w-full bg-white/95 backdrop-blur-md rounded-[10.5px] p-6 sm:p-8">
-            {isSuccess ? (
-              <div className="text-center py-2 animate-fadeIn">
-                <div className="w-14 h-14 rounded-full bg-forest/10 text-forest mx-auto flex items-center justify-center mb-5">
-                  <Mail className="w-7 h-7" />
-                </div>
-                <h1 className="font-serif text-2xl font-bold text-forest mb-2">Check Your Inbox</h1>
-                <p className="font-sans text-sm text-stone leading-relaxed mb-6">
-                  We have sent a verification email to{' '}
-                  <span className="font-semibold text-charcoal">{registeredEmail}</span>.
-                  Please click the link in that email to activate your account.
-                </p>
+            {/* Header */}
+            <div className="text-center mb-8">
+              <Link to="/" className="inline-flex items-center gap-1.5 mb-3 group focus:outline-none">
+                <span className="font-serif text-3xl font-bold tracking-tight text-forest group-hover:text-forest-dark transition-colors">
+                  TripMind
+                </span>
+                <span className="inline-block w-2 h-2 rounded-full bg-terracotta" />
+              </Link>
+              <h1 className="font-serif text-2xl font-bold text-forest">Begin Your Journey</h1>
+              <p className="font-sans text-sm text-stone mt-1">
+                Create an account to thoughtfully plan your next adventure
+              </p>
+            </div>
 
-                <div className="p-4 rounded-lg bg-sand-warm/60 border border-sage/60 text-xs text-stone mb-6 text-left">
-                  <p className="font-semibold text-forest mb-1">Didn&apos;t receive the message?</p>
-                  <p>
-                    Check your spam or junk folder. You can also request a new link at any time.
-                  </p>
-                </div>
-
-                <div className="space-y-3">
-                  <Link
-                    to={`/resend-verification?email=${encodeURIComponent(registeredEmail)}`}
-                    className="block w-full py-2.5 px-4 rounded-lg border border-forest/30 text-forest hover:bg-forest/5 font-medium text-sm transition-colors text-center"
-                  >
-                    Resend Verification Email
-                  </Link>
-                  <Link
-                    to="/login"
-                    className="block w-full py-2.5 px-4 rounded-lg bg-forest text-sand-ivory hover:bg-forest-dark font-medium text-sm transition-colors text-center shadow-xs"
-                  >
-                    Go to Sign In
-                  </Link>
-                </div>
+            {/* API Error Alert */}
+            {apiError && (
+              <div
+                className="mb-6 p-3.5 rounded-lg bg-burnt-crimson/10 border border-burnt-crimson/25 text-burnt-crimson text-sm flex items-start gap-2.5 animate-fadeIn"
+                role="alert"
+              >
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                <span>{apiError}</span>
               </div>
-            ) : (
-              <>
-                {/* Header */}
-                <div className="text-center mb-8">
-                  <Link to="/" className="inline-flex items-center gap-1.5 mb-3 group focus:outline-none">
-                    <span className="font-serif text-3xl font-bold tracking-tight text-forest group-hover:text-forest-dark transition-colors">
-                      TripMind
-                    </span>
-                    <span className="inline-block w-2 h-2 rounded-full bg-terracotta" />
-                  </Link>
-                  <h1 className="font-serif text-2xl font-bold text-forest">Begin Your Journey</h1>
-                  <p className="font-sans text-sm text-stone mt-1">
-                    Create an account for personalized, mindful travel itineraries
-                  </p>
-                </div>
-
-                {/* API Error Alert */}
-                {apiError && (
-                  <div
-                    className="mb-6 p-3.5 rounded-lg bg-burnt-crimson/10 border border-burnt-crimson/25 text-burnt-crimson text-sm flex items-start gap-2.5 animate-fadeIn"
-                    role="alert"
-                  >
-                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                    <span>{apiError}</span>
-                  </div>
-                )}
-
-                {/* Registration Form */}
-                <form onSubmit={handleSubmit} noValidate className="space-y-5">
-                  {/* Name Field */}
-                  <div>
-                    <label
-                      htmlFor="name"
-                      className="text-xs font-semibold uppercase tracking-wider text-stone mb-1.5 block"
-                    >
-                      Full Name
-                    </label>
-                    <input
-                      id="name"
-                      name="name"
-                      type="text"
-                      autoComplete="name"
-                      required
-                      disabled={isSubmitting}
-                      value={formData.name}
-                      onChange={handleChange}
-                      placeholder="Alex Mercer"
-                      className={`w-full px-4 py-2.5 rounded-lg border bg-white text-charcoal font-sans text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors ${
-                        errors.name
-                          ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
-                          : 'border-sage focus:border-forest focus:ring-forest'
-                      }`}
-                      aria-invalid={Boolean(errors.name)}
-                      aria-describedby={errors.name ? 'name-error' : undefined}
-                    />
-                    {errors.name && (
-                      <p id="name-error" className="text-xs text-burnt-crimson mt-1 font-medium">
-                        {errors.name}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Email Field */}
-                  <div>
-                    <label
-                      htmlFor="email"
-                      className="text-xs font-semibold uppercase tracking-wider text-stone mb-1.5 block"
-                    >
-                      Email Address
-                    </label>
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
-                      required
-                      disabled={isSubmitting}
-                      value={formData.email}
-                      onChange={handleChange}
-                      placeholder="alex.mercer@example.com"
-                      className={`w-full px-4 py-2.5 rounded-lg border bg-white text-charcoal font-sans text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors ${
-                        errors.email
-                          ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
-                          : 'border-sage focus:border-forest focus:ring-forest'
-                      }`}
-                      aria-invalid={Boolean(errors.email)}
-                      aria-describedby={errors.email ? 'email-error' : undefined}
-                    />
-                    {errors.email && (
-                      <p id="email-error" className="text-xs text-burnt-crimson mt-1 font-medium">
-                        {errors.email}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Password Field */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label
-                        htmlFor="password"
-                        className="text-xs font-semibold uppercase tracking-wider text-stone block"
-                      >
-                        Password
-                      </label>
-                      <span className="text-xs text-stone/70">Min 8 characters</span>
-                    </div>
-                    <div className="relative">
-                      <input
-                        id="password"
-                        name="password"
-                        type={showPassword ? 'text' : 'password'}
-                        autoComplete="new-password"
-                        required
-                        disabled={isSubmitting}
-                        value={formData.password}
-                        onChange={handleChange}
-                        placeholder="At least 8 characters"
-                        className={`w-full pl-4 pr-11 py-2.5 rounded-lg border bg-white text-charcoal font-sans text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors ${
-                          errors.password
-                            ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
-                            : 'border-sage focus:border-forest focus:ring-forest'
-                        }`}
-                        aria-invalid={Boolean(errors.password)}
-                        aria-describedby={errors.password ? 'password-error' : undefined}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((prev) => !prev)}
-                        disabled={isSubmitting}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-stone hover:text-forest p-1 focus:outline-none cursor-pointer transition-colors"
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                    {errors.password && (
-                      <p id="password-error" className="text-xs text-burnt-crimson mt-1 font-medium">
-                        {errors.password}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Submit Button */}
-                  <Button
-                    type="submit"
-                    variant="accent"
-                    size="md"
-                    disabled={isSubmitting}
-                    className="w-full justify-center mt-2"
-                  >
-                    {isSubmitting ? (
-                      <span className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Creating Account...
-                      </span>
-                    ) : (
-                      'Create Account'
-                    )}
-                  </Button>
-                </form>
-
-                {/* Footer Link */}
-                <div className="mt-8 pt-6 border-t border-sage text-center">
-                  <p className="text-sm font-sans text-stone">
-                    Already have an account?{' '}
-                    <Link
-                      to={destParam ? `/login?destination=${encodeURIComponent(destParam)}` : '/login'}
-                      className="text-forest hover:text-forest-dark font-medium transition-colors"
-                    >
-                      Sign in
-                    </Link>
-                  </p>
-                </div>
-              </>
             )}
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} noValidate className="space-y-5">
+              {/* Full Name Field */}
+              <div>
+                <label
+                  htmlFor="name"
+                  className="text-xs font-semibold uppercase tracking-wider text-stone mb-1.5 block"
+                >
+                  Full Name
+                </label>
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  autoComplete="name"
+                  required
+                  disabled={isSubmitting}
+                  value={formData.name}
+                  onChange={handleChange}
+                  placeholder="Alex Mercer"
+                  className={`w-full px-4 py-2.5 rounded-lg border bg-white text-charcoal font-sans text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors ${
+                    errors.name
+                      ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
+                      : 'border-sage focus:border-forest focus:ring-forest'
+                  }`}
+                  aria-invalid={Boolean(errors.name)}
+                  aria-describedby={errors.name ? 'name-error' : undefined}
+                />
+                {errors.name && (
+                  <p id="name-error" className="text-xs text-burnt-crimson mt-1 font-medium">
+                    {errors.name}
+                  </p>
+                )}
+              </div>
+
+              {/* Email Field */}
+              <div>
+                <label
+                  htmlFor="email"
+                  className="text-xs font-semibold uppercase tracking-wider text-stone mb-1.5 block"
+                >
+                  Email Address
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  disabled={isSubmitting}
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="alex.mercer@example.com"
+                  className={`w-full px-4 py-2.5 rounded-lg border bg-white text-charcoal font-sans text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors ${
+                    errors.email
+                      ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
+                      : 'border-sage focus:border-forest focus:ring-forest'
+                  }`}
+                  aria-invalid={Boolean(errors.email)}
+                  aria-describedby={errors.email ? 'email-error' : undefined}
+                />
+                {errors.email && (
+                  <p id="email-error" className="text-xs text-burnt-crimson mt-1 font-medium">
+                    {errors.email}
+                  </p>
+                )}
+              </div>
+
+              {/* Password Field */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label
+                    htmlFor="password"
+                    className="text-xs font-semibold uppercase tracking-wider text-stone block"
+                  >
+                    Password
+                  </label>
+                  <span className="text-xs text-stone/70">Min 8 characters</span>
+                </div>
+                <div className="relative">
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    required
+                    disabled={isSubmitting}
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="At least 8 characters"
+                    className={`w-full pl-4 pr-11 py-2.5 rounded-lg border bg-white text-charcoal font-sans text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors ${
+                      errors.password
+                        ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
+                        : 'border-sage focus:border-forest focus:ring-forest'
+                    }`}
+                    aria-invalid={Boolean(errors.password)}
+                    aria-describedby={errors.password ? 'password-error' : undefined}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    disabled={isSubmitting}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone hover:text-forest p-1 focus:outline-none cursor-pointer transition-colors"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {errors.password && (
+                  <p id="password-error" className="text-xs text-burnt-crimson mt-1 font-medium">
+                    {errors.password}
+                  </p>
+                )}
+              </div>
+
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                variant="accent"
+                size="md"
+                disabled={isSubmitting}
+                className="w-full justify-center mt-2"
+              >
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Creating Account...
+                  </span>
+                ) : (
+                  'Create Account'
+                )}
+              </Button>
+            </form>
+
+            {/* Footer Link */}
+            <div className="mt-8 pt-6 border-t border-sage text-center">
+              <p className="text-sm font-sans text-stone">
+                Already have an account?{' '}
+                <Link
+                  to={destParam ? `/login?destination=${encodeURIComponent(destParam)}` : '/login'}
+                  className="text-forest hover:text-forest-dark font-medium transition-colors"
+                >
+                  Sign in
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
       </Container>

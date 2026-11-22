@@ -9,7 +9,6 @@ import healthRoutes from './routes/health.routes.js'
 import authRoutes from './routes/auth.routes.js'
 import tripRoutes from './routes/trip.routes.js'
 import destinationRoutes from './routes/destination.routes.js'
-import diagnosticRoutes from './routes/diagnostic.routes.js'
 
 /**
  * Express Application Configuration
@@ -107,11 +106,6 @@ app.use('/api', apiRateLimiter)
 app.use('/api/auth', authRoutes)
 app.use('/api/trips', tripRoutes)
 app.use('/api/destinations', destinationRoutes)
-
-// 8.1 Temporary Protected SMTP Diagnostic Route (Only registered when explicitly enabled)
-if (config.smtpDiagnostic?.enabled) {
-  app.use('/api/diagnostic', diagnosticRoutes)
-}
 
 // 9. 404 Not Found Handler
 app.use((req, res) => {

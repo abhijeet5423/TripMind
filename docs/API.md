@@ -16,7 +16,7 @@ TripMind implements stateless authentication via signed JSON Web Tokens (JWT) st
 - Clients do **not** transmit `Authorization: Bearer <token>` headers.
 - Browser HTTP clients must send requests with credentials enabled (`credentials: 'include'` for Fetch; `withCredentials: true` for Axios).
 - Sessions expire after 15 minutes of inactivity.
-- Tokens issued prior to a password reset are automatically revoked across all devices via the `passwordChangedAt` timestamp check in the `authenticateToken` middleware.
+- Tokens issued prior to a credential modification (when `passwordChangedAt` is updated) are automatically revoked across all devices via the `passwordChangedAt` timestamp check in the `authenticateToken` middleware.
 
 ### 1.2 CSRF & Multi-Origin Defense
 All state-mutating requests (`POST`, `PUT`, `PATCH`, `DELETE`) are protected by the `csrfProtection` middleware:
@@ -61,10 +61,6 @@ Requests are throttled by IP using in-memory sliding windows:
 | :--- | :---: | :---: | :--- | :--- |
 | **General API** | 15 min | 120 req | `/api/*` | `RATE_LIMIT_EXCEEDED` |
 | **Authentication** | 15 min | 10 req | `/api/auth/login`, `/api/auth/register` | `AUTH_RATE_LIMIT_EXCEEDED` |
-| **Forgot Password** | 15 min | 5 req | `/api/auth/forgot-password` | `RATE_LIMIT_EXCEEDED` |
-| **Reset Password** | 15 min | 10 req | `/api/auth/reset-password` | `RATE_LIMIT_EXCEEDED` |
-| **Resend Verification** | 15 min | 3 req | `/api/auth/resend-verification` | `RATE_LIMIT_EXCEEDED` |
-| **Verify Email** | 15 min | 15 req | `/api/auth/verify-email` | `RATE_LIMIT_EXCEEDED` |
 | **AI Generation** | 1 min | 15 req | `/api/trips/:id/generate-itinerary` | `RATE_LIMIT_EXCEEDED` |
 | **AI Assistant** | 1 min | 15 req | `/api/assistant/messages` | `RATE_LIMIT_EXCEEDED` |
 | **Public Share** | 1 min | 60 req | `/api/trips/shared/:token` | `RATE_LIMIT_EXCEEDED` |
@@ -92,10 +88,8 @@ Requests are throttled by IP using in-memory sliding windows:
   - `password`: String, 8–72 characters (bcrypt limit).
   - Client-supplied `role` is strictly prohibited (mass-assignment protection).
 - **Behavior:**
-  - Creates user record with `isEmailVerified: false`.
-  - Generates 32-byte cryptographic verification token (24-hour expiration) and stores SHA-256 hash.
-  - Sends transactional verification email.
-  - *Atomic Rollback:* If email delivery fails or SMTP is unconfigured, user document is rolled back from MongoDB.
+  - Persists new traveler account in MongoDB with `role: 'user'`.
+  - Password hashed once via Mongoose `pre('save')` hook (`bcrypt` 10 rounds).
 - **Success Response (201 Created):**
   ```json
   {
@@ -106,73 +100,17 @@ Requests are throttled by IP using in-memory sliding windows:
         "name": "Jane Traveler",
         "email": "jane@example.com",
         "role": "user",
-        "isEmailVerified": false,
         "createdAt": "2026-11-22T19:00:00.000Z"
       }
     },
-    "message": "Registration successful. Please check your email to verify your account."
+    "message": "User registered successfully"
   }
   ```
-- **Error Codes:** `400 VALIDATION_ERROR`, `409 EMAIL_ALREADY_EXISTS`, `503 EMAIL_SERVICE_UNCONFIGURED`.
+- **Error Codes:** `400 VALIDATION_ERROR`, `409 EMAIL_ALREADY_EXISTS`.
 
 ---
 
-### 2.2 Verify Email Address
-- **Method:** `POST`
-- **Path:** `/api/auth/verify-email`
-- **Auth:** Public
-- **Rate Limit:** 15 requests / 15 minutes
-- **Request Body:**
-  ```json
-  {
-    "token": "4a7b9c1d2e3f...64hexchars"
-  }
-  ```
-- **Behavior:**
-  - Atomically finds user matching SHA-256 hash of token where `emailVerificationExpires > now`.
-  - Sets `isEmailVerified: true` and `$unset`s token hash and expiration fields (single-use guarantee).
-- **Success Response (200 OK):**
-  ```json
-  {
-    "success": true,
-    "data": {
-      "user": {
-        "id": "6741b0b5e8295b1234567890",
-        "email": "jane@example.com",
-        "isEmailVerified": true
-      }
-    },
-    "message": "Email address verified successfully. You may now log in."
-  }
-  ```
-- **Error Codes:** `400 INVALID_TOKEN`, `400 TOKEN_EXPIRED`.
-
----
-
-### 2.3 Resend Verification Email
-- **Method:** `POST`
-- **Path:** `/api/auth/resend-verification`
-- **Auth:** Public
-- **Rate Limit:** 3 requests / 15 minutes
-- **Request Body:**
-  ```json
-  {
-    "email": "jane@example.com"
-  }
-  ```
-- **Anti-Enumeration Contract:** Always returns HTTP 200 with an identical message regardless of whether the email is registered, unverified, already verified, or unknown.
-- **Success Response (200 OK):**
-  ```json
-  {
-    "success": true,
-    "data": null,
-    "message": "If an unverified account exists for that email, a new verification link has been sent."
-  }
-  ```
-
----
-
-### 2.4 Login User
+### 2.2 Login User
 - **Method:** `POST`
 - **Path:** `/api/auth/login`
 - **Auth:** Public
@@ -184,9 +122,6 @@ Requests are throttled by IP using in-memory sliding windows:
     "password": "Password123!"
   }
   ```
-- **Verification Gating:**
-  - Evaluates `user.isEmailVerified !== false` (legacy accounts with `isEmailVerified: undefined` remain grandfathered in).
-  - Unverified accounts return HTTP 403 `EMAIL_NOT_VERIFIED`.
 - **Success Response (200 OK):**
   - Sets HttpOnly `Set-Cookie: token=<jwt>; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=900`.
   ```json
@@ -198,18 +133,17 @@ Requests are throttled by IP using in-memory sliding windows:
         "name": "Jane Traveler",
         "email": "jane@example.com",
         "role": "user",
-        "isEmailVerified": true,
         "createdAt": "2026-11-22T19:00:00.000Z"
       }
     },
     "message": "Login successful"
   }
   ```
-- **Error Codes:** `400 VALIDATION_ERROR`, `401 INVALID_CREDENTIALS` (anti-enumeration message: "Invalid email or password"), `403 EMAIL_NOT_VERIFIED`.
+- **Error Codes:** `400 VALIDATION_ERROR`, `401 INVALID_CREDENTIALS` (anti-enumeration message: "Invalid email or password").
 
 ---
 
-### 2.5 Current Authenticated User Profile
+### 2.3 Current Authenticated User Profile
 - **Method:** `GET`
 - **Path:** `/api/auth/me`
 - **Auth:** Requires valid `token` cookie
@@ -224,7 +158,6 @@ Requests are throttled by IP using in-memory sliding windows:
         "name": "Jane Traveler",
         "email": "jane@example.com",
         "role": "user",
-        "isEmailVerified": true,
         "createdAt": "2026-11-22T19:00:00.000Z"
       }
     },
@@ -235,7 +168,7 @@ Requests are throttled by IP using in-memory sliding windows:
 
 ---
 
-### 2.6 Logout User
+### 2.4 Logout User
 - **Method:** `POST`
 - **Path:** `/api/auth/logout`
 - **Auth:** Public / Authenticated
@@ -248,61 +181,6 @@ Requests are throttled by IP using in-memory sliding windows:
     "message": "Logged out successfully"
   }
   ```
-
----
-
-### 2.7 Forgot Password (Initiate Recovery)
-- **Method:** `POST`
-- **Path:** `/api/auth/forgot-password`
-- **Auth:** Public
-- **Rate Limit:** 5 requests / 15 minutes
-- **Request Body:**
-  ```json
-  {
-    "email": "jane@example.com"
-  }
-  ```
-- **Anti-Enumeration Contract:** Always returns HTTP 200 with identical generic response.
-- **Success Response (200 OK):**
-  ```json
-  {
-    "success": true,
-    "data": null,
-    "message": "If an account exists with that email address, password reset instructions have been sent."
-  }
-  ```
-
----
-
-### 2.8 Reset Password (Complete Recovery)
-- **Method:** `POST`
-- **Path:** `/api/auth/reset-password`
-- **Auth:** Public
-- **Rate Limit:** 10 requests / 15 minutes
-- **Request Body:**
-  ```json
-  {
-    "token": "1a2b3c...64hexchars",
-    "password": "NewSecurePassword123!",
-    "confirmPassword": "NewSecurePassword123!"
-  }
-  ```
-- **Behavior:**
-  - Hashes token via SHA-256 and finds user where `passwordResetExpires > now`.
-  - Verifies `password === confirmPassword` and 8–72 characters length.
-  - Updates `user.password` (hashed via Mongoose `pre('save')` bcrypt hook).
-  - Unsets `passwordResetTokenHash` and `passwordResetExpires`.
-  - Sets `user.passwordChangedAt = new Date()`, globally revoking prior JWT sessions.
-  - Clears `token` cookie on resetting device.
-- **Success Response (200 OK):**
-  ```json
-  {
-    "success": true,
-    "data": null,
-    "message": "Password reset successfully. You may now log in with your new password."
-  }
-  ```
-- **Error Codes:** `400 VALIDATION_ERROR`, `400 INVALID_TOKEN`, `400 TOKEN_EXPIRED`.
 
 ---
 

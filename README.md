@@ -32,7 +32,7 @@
 - [10. Interactive Maps & Destination Discovery](#10-interactive-maps--destination-discovery)
 - [11. Budget Analytics & Visualizations](#11-budget-analytics--visualizations)
 - [12. PDF Export & Cryptographic Sharing](#12-pdf-export--cryptographic-sharing)
-- [13. Email Verification & Password Recovery](#13-email-verification--password-recovery)
+- [13. Direct Authentication & Session Security](#13-direct-authentication--session-security)
 - [14. Database Models & Schema Design](#14-database-models--schema-design)
 - [15. API Overview](#15-api-overview)
 - [16. Local Installation & Development Setup](#16-local-installation--development-setup)
@@ -79,7 +79,7 @@ TripMind deliberately rejects generic "dark SaaS dashboards", aggressive neon gr
 - ✏️ **Granular Activity CRUD:** Add, edit, or delete activities on any itinerary day with automatic mathematical budget reconciliation.
 - 🔒 **Cryptographic Itinerary Sharing:** Generates high-entropy 256-bit public share links with AES-256-GCM encryption at rest, SHA-256 indexing, and optional budget masking.
 - 📄 **Client-Side PDF Export:** Clean, multi-page print-optimized travel journal ready for offline travel or paper printing.
-- 🛡️ **Enterprise-Grade Authentication:** HttpOnly session cookies, single-point bcrypt hashing, cross-device session invalidation on password reset, anti-enumeration defenses, and CSRF protection.
+- 🛡️ **Enterprise-Grade Authentication:** HttpOnly session cookies, single-point bcrypt hashing, cross-device session invalidation on credential modification, anti-enumeration defenses, and CSRF protection.
 - 📱 **Mobile & Tablet Responsive:** Fluid multi-viewport experience with native CSS horizontal carousels, responsive drawers, and minimum 44px touch targets.
 
 ---
@@ -109,7 +109,6 @@ TripMind deliberately rejects generic "dark SaaS dashboards", aggressive neon gr
 | **jsonwebtoken**| `9.0.3` | Cryptographic JWT signing and stateless session token verification |
 | **bcrypt** | `6.0.0` | Single-point salted password hashing (10 rounds) |
 | **Helmet** | `8.3.0` | Security headers (CSP, CORP, HSTS, frameguard, X-Content-Type) |
-| **Nodemailer** | `10.6.1` | Transactional email delivery for verification and password recovery |
 | **cookie-parser**| `1.4.7` | Parses incoming HttpOnly cookie headers |
 | **cors** | `2.8.6` | Dynamic origin evaluation and credential support |
 
@@ -255,10 +254,10 @@ TripMind implements a defense-in-depth security architecture complying with OWAS
 - JWT access tokens (15-minute lifespan) are stored exclusively in HttpOnly, SameSite, Secure cookies.
 - JavaScript running in the browser cannot read or exfiltrate session tokens via XSS.
 
-### 2. Cross-Device Session Invalidation (Day 54 Closeout)
-- When a traveler resets their password, `user.passwordChangedAt = new Date()` is recorded in MongoDB.
+### 2. Cross-Device Session Invalidation ([ADR-032](DECISIONS.md))
+- When a traveler's password is modified, `user.passwordChangedAt = new Date()` is recorded in MongoDB.
 - On every authenticated request, `authenticateToken` middleware compares the JWT issuance timestamp (`iat`) against `user.changedPasswordAfter(decoded.iat)`.
-- Stale tokens issued prior to the password reset are rejected across all devices with HTTP 401 `UNAUTHORIZED` (`Password was recently changed. Please log in again.`), achieving global session revocation without Redis or stateful session tables.
+- Stale tokens issued prior to the credential change are rejected across all devices with HTTP 401 `UNAUTHORIZED` (`Password was recently changed. Please log in again.`), achieving global session revocation without Redis or stateful session tables.
 
 ### 3. Single-Point Password Hashing ([ADR-004](DECISIONS.md))
 - Salted bcrypt hashing (10 salt rounds) is executed in exactly one place: the Mongoose `User.pre('save')` hook.
@@ -269,11 +268,10 @@ TripMind implements a defense-in-depth security architecture complying with OWAS
 - CORS preflight dynamically permits credentials for `https://trip-mind-brown.vercel.app`, Vercel preview environments, and local development.
 
 ### 5. Multi-Tier Sliding Rate Limiting
-- Independent in-memory rate limiters protect authentication endpoints (10 req/15m), password recovery (5 req/15m), AI generation (15 req/min), and public shared links (60 req/min).
+- Independent in-memory rate limiters protect authentication endpoints (10 req/15m), AI generation (15 req/min), and public shared links (60 req/min).
 
 ### 6. Anti-Enumeration Defensive Contracting
 - `POST /api/auth/login` returns uniform generic error messages ("Invalid email or password") for unknown emails and wrong passwords.
-- `POST /api/auth/forgot-password` and `POST /api/auth/resend-verification` return identical generic HTTP 200 responses regardless of whether the email exists.
 - Cross-user resource access returns uniform HTTP 404 `NOT_FOUND` to prevent IDOR resource enumeration.
 
 ---
@@ -379,15 +377,15 @@ TripMind incorporates declarative, responsive data visualizations powered by **R
 
 ---
 
-## 13. Email Verification & Password Recovery
+## 13. Direct Authentication & Session Security
 
-Implemented during the Day 54 upgrade with strict cryptographic integrity:
+Restored in Day 56 to eliminate external SMTP delivery dependencies while preserving defense-in-depth security:
 
-- **Email Verification:** Newly registered accounts begin with `isEmailVerified: false` and are blocked from logging in (HTTP 403 `EMAIL_NOT_VERIFIED`) until verified.
-- **Single-Use Verification Tokens:** 24-hour verification links consumed via atomic MongoDB `$unset` operations.
-- **Self-Service Password Reset:** 30-minute recovery links storing only SHA-256 hashes in MongoDB. Consuming the token updates the password via the single-point bcrypt hook, clears the token fields, and sets `passwordChangedAt`.
-- **Legacy Compatibility:** Pre-existing MongoDB Atlas documents (where `isEmailVerified` is `undefined`) are grandfathered in, retaining immediate login access without requiring database migrations.
-- **Editorial HTML Email Templates:** Transactional emails styled with TripMind's warm ivory palette (`#F7F5EF`), forest green buttons (`#173D35`), fallback URLs, and clear expiration notices.
+- **Instant Traveler Registration:** Direct account creation via `POST /api/auth/register` without awaiting external email delivery or verification links.
+- **Immediate Credential Login:** Authenticates immediately via `POST /api/auth/login` without email verification gating, issuing a 15-minute cryptographically signed JWT stored in an HttpOnly, Secure, SameSite cookie.
+- **Single-Point Password Hashing:** Enforced strictly via Mongoose `pre('save')` hook (`bcrypt` 10 salt rounds). Domain services pass raw validated passwords and never pre-hash.
+- **Cross-Device Session Invalidation:** `passwordChangedAt` in the `User` schema pairs with `authenticateToken` middleware to immediately invalidate prior JWT tokens across all devices when credentials change.
+- **Legacy & Database Compatibility:** Backward-compatible with all existing MongoDB Atlas user documents without requiring destructive migrations.
 
 ---
 
@@ -396,7 +394,7 @@ Implemented during the Day 54 upgrade with strict cryptographic integrity:
 TripMind utilizes MongoDB Atlas with two primary collections. Complete schema specifications, field types, and index definitions are documented in [docs/DATABASE.md](docs/DATABASE.md).
 
 ### Summary Schema Architecture
-- **`users` Collection:** Stores user identity, normalized email, bcrypt password hash (`select: false`), role (`user`/`admin`), email verification status, cryptographic token hashes, and `passwordChangedAt` timestamp.
+- **`users` Collection:** Stores user identity, normalized email, bcrypt password hash (`select: false`), role (`user`/`admin`), and `passwordChangedAt` timestamp.
 - **`trips` Collection:** Aggregate root containing traveler reference (`userId`), destination metadata, travel style preferences, embedded `days` array, embedded `budgetSummary`, and embedded `shareSettings`.
   - **Embedded `days[]`:** Sequential daily schedules containing day number, date, theme, and embedded `activities[]`.
   - **Embedded `activities[]`:** Chronological stops containing time, time slot, title, description, category, cost, and WGS84 coordinates.
@@ -411,14 +409,10 @@ TripMind's backend exposes a comprehensive RESTful API adhering to the standardi
 
 | Category | Endpoint | Method | Auth | Description |
 | :--- | :--- | :---: | :---: | :--- |
-| **Auth** | `/api/auth/register` | `POST` | Public | Register new traveler account (sends verification email) |
+| **Auth** | `/api/auth/register` | `POST` | Public | Register new traveler account & create user |
 | **Auth** | `/api/auth/login` | `POST` | Public | Authenticate user & issue HttpOnly session cookie |
 | **Auth** | `/api/auth/logout` | `POST` | Public | Terminate session & clear HttpOnly cookie |
 | **Auth** | `/api/auth/me` | `GET` | User | Retrieve current authenticated user profile |
-| **Auth** | `/api/auth/verify-email` | `POST` | Public | Consume single-use email verification token |
-| **Auth** | `/api/auth/resend-verification` | `POST` | Public | Request fresh verification link (anti-enumeration) |
-| **Auth** | `/api/auth/forgot-password` | `POST` | Public | Initiate password reset link (anti-enumeration) |
-| **Auth** | `/api/auth/reset-password` | `POST` | Public | Complete password reset & revoke prior sessions |
 | **Trips** | `/api/trips` | `POST` | User | Create a new trip |
 | **Trips** | `/api/trips` | `GET` | User | List user-owned trips (paginated, sorted, filtered) |
 | **Trips** | `/api/trips/:id` | `GET` | User | Retrieve single trip with all days and activities |
@@ -493,14 +487,6 @@ GEMINI_MODEL=gemini-3.5-flash-lite
 
 # Reverse Proxy Trust (1 hop for Render / Vercel edge proxy)
 TRUST_PROXY=1
-
-# Transactional SMTP Delivery (Optional for local development; required for production email delivery)
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=your_smtp_user
-SMTP_PASS=your_smtp_password
-EMAIL_FROM="TripMind <no-reply@tripmind.com>"
 ```
 
 ### Client Configuration (`client/.env`)
@@ -583,9 +569,8 @@ Because Vercel proxies `/api/*` directly to Render at the network edge, browser 
 ## 20. Current Limitations & Roadmap
 
 ### Current Limitations
-1. **SMTP Production Configuration Pending:** Real email delivery (verification emails and password reset links) is awaiting deployment of live production SMTP provider credentials (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`) on the production hosting environment. All authentication and recovery logic is fully implemented and passes 103 automated tests using test mock transports.
-2. **Single-User Trip Planning:** Real-time multi-user collaborative editing via WebSockets or CRDTs is not supported in the MVP. Itineraries can be shared publicly via read-only cryptographic links.
-3. **Offline Raster Tiles:** Interactive maps require an active internet connection to stream OpenStreetMap raster tiles.
+1. **Single-User Trip Planning:** Real-time multi-user collaborative editing via WebSockets or CRDTs is not supported in the MVP. Itineraries can be shared publicly via read-only cryptographic links.
+2. **Offline Raster Tiles:** Interactive maps require an active internet connection to stream OpenStreetMap raster tiles.
 
 ### Future Roadmap (Tier 2 & Tier 3)
 - [ ] Live flight and accommodation booking integrations (Amadeus / Skyscanner APIs).

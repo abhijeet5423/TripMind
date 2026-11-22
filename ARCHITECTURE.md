@@ -824,35 +824,22 @@ Because `SameSite=None` causes the browser to include session cookies on cross-s
   ```
 - **CSP connectSrc:** Helmet's `contentSecurityPolicy.directives.connectSrc` explicitly includes `https://trip-mind-brown.vercel.app`, `config.clientUrl`, `https://*.openstreetmap.org`, and `https://*.mongodb.net`, ensuring browser connectivity is never blocked by security header misalignments.
 
-### 5.11 Password Recovery & Email Verification Architecture (Day 54)
+### 5.11 Direct Authentication & Session Architecture (Restored Day 56)
 
 #### 1. Security Architecture & Threat Model
-TripMind's account recovery and email verification subsystems implement strict cryptographic isolation, single-use token lifecycle, anti-enumeration defenses, and single-point password hashing:
-- **Token Generation:** 32-byte cryptographically secure random values via `crypto.randomBytes(32).toString('hex')` (256 bits of entropy).
-- **One-Way Token Hashing:** Tokens are stored in MongoDB strictly as SHA-256 hashes (`hashToken(token)`). Plaintext tokens are never stored, logged, or returned in database queries (`select: false`).
-- **Token Expirations:** Verification tokens expire after 24 hours; password reset tokens expire after 30 minutes.
-- **Single-Use Atomic Consumption & Cross-Device Session Invalidation:** Email verification uses atomic MongoDB updates (`findOneAndUpdate` with `$unset`), eliminating race conditions and token replay. Password reset invalidates token fields, records `user.passwordChangedAt = new Date()`, and clears the resetting client's HttpOnly cookie (`res.clearCookie('token', cookieOptions)`). The `authenticateToken` middleware evaluates `user.changedPasswordAfter(decoded.iat)` on each authenticated request, invalidating any JWT session token issued prior to the password change across all devices with HTTP 401 `UNAUTHORIZED` (`Password was recently changed. Please log in again.`), achieving global revocation without stateful session stores or Redis.
-- **Anti-Enumeration Defense:** `POST /api/auth/forgot-password` and `POST /api/auth/resend-verification` return identical generic HTTP 200 responses regardless of whether the email address is registered, unverified, already verified, or unregistered.
+TripMind implements direct, stateless user authentication using signed JSON Web Tokens (JWT) and salted password hashing without external email delivery or SMTP dependencies:
+- **Direct Registration & Login:** Valid registration immediately persists traveler credentials and allows instant login without waiting for email delivery or verification links.
+- **Single-Point Password Hashing:** Password hashing occurs strictly once via the Mongoose `User` model's `pre('save')` hook (`server/src/models/User.js`) using `bcrypt` (10 salt rounds). Services pass raw validated passwords and never hash candidates beforehand.
+- **Stateless JWT Cookie Authentication:** Issues a 15-minute cryptographically signed JWT stored in an HttpOnly, Secure (in production), SameSite cookie (`token`).
+- **Cross-Device Session Invalidation (`passwordChangedAt`):** When user passwords are updated, `user.passwordChangedAt` records the timestamp. The `authenticateToken` middleware compares `user.changedPasswordAfter(decoded.iat)` on every authenticated request, invalidating any JWT session token issued prior to the password modification across all devices with HTTP 401 `UNAUTHORIZED` (`Password was recently changed. Please log in again.`), achieving global revocation without stateful session stores or Redis.
+- **Safe Database Projections:** Sensitive fields (`password`, `__v`) are excluded from queries (`select: false`) and omitted from API responses.
 - **Dedicated Rate Limiting:**
-  - `forgotPasswordLimiter`: 5 requests per 15 minutes per IP.
-  - `resetPasswordLimiter`: 10 requests per 15 minutes per IP.
-  - `resendVerificationLimiter`: 3 requests per 15 minutes per IP.
-  - `verifyEmailLimiter`: 15 requests per 15 minutes per IP.
-- **Legacy Migration Safety:** Mongoose schema field `isEmailVerified: { type: Boolean }` omits default values so pre-existing documents in MongoDB Atlas hydrate with `isEmailVerified: undefined`. The login gating logic checks `if (user.isEmailVerified === false)` (or `user.isVerified()`), allowing legacy travelers to log in seamlessly without requiring database migrations.
+  - `authLimiter`: 10 requests per 15 minutes per IP applied to `POST /api/auth/register` and `POST /api/auth/login`.
+- **Database & Existing-User Compatibility:** Existing user records in MongoDB Atlas remain fully functional. Travelers registered during prior sessions (including accounts with `isEmailVerified: false`, `isEmailVerified: true`, or `undefined`) authenticate immediately without blocking.
 
-#### 2. Transactional Email Service (`server/src/services/emailService.js`)
-- **Transport Architecture:** Built on Nodemailer with standard SMTP configuration (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`).
-- **Templates:** Responsive editorial HTML email templates featuring TripMind's warm ivory palette (`#F7F5EF`), forest green buttons (`#173D35`), fallback copyable URLs, and clear expiration notices.
-- **Zero Token/Credential Logging:** Transporter errors and delivery results are logged with sanitized metadata; tokens and recipient credentials are never exposed in log output.
-- **Strict Testing Isolation & Production Safeguards:** Provides mock hooks (`setMockTransport`, `resetMockTransport`) strictly restricted to automated tests in non-production environments (`setMockTransport` explicitly throws if `config.nodeEnv === 'production'`). Production never silently falls back to mock delivery. When SMTP credentials are unconfigured and mock transport is absent, `isEmailConfigured()` returns `false` and `getTransporter()` throws HTTP 503 `EMAIL_SERVICE_UNCONFIGURED`. User registration safely rolls back MongoDB persistence upon delivery failure, while recovery endpoints (`forgotPassword`, `resendVerification`) catch delivery errors safely to maintain strict anti-enumeration contracts without leaking email existence or crashing.
-
-#### 3. Temporary Protected SMTP Diagnostic Mechanism (Day 55)
-To verify live production Gmail SMTP connectivity on hosting environments without SSH/Shell access (e.g., Render Free Plan):
-- **Conditional Mounting:** Mounts `POST /api/diagnostic/smtp-verify` *only* if `config.smtpDiagnostic.enabled === true`. Otherwise, the route table contains zero diagnostic endpoints (returns HTTP 404).
-- **Constant-Time Cryptographic Token Validation:** Enforces a dedicated `SMTP_DIAGNOSTIC_TOKEN` supplied strictly and exclusively via the `x-smtp-diagnostic-token` header (Bearer and JSON body alternatives are deliberately excluded to prevent token leakage in server access logs or payload parsers). Token generation uses `crypto.randomBytes(24).toString('hex')`, which yields 48 hexadecimal characters (192 bits of entropy). Token validation computes SHA-256 digests of both expected and provided tokens before invoking `crypto.timingSafeEqual`, preventing timing attacks and buffer length runtime exceptions.
-- **Dedicated Rate Limiting:** Enforces `smtpDiagnosticLimiter` (5 attempts per 15 minutes per IP).
-- **Non-Destructive Transport Verification:** Reuses `getTransporter()` and invokes Nodemailer's native `transporter.verify()` method. Never dispatches email, registers users, or modifies database records.
-- **Sanitized Response DTO:** Returns strictly `{ success: true }` or `{ success: false, error: { code, message } }` with sanitized error codes (`EAUTH`, `ETIMEDOUT`, `ECONNREFUSED`, `ENOTFOUND`, `ETLS`). Excludes credentials, email addresses, server traces, and environment values.
+#### 2. Decommissioning of Email Delivery & Diagnostic Mechanisms (Day 56)
+- **Removal of SMTP Dependency:** The Day 54 transactional email service (`emailService.js`), Nodemailer dependency, and verification/recovery workflows (`POST /verify-email`, `POST /resend-verification`, `POST /forgot-password`, `POST /reset-password`) were cleanly removed to restore reliable, unblocked production authentication on hosting environments where external SMTP egress or provider access is unconfigured.
+- **Removal of Temporary Diagnostic:** The Day 55 temporary SMTP diagnostic route (`/api/diagnostic/smtp-verify`) was removed from the application router and its files deleted, restoring a minimal backend footprint.
 
 ---
 
