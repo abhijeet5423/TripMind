@@ -763,6 +763,28 @@ Accompanying HTTP Headers:
 - **Decoupled Production Context:** Production deploys frontend and backend on distinct origins, requiring `SameSite: None; Secure`. CORS preflight checks block unauthorized cross-origin requests requiring `Content-Type: application/json`.
 - **Pre-Production Launch Requirement:** Decoupled production architectures should implement an explicit Double Submit Cookie anti-CSRF token or verify custom client headers (e.g., `X-Requested-With`) prior to processing mutating operations.
 
+### 5.9 API Edge-Case Resilience, Postman Collection & Error Handling Architecture (Day 48)
+
+#### 1. Centralized Error Normalization
+In `server/src/app.js`, Express error middleware normalizes low-level and infrastructure errors before constructing standardized JSON envelopes:
+- **SyntaxError (Malformed JSON):** Normalized to HTTP `400 Bad Request` with `code: 'INVALID_JSON'` and message `'Malformed JSON in request body'`, preventing internal engine parse traces from leaking to clients.
+- **Payload Too Large:** Requests exceeding the 1MB payload ceiling return HTTP `413 Payload Too Large` with `code: 'PAYLOAD_TOO_LARGE'`.
+- **Mongoose Validation Errors:** Mapped to HTTP `400 VALIDATION_ERROR`.
+- **Duplicate Key Collisions (E11000):** Mapped to HTTP `409 EMAIL_ALREADY_EXISTS`.
+- **Mongoose CastErrors (Malformed ObjectIds):** Mapped to HTTP `400 INVALID_ID`.
+- **Zero Information Leakage:** Production error responses never contain stack traces (`err.stack`), database host strings, credentials, or internal file paths.
+
+#### 2. Reusable Postman Test Collection Architecture (`postman/`)
+- **Collection (`postman/TripMind.postman_collection.json`):** 9 structured folders mirroring TripMind's resource hierarchy (Health, Authentication, User Profile, Trips, Itinerary, Activities, Sharing, Destinations, Rate Limiting & Errors).
+- **Environment (`postman/TripMind.local.postman_environment.json`):** Configures `baseUrl: http://127.0.0.1:5000` with zero hardcoded credentials or private keys.
+- **Automated Assertion Suite:** Every request includes test scripts verifying status codes, schema contracts, and standardized JSON envelopes (`success`, `data` or `error`).
+- **Dynamic Context Chaining:** Captures `tripId`, `dayId`, `activityId`, and `shareToken` dynamically across requests, supporting both manual Postman execution and headless CLI regression via Newman (`npx newman run ...`).
+- **Cookie Jar Synchronization:** Seamlessly supports TripMind's HttpOnly session token architecture (ADR-010) through Postman's native cookie jar.
+
+#### 3. CSRF Carry-Forward & Production Roadmap
+- **Audited Status:** State-changing endpoints strictly require mutating HTTP verbs (`POST`, `PATCH`, `DELETE`) and reject `GET` mutation. JSON parsing (`Content-Type: application/json`) forces browser preflight validation (`OPTIONS`), which is checked against authorized `CLIENT_URL`.
+- **Production Launch Prerequisite:** For multi-domain production deployments requiring `SameSite=None; Secure`, an explicit anti-CSRF token (Double Submit Cookie) or custom client header check (e.g., `X-Requested-With`) remains a pre-production requirement.
+
 ---
 
 ## 6. Mapping Architecture & OpenStreetMap Policies

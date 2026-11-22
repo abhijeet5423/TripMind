@@ -115,6 +115,20 @@ app.use((err, req, res, next) => {
   let errorCode =
     typeof err.code === 'string' && err.code.length > 0 ? err.code : 'INTERNAL_SERVER_ERROR'
 
+  // Normalize JSON syntax parsing errors from express.json()
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    statusCode = 400
+    errorCode = 'INVALID_JSON'
+    err.message = 'Malformed JSON in request body'
+  }
+
+  // Normalize request entity too large errors
+  if (err.type === 'entity.too.large') {
+    statusCode = 413
+    errorCode = 'PAYLOAD_TOO_LARGE'
+    err.message = 'Request payload exceeds 1MB limit'
+  }
+
   // Normalize Mongoose schema validation errors
   if (err.name === 'ValidationError') {
     statusCode = 400

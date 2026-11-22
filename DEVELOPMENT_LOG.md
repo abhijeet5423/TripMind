@@ -33,6 +33,38 @@
 
 ## 2. Session History
 
+### [2026-11-22] — Week 7, Day 48: API Edge-Case Testing & Postman Collection
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Perform a systematic edge-case audit across all TripMind backend APIs (Authentication, Sessions, Request Validation, Trip/Activity CRUD, Itinerary Generation, Public Sharing, Rate Limiting, and Error Handling) and build a maintainable, reusable Postman collection with dynamic variable chaining and assertions.
+
+#### 1. Files Created / Modified
+- [`server/src/app.js`](./server/src/app.js) — *Modified.* Upgraded centralized error middleware to normalize `SyntaxError` (malformed JSON bodies) to HTTP 400 `INVALID_JSON` and `entity.too.large` to HTTP 413 `PAYLOAD_TOO_LARGE`, eliminating misleading `INTERNAL_SERVER_ERROR` status codes on client parse errors.
+- [`postman/TripMind.postman_collection.json`](./postman/TripMind.postman_collection.json) — *Created.* Reusable Postman Collection v2.1.0 organized into 9 folders (Health, Authentication, User Profile, Trips, Itinerary, Activities, Sharing, Destinations, Rate Limiting & Errors) with automated status and envelope assertions.
+- [`postman/TripMind.local.postman_environment.json`](./postman/TripMind.local.postman_environment.json) — *Created.* Local Postman environment configuration with `baseUrl`, placeholder credentials, and dynamic entity variable bindings (`tripId`, `dayId`, `activityId`, `shareToken`).
+- [`postman/README.md`](./postman/README.md) — *Created.* Quickstart documentation detailing Postman GUI import, environment selection, cookie jar mechanics (ADR-010), and headless Newman CI test execution (`npx newman run ...`).
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — *Modified.* Added Section 5.9 documenting API Edge-Case Resilience, Postman Collection Architecture, Centralized Error Normalization, and CSRF Carry-Forward.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Appended Day 48 operational session log.
+- [`scratch/test_day48_api_edge_cases.mjs`](./scratch/test_day48_api_edge_cases.mjs) — *Created.* Automated edge-case verification test suite exercising 77 distinct test scenarios across all 6 core API functional areas.
+
+#### 2. Key Implementation Details & Concepts
+- **Systematic Edge-Case Matrix:** Tested missing/tampered/expired JWTs, unknown/bad credentials, duplicate registration, validation boundaries (whitespace, string/number type mismatches, boolean/float anomalies, negative budgets, inverted dates, array limits, ObjectId validation), empty payloads, protected system fields injection, status/query filters, and activity coordinate dependencies.
+- **Centralized Error Normalization:** Patched Express error pipeline in `server/src/app.js` to map body-parser `SyntaxError` instances to clean HTTP 400 `INVALID_JSON` error envelopes, preventing raw Node.js parsing traces from escaping to clients.
+- **Dynamic Postman Chaining:** Requests capture generated IDs (`tripId`, `dayId`, `activityId`, `shareToken`) dynamically to environment variables, supporting both automated collection runs and interactive step-by-step exploration.
+- **CSRF Risk & Carry-Forward Review:** Audited HTTP methods and confirmed mutating endpoints strictly enforce `POST`/`PATCH`/`DELETE` with `Content-Type: application/json`. Carried forward Double Submit Cookie token verification for multi-domain production launches.
+
+#### 3. Verification & Testing Performed
+- `node scratch/test_day48_api_edge_cases.mjs` — **77 PASSED, 0 FAILED** (100% pass across all edge-case categories).
+- `node scratch/test_day47_audit.mjs` — **71 PASSED, 0 FAILED** (Access controls & IDOR verification).
+- `node scratch/test_day46_security.mjs` — **39 PASSED, 0 FAILED** (Rate limiting & Helmet headers).
+- `node scratch/test_day45_dashboard.mjs` — **33 PASSED, 0 FAILED** (Dashboard UI and Edge CDP regression).
+- `node scratch/test_shareable_links.mjs` — **79 PASSED, 0 FAILED** (Public sharing & cryptographic token regression).
+- `node scratch/test_day29_1_pinboard_and_ui.mjs` — **59 PASSED, 0 FAILED** (Pinboard, navigation, and UI experience).
+- Client ESLint: **0 warnings, 0 errors**.
+- Client Production Build: **Built successfully in 1.47s**.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Implement pre-production anti-CSRF token verification (Double Submit Cookie or custom header check) prior to multi-domain production launch.
+
 ### [2026-11-22] — Week 7, Day 47: Audit Validation and Access Controls
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Conduct a comprehensive security audit of TripMind's backend validation, authentication, authorization, ownership verification, and role-based access controls. Address confirmed vulnerabilities across mass-assignment, privilege escalation, and query-level NoSQL injection, and develop automated regression tests verifying all 15 audit criteria.
@@ -403,6 +435,38 @@
 ---
 
 ## 2. Session History
+
+### [2026-11-22] — Week 7, Day 48: API Edge-Case Testing & Postman Collection
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Perform a systematic edge-case audit across all TripMind backend APIs (Authentication, Sessions, Request Validation, Trip/Activity CRUD, Itinerary Generation, Public Sharing, Rate Limiting, and Error Handling) and build a maintainable, reusable Postman collection with dynamic variable chaining and assertions.
+
+#### 1. Files Created / Modified
+- [`server/src/app.js`](./server/src/app.js) — *Modified.* Upgraded centralized error middleware to normalize `SyntaxError` (malformed JSON bodies) to HTTP 400 `INVALID_JSON` and `entity.too.large` to HTTP 413 `PAYLOAD_TOO_LARGE`, eliminating misleading `INTERNAL_SERVER_ERROR` status codes on client parse errors.
+- [`postman/TripMind.postman_collection.json`](./postman/TripMind.postman_collection.json) — *Created.* Reusable Postman Collection v2.1.0 organized into 9 folders (Health, Authentication, User Profile, Trips, Itinerary, Activities, Sharing, Destinations, Rate Limiting & Errors) with automated status and envelope assertions.
+- [`postman/TripMind.local.postman_environment.json`](./postman/TripMind.local.postman_environment.json) — *Created.* Local Postman environment configuration with `baseUrl`, placeholder credentials, and dynamic entity variable bindings (`tripId`, `dayId`, `activityId`, `shareToken`).
+- [`postman/README.md`](./postman/README.md) — *Created.* Quickstart documentation detailing Postman GUI import, environment selection, cookie jar mechanics (ADR-010), and headless Newman CI test execution (`npx newman run ...`).
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — *Modified.* Added Section 5.9 documenting API Edge-Case Resilience, Postman Collection Architecture, Centralized Error Normalization, and CSRF Carry-Forward.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Appended Day 48 operational session log.
+- [`scratch/test_day48_api_edge_cases.mjs`](./scratch/test_day48_api_edge_cases.mjs) — *Created.* Automated edge-case verification test suite exercising 77 distinct test scenarios across all 6 core API functional areas.
+
+#### 2. Key Implementation Details & Concepts
+- **Systematic Edge-Case Matrix:** Tested missing/tampered/expired JWTs, unknown/bad credentials, duplicate registration, validation boundaries (whitespace, string/number type mismatches, boolean/float anomalies, negative budgets, inverted dates, array limits, ObjectId validation), empty payloads, protected system fields injection, status/query filters, and activity coordinate dependencies.
+- **Centralized Error Normalization:** Patched Express error pipeline in `server/src/app.js` to map body-parser `SyntaxError` instances to clean HTTP 400 `INVALID_JSON` error envelopes, preventing raw Node.js parsing traces from escaping to clients.
+- **Dynamic Postman Chaining:** Requests capture generated IDs (`tripId`, `dayId`, `activityId`, `shareToken`) dynamically to environment variables, supporting both automated collection runs and interactive step-by-step exploration.
+- **CSRF Risk & Carry-Forward Review:** Audited HTTP methods and confirmed mutating endpoints strictly enforce `POST`/`PATCH`/`DELETE` with `Content-Type: application/json`. Carried forward Double Submit Cookie token verification for multi-domain production launches.
+
+#### 3. Verification & Testing Performed
+- `node scratch/test_day48_api_edge_cases.mjs` — **77 PASSED, 0 FAILED** (100% pass across all edge-case categories).
+- `node scratch/test_day47_audit.mjs` — **71 PASSED, 0 FAILED** (Access controls & IDOR verification).
+- `node scratch/test_day46_security.mjs` — **39 PASSED, 0 FAILED** (Rate limiting & Helmet headers).
+- `node scratch/test_day45_dashboard.mjs` — **33 PASSED, 0 FAILED** (Dashboard UI and Edge CDP regression).
+- `node scratch/test_shareable_links.mjs` — **79 PASSED, 0 FAILED** (Public sharing & cryptographic token regression).
+- `node scratch/test_day29_1_pinboard_and_ui.mjs` — **59 PASSED, 0 FAILED** (Pinboard, navigation, and UI experience).
+- Client ESLint: **0 warnings, 0 errors**.
+- Client Production Build: **Built successfully in 1.47s**.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Implement pre-production anti-CSRF token verification (Double Submit Cookie or custom header check) prior to multi-domain production launch.
 
 ### [2026-11-22] — Week 7, Day 47: Audit Validation and Access Controls
 - **Author / Agent:** Antigravity (AI Coding Assistant)
