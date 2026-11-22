@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser'
 import helmet from 'helmet'
 import { config } from './config/env.js'
 import { apiRateLimiter } from './middleware/rateLimiter.js'
+import { csrfProtection, isAllowedOrigin } from './middleware/csrfProtection.js'
 import healthRoutes from './routes/health.routes.js'
 import authRoutes from './routes/auth.routes.js'
 import tripRoutes from './routes/trip.routes.js'
@@ -59,6 +60,7 @@ app.use(
         connectSrc: [
           "'self'",
           config.clientUrl,
+          'https://trip-mind-brown.vercel.app',
           'https://*.openstreetmap.org',
           'https://*.mongodb.net',
         ],
@@ -74,10 +76,16 @@ app.use(
 // 3. Cross-Origin Resource Sharing (CORS)
 app.use(
   cors({
-    origin: config.clientUrl,
+    origin: (origin, callback) => {
+      // Allow non-browser requests (e.g. server-to-server, curl) or verified trusted origins
+      if (!origin || isAllowedOrigin(origin)) {
+        return callback(null, origin || true)
+      }
+      return callback(null, false)
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   })
 )
 
@@ -85,18 +93,21 @@ app.use(
 app.use(express.json({ limit: '1mb' }))
 app.use(cookieParser())
 
-// 5. Health & Infrastructure Endpoints (Exempt from rate limiting to ensure uptime monitoring)
+// 5. CSRF Protection (Origin / Referer verification on mutating HTTP methods)
+app.use(csrfProtection)
+
+// 6. Health & Infrastructure Endpoints (Exempt from rate limiting to ensure uptime monitoring)
 app.use('/api', healthRoutes)
 
-// 6. General API Rate Limiting (Protects all remaining /api routes)
+// 7. General API Rate Limiting (Protects all remaining /api routes)
 app.use('/api', apiRateLimiter)
 
-// 7. Domain API Routes
+// 8. Domain API Routes
 app.use('/api/auth', authRoutes)
 app.use('/api/trips', tripRoutes)
 app.use('/api/destinations', destinationRoutes)
 
-// 8. 404 Not Found Handler
+// 9. 404 Not Found Handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,

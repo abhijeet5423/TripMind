@@ -783,7 +783,46 @@ In `server/src/app.js`, Express error middleware normalizes low-level and infras
 
 #### 3. CSRF Carry-Forward & Production Roadmap
 - **Audited Status:** State-changing endpoints strictly require mutating HTTP verbs (`POST`, `PATCH`, `DELETE`) and reject `GET` mutation. JSON parsing (`Content-Type: application/json`) forces browser preflight validation (`OPTIONS`), which is checked against authorized `CLIENT_URL`.
-- **Production Launch Prerequisite:** For multi-domain production deployments requiring `SameSite=None; Secure`, an explicit anti-CSRF token (Double Submit Cookie) or custom client header check (e.g., `X-Requested-With`) remains a pre-production requirement.
+- **Production Resolution (Day 50):** Fully resolved in Section 5.10 via `csrfProtection` middleware, dynamic multi-origin CORS, and custom header enforcement.
+
+### 5.10 CSRF Defense & Multi-Origin Production Architecture (Day 50)
+
+#### 1. Cross-Origin Architecture & Cookie Security
+Because TripMind's frontend is deployed on Vercel (`https://trip-mind-brown.vercel.app`) while the backend API is hosted on Render (`https://tripmind-0b2x.onrender.com`), requests between the SPA and the API are inherently cross-site. To permit authenticated session cookies to travel cross-site in production, the authentication token cookie requires:
+- `HttpOnly: true` (prevents client-side script read access via XSS)
+- `Secure: true` in production (transmits exclusively over HTTPS)
+- `SameSite: None` in production (permits cross-site dispatch from the Vercel frontend)
+
+#### 2. Cross-Site Request Forgery (CSRF) Mitigation Pipeline
+Because `SameSite=None` causes the browser to include session cookies on cross-site requests, standard browser CORS policies alone are insufficient (CORS blocks client scripts from reading responses, but does not prevent the server from executing mutating actions). TripMind implements a strict defense-in-depth CSRF pipeline (`server/src/middleware/csrfProtection.js`):
+1. **Method Exemption for Safe Idempotent Reads:** Safe HTTP methods (`GET`, `HEAD`, `OPTIONS`) are inherently read-only and exempt from CSRF rejection per RFC 7231 / RFC 9110.
+2. **Strict Origin & Referer Verification:** On state-changing mutating requests (`POST`, `PUT`, `PATCH`, `DELETE`), the middleware inspects incoming `Origin` and `Referer` headers. If an origin is present, it MUST match the trusted whitelist (`isAllowedOrigin(origin)`):
+   - Configured `CLIENT_URL`
+   - Official production Vercel frontend (`https://trip-mind-brown.vercel.app`)
+   - Trusted Vercel preview environments (`*.vercel.app` matching `trip-mind`)
+   - Standard local development origins (`http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:5000`)
+   - Any explicitly configured origins in `process.env.ALLOWED_ORIGINS`
+3. **Deterministic Block Envelope:** Requests carrying an untrusted origin are halted immediately with HTTP `403 Forbidden` and error code `CSRF_DETECTED` prior to reaching any controller or service logic.
+4. **Defense-in-Depth Custom Client Header:** The centralized Axios client (`client/src/services/api/apiClient.js`) attaches `X-Requested-With: XMLHttpRequest` to all requests. Simple HTML form submissions from external origins cannot set custom headers without triggering CORS preflights, making cross-origin exploitation impossible.
+
+#### 3. Dynamic CORS & Helmet Content-Security-Policy Resolution
+- **Multi-Origin CORS:** `server/src/app.js` replaces static single-origin CORS with dynamic origin resolution:
+  ```javascript
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        if (!origin || isAllowedOrigin(origin)) {
+          return callback(null, origin || true)
+        }
+        return callback(null, false)
+      },
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    })
+  )
+  ```
+- **CSP connectSrc:** Helmet's `contentSecurityPolicy.directives.connectSrc` explicitly includes `https://trip-mind-brown.vercel.app`, `config.clientUrl`, `https://*.openstreetmap.org`, and `https://*.mongodb.net`, ensuring browser connectivity is never blocked by security header misalignments.
 
 ---
 

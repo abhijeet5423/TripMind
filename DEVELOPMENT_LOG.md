@@ -33,6 +33,39 @@
 
 ## 2. Session History
 
+### [2026-11-22] — Week 8, Day 50: Full Backend Testing & Security Audit
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Perform a comprehensive pre-release backend testing and security audit of TripMind. Audit all Express routes, authentication and session cookies, IDOR defenses, mass-assignment protections, NoSQL injection resilience, rate limiting tiers, and Helmet security headers. Inspect live production environments (Render and Vercel), resolve production CORS mismatch, and implement robust multi-origin CSRF protection middleware and custom header defenses.
+- **Branch / Status:** `main` — Clean working tree, all tests passing, zero regressions.
+
+#### 1. Files Created / Modified
+- [`server/src/middleware/csrfProtection.js`](./server/src/middleware/csrfProtection.js) — *Created.* Dedicated CSRF protection middleware and origin validation utilities (`ALLOWED_ORIGINS`, `isAllowedOrigin`, `extractOriginFromReferer`). Enforces strict `Origin` / `Referer` verification on all state-changing mutating methods (`POST`, `PUT`, `PATCH`, `DELETE`), halting untrusted origins with HTTP 403 `CSRF_DETECTED` adhering to TripMind's standardized JSON error envelope.
+- [`server/src/app.js`](./server/src/app.js) — *Modified.* Integrated `csrfProtection` middleware into the top-level pipeline after body and cookie parsers. Upgraded CORS configuration to dynamically validate incoming origins against `isAllowedOrigin`, permitting credentials and the `X-Requested-With` header. Added `https://trip-mind-brown.vercel.app` to Helmet's Content-Security-Policy `connectSrc`.
+- [`client/src/services/api/apiClient.js`](./client/src/services/api/apiClient.js) — *Modified.* Added `'X-Requested-With': 'XMLHttpRequest'` to default Axios request headers for defense-in-depth CSRF immunity across all frontend network requests.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — *Modified.* Added Section 5.10 documenting CSRF Defense, Multi-Origin CORS Architecture, and Cross-Site Cookie Security.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Appended Day 50 operational audit log and verification findings.
+- [`scratch/test_day50_backend_audit.mjs`](./scratch/test_day50_backend_audit.mjs) — *Created.* Comprehensive 42-assertion test suite validating CSRF origin blocking, CORS preflights, password hashing, HttpOnly session cookies, IDOR defenses, activities CRUD, public sharing cryptography, and Helmet security headers.
+
+#### 2. Key Implementation Details & Audit Findings
+- **Production CORS & CSP Discovery:** Live probing of `https://tripmind-0b2x.onrender.com` revealed that Render was defaulting `Access-Control-Allow-Origin: http://localhost:5173` due to missing `CLIENT_URL` configuration in Render's environment. Resolved by updating `server/src/app.js` with dynamic multi-origin CORS verification (`isAllowedOrigin`) recognizing `https://trip-mind-brown.vercel.app`, Vercel preview domains (`*.vercel.app`), and local development hosts.
+- **CSRF Defense with `SameSite=None`:** Because cross-origin hosting (Vercel + Render) requires `SameSite=None; Secure` for authentication cookies, browser-initiated cross-site mutating requests require explicit origin verification. `server/src/middleware/csrfProtection.js` intercepts untrusted origins on mutating requests and halts them with HTTP 403 `CSRF_DETECTED`. Safe idempotent methods (`GET`, `HEAD`, `OPTIONS`) remain exempt per RFC specifications.
+- **Defense-in-Depth Custom Client Header:** Attached `X-Requested-With: XMLHttpRequest` in `apiClient.js`. Simple cross-origin HTML form exploits cannot forge custom headers without triggering a preflight OPTIONS request, which is checked and rejected by CORS.
+- **IDOR & Access Control Audit:** Re-verified that all private queries filter on `{ _id: id, userId: req.user.id }` and return uniform HTTP 404 anti-enumeration responses, preventing attackers from probing valid resource IDs.
+- **Cryptographic Token & Data Minimization:** Verified that public itinerary links (`/api/trips/shared/:token`) utilize 64-character SHA-256 hashed tokens and strip private user ownership fields from public payloads.
+
+#### 3. Verification & Testing Performed
+- `node scratch/test_day50_backend_audit.mjs` — **42 PASSED, 0 FAILED** (100% pass across CSRF, CORS, Auth, IDOR, Activities, Sharing, Headers).
+- `node scratch/test_day47_audit.mjs` — **71 PASSED, 0 FAILED** (Access controls, mass-assignment, NoSQL injection, IDOR).
+- `node scratch/test_day48_api_edge_cases.mjs` — **77 PASSED, 0 FAILED** (Edge cases across all API controllers).
+- `node scratch/test_day46_security.mjs` — **39 PASSED, 0 FAILED** (Helmet headers and 4-tier rate limiting).
+- Client ESLint: **0 errors, 0 warnings**.
+- Client Production Build (`npm --prefix client run build`): **Built successfully in 1.02s**.
+- **Total Backend Tests Passing:** **229 automated assertions across 4 comprehensive suites**.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Ensure `CLIENT_URL` is configured in the Render dashboard to `https://trip-mind-brown.vercel.app` (or configure `ALLOWED_ORIGINS`) to align environment variables with the newly implemented multi-origin resolver upon deployment.
+- Day 51 can proceed to final release verification, README documentation, and launch preparation.
+
 ### [2026-11-22] — Week 7, Day 49: Responsive & Accessibility Comprehensive Audit
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Perform a systematic multi-viewport responsive and visual/functional accessibility audit across TripMind's core pages (Landing, Login, Register, Dashboard, Trip Details/Itinerary, Modals, Maps, Charts, and Public Shared Itinerary). Verify zero horizontal overflow, touch target sizing, keyboard navigation, reduced-motion preferences, browser console health, and network stability.
@@ -474,6 +507,39 @@
 ---
 
 ## 2. Session History
+
+### [2026-11-22] — Week 8, Day 50: Full Backend Testing & Security Audit
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Perform a comprehensive pre-release backend testing and security audit of TripMind. Audit all Express routes, authentication and session cookies, IDOR defenses, mass-assignment protections, NoSQL injection resilience, rate limiting tiers, and Helmet security headers. Inspect live production environments (Render and Vercel), resolve production CORS mismatch, and implement robust multi-origin CSRF protection middleware and custom header defenses.
+- **Branch / Status:** `main` — Clean working tree, all tests passing, zero regressions.
+
+#### 1. Files Created / Modified
+- [`server/src/middleware/csrfProtection.js`](./server/src/middleware/csrfProtection.js) — *Created.* Dedicated CSRF protection middleware and origin validation utilities (`ALLOWED_ORIGINS`, `isAllowedOrigin`, `extractOriginFromReferer`). Enforces strict `Origin` / `Referer` verification on all state-changing mutating methods (`POST`, `PUT`, `PATCH`, `DELETE`), halting untrusted origins with HTTP 403 `CSRF_DETECTED` adhering to TripMind's standardized JSON error envelope.
+- [`server/src/app.js`](./server/src/app.js) — *Modified.* Integrated `csrfProtection` middleware into the top-level pipeline after body and cookie parsers. Upgraded CORS configuration to dynamically validate incoming origins against `isAllowedOrigin`, permitting credentials and the `X-Requested-With` header. Added `https://trip-mind-brown.vercel.app` to Helmet's Content-Security-Policy `connectSrc`.
+- [`client/src/services/api/apiClient.js`](./client/src/services/api/apiClient.js) — *Modified.* Added `'X-Requested-With': 'XMLHttpRequest'` to default Axios request headers for defense-in-depth CSRF immunity across all frontend network requests.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — *Modified.* Added Section 5.10 documenting CSRF Defense, Multi-Origin CORS Architecture, and Cross-Site Cookie Security.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Appended Day 50 operational audit log and verification findings.
+- [`scratch/test_day50_backend_audit.mjs`](./scratch/test_day50_backend_audit.mjs) — *Created.* Comprehensive 42-assertion test suite validating CSRF origin blocking, CORS preflights, password hashing, HttpOnly session cookies, IDOR defenses, activities CRUD, public sharing cryptography, and Helmet security headers.
+
+#### 2. Key Implementation Details & Audit Findings
+- **Production CORS & CSP Discovery:** Live probing of `https://tripmind-0b2x.onrender.com` revealed that Render was defaulting `Access-Control-Allow-Origin: http://localhost:5173` due to missing `CLIENT_URL` configuration in Render's environment. Resolved by updating `server/src/app.js` with dynamic multi-origin CORS verification (`isAllowedOrigin`) recognizing `https://trip-mind-brown.vercel.app`, Vercel preview domains (`*.vercel.app`), and local development hosts.
+- **CSRF Defense with `SameSite=None`:** Because cross-origin hosting (Vercel + Render) requires `SameSite=None; Secure` for authentication cookies, browser-initiated cross-site mutating requests require explicit origin verification. `server/src/middleware/csrfProtection.js` intercepts untrusted origins on mutating requests and halts them with HTTP 403 `CSRF_DETECTED`. Safe idempotent methods (`GET`, `HEAD`, `OPTIONS`) remain exempt per RFC specifications.
+- **Defense-in-Depth Custom Client Header:** Attached `X-Requested-With: XMLHttpRequest` in `apiClient.js`. Simple cross-origin HTML form exploits cannot forge custom headers without triggering a preflight OPTIONS request, which is checked and rejected by CORS.
+- **IDOR & Access Control Audit:** Re-verified that all private queries filter on `{ _id: id, userId: req.user.id }` and return uniform HTTP 404 anti-enumeration responses, preventing attackers from probing valid resource IDs.
+- **Cryptographic Token & Data Minimization:** Verified that public itinerary links (`/api/trips/shared/:token`) utilize 64-character SHA-256 hashed tokens and strip private user ownership fields from public payloads.
+
+#### 3. Verification & Testing Performed
+- `node scratch/test_day50_backend_audit.mjs` — **42 PASSED, 0 FAILED** (100% pass across CSRF, CORS, Auth, IDOR, Activities, Sharing, Headers).
+- `node scratch/test_day47_audit.mjs` — **71 PASSED, 0 FAILED** (Access controls, mass-assignment, NoSQL injection, IDOR).
+- `node scratch/test_day48_api_edge_cases.mjs` — **77 PASSED, 0 FAILED** (Edge cases across all API controllers).
+- `node scratch/test_day46_security.mjs` — **39 PASSED, 0 FAILED** (Helmet headers and 4-tier rate limiting).
+- Client ESLint: **0 errors, 0 warnings**.
+- Client Production Build (`npm --prefix client run build`): **Built successfully in 1.02s**.
+- **Total Backend Tests Passing:** **229 automated assertions across 4 comprehensive suites**.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Ensure `CLIENT_URL` is configured in the Render dashboard to `https://trip-mind-brown.vercel.app` (or configure `ALLOWED_ORIGINS`) to align environment variables with the newly implemented multi-origin resolver upon deployment.
+- Day 51 can proceed to final release verification, README documentation, and launch preparation.
 
 ### [2026-11-22] — Week 7, Day 49: Responsive & Accessibility Comprehensive Audit
 - **Author / Agent:** Antigravity (AI Coding Assistant)
