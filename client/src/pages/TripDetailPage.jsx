@@ -32,6 +32,7 @@ import ShareTripModal from '../components/itinerary/ShareTripModal.jsx'
 import LeafletMapContainer from '../components/map/LeafletMapContainer.jsx'
 import ActivityMarkers from '../components/map/ActivityMarkers.jsx'
 import AssistantChat from '../components/assistant/AssistantChat.jsx'
+import ScrollProgress from '../components/core/scroll-progress.jsx'
 import * as tripApi from '../services/api/tripApi.js'
 import { useTrip } from '../hooks/useTrip.js'
 import { mapItineraryError } from '../utils/itineraryErrorHelper.js'
@@ -711,6 +712,7 @@ export default function TripDetailPage() {
   // ---------------------------------------------------------------------------
   return (
     <div className="min-h-screen bg-sand-ivory py-8 sm:py-12">
+      <ScrollProgress className="bg-gradient-to-r from-forest via-terracotta to-terracotta" />
       <Container>
         <div className="space-y-8">
           {/* Back Navigation Bar */}

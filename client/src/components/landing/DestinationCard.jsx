@@ -11,6 +11,7 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
+import Tilt from '../core/tilt.jsx'
 import { resolveDestinationImage } from '../../utils/destinationImages.js'
 
 /**
@@ -51,7 +52,8 @@ export default function DestinationCard({ destination }) {
   const hasImage = Boolean(displayImage && !imageError)
 
   return (
-    <article className="group bg-white rounded-xl border border-sage overflow-hidden shadow-[0_2px_8px_rgba(23,61,53,0.04)] hover:shadow-[0_8px_24px_rgba(23,61,53,0.08)] transition-all duration-300 flex flex-col h-full">
+    <Tilt rotationFactor={4.5} isReverse={false} className="h-full">
+      <article className="group bg-white rounded-xl border border-sage overflow-hidden shadow-[0_2px_8px_rgba(23,61,53,0.04)] hover:shadow-[0_8px_24px_rgba(23,61,53,0.08)] transition-all duration-300 flex flex-col h-full">
       {/* 1. Curated Visual Container (Strict 4:3 Aspect Ratio) */}
       <div
         className="relative w-full aspect-[4/3] bg-sand-ivory border-b border-sage/60 overflow-hidden select-none"
@@ -139,5 +141,6 @@ export default function DestinationCard({ destination }) {
         </div>
       </div>
     </article>
+    </Tilt>
   )
 }

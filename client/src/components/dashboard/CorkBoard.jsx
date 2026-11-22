@@ -12,6 +12,7 @@ import PinnedTripCard from './PinnedTripCard.jsx'
 import AddTripPinCard from './AddTripPinCard.jsx'
 import PushPin from './PushPin.jsx'
 import Button from '../common/Button.jsx'
+import AnimatedFormField from '../core/animated-form-field.jsx'
 
 const SKELETON_ROTATIONS = ['lg:-rotate-0.5', 'lg:rotate-0.5', 'lg:rotate-0']
 const SKELETON_PIN_COLORS = ['forest', 'terracotta', 'brass']
@@ -175,27 +176,29 @@ export default function CorkBoard({
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 {/* Search Field */}
                 {totalTripsCount > 0 && setSearchQuery && (
-                  <div className="relative min-w-[200px] sm:min-w-[240px]">
-                    <Search className="w-3.5 h-3.5 text-stone/80 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search destination or title..."
-                      className="w-full pl-8 pr-8 py-1.5 text-xs rounded-lg bg-[#FAF7EE] border border-[#CBB897] text-forest placeholder:text-stone/60 focus:outline-none focus:ring-1 focus:ring-terracotta focus:border-terracotta transition-all shadow-2xs"
-                      aria-label="Search pinned journeys"
-                    />
-                    {searchQuery && (
-                      <button
-                        type="button"
-                        onClick={() => setSearchQuery('')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-stone/70 hover:text-forest p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-full cursor-pointer"
-                        aria-label="Clear search input"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
+                  <AnimatedFormField className="min-w-[200px] sm:min-w-[240px]">
+                    <div className="relative w-full">
+                      <Search className="w-3.5 h-3.5 text-stone/80 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search destination or title..."
+                        className="w-full pl-8 pr-8 py-1.5 text-xs rounded-lg bg-[#FAF7EE] border border-[#CBB897] text-forest placeholder:text-stone/60 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-2xs"
+                        aria-label="Search pinned journeys"
+                      />
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchQuery('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-stone/70 hover:text-forest p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-full cursor-pointer"
+                          aria-label="Clear search input"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </AnimatedFormField>
                 )}
 
                 {/* Pin New Journey CTA Button */}
@@ -462,6 +465,7 @@ export default function CorkBoard({
                   key={trip._id || trip.id || idx}
                   trip={trip}
                   index={idx}
+                  isFeatured={idx === 0}
                   onEdit={onEdit}
                   onDelete={onDelete}
                 />

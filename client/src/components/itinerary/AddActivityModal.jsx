@@ -13,6 +13,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import Button from '../common/Button.jsx'
+import AnimatedFormField from '../core/animated-form-field.jsx'
 
 const CATEGORY_OPTIONS = [
   { value: 'activity', label: 'Attraction / Culture', icon: Compass },
@@ -237,20 +238,22 @@ export default function AddActivityModal({
             >
               Activity Title <span className="text-burnt-crimson">*</span>
             </label>
-            <input
-              id="add-activity-title"
-              name="title"
-              type="text"
-              value={formData.title}
-              onChange={(e) => handleChange('title', e.target.value)}
-              placeholder="e.g. Fushimi Inari Shrine Morning Walk"
-              disabled={isSaving}
-              className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-sans transition-all focus:outline-none focus:ring-2 focus:ring-forest ${
-                validationErrors.title
-                  ? 'border-burnt-crimson bg-burnt-crimson/5 text-burnt-crimson'
-                  : 'border-sage/90 bg-white text-charcoal'
-              }`}
-            />
+            <AnimatedFormField hasError={Boolean(validationErrors.title)} disabled={isSaving}>
+              <input
+                id="add-activity-title"
+                name="title"
+                type="text"
+                value={formData.title}
+                onChange={(e) => handleChange('title', e.target.value)}
+                placeholder="e.g. Fushimi Inari Shrine Morning Walk"
+                disabled={isSaving}
+                className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-sans transition-all focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                  validationErrors.title
+                    ? 'border-burnt-crimson bg-burnt-crimson/5 text-burnt-crimson'
+                    : 'border-sage/90 bg-white text-charcoal'
+                }`}
+              />
+            </AnimatedFormField>
             {validationErrors.title && (
               <p className="mt-1 text-xs text-burnt-crimson">{validationErrors.title}</p>
             )}
@@ -371,19 +374,21 @@ export default function AddActivityModal({
             >
               Location / Venue Name
             </label>
-            <div className="relative">
-              <MapPin className="w-4 h-4 text-terracotta absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                id="add-activity-locationName"
-                name="locationName"
-                type="text"
-                value={formData.locationName}
-                onChange={(e) => handleChange('locationName', e.target.value)}
-                placeholder="e.g. Kinkaku-ji (Golden Pavilion)"
-                disabled={isSaving}
-                className="w-full pl-10 pr-3.5 py-2 rounded-xl border border-sage/90 bg-white text-charcoal text-sm font-sans transition-all focus:outline-none focus:ring-2 focus:ring-forest"
-              />
-            </div>
+            <AnimatedFormField hasError={Boolean(validationErrors.locationName)} disabled={isSaving}>
+              <div className="relative">
+                <MapPin className="w-4 h-4 text-terracotta absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  id="add-activity-locationName"
+                  name="locationName"
+                  type="text"
+                  value={formData.locationName}
+                  onChange={(e) => handleChange('locationName', e.target.value)}
+                  placeholder="e.g. Kinkaku-ji (Golden Pavilion)"
+                  disabled={isSaving}
+                  className="w-full pl-10 pr-3.5 py-2 rounded-xl border border-sage/90 bg-white text-charcoal text-sm font-sans transition-all focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+            </AnimatedFormField>
             {validationErrors.locationName && (
               <p className="mt-1 text-xs text-burnt-crimson">{validationErrors.locationName}</p>
             )}

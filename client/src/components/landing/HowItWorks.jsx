@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import Container from '../common/Container.jsx'
 import Button from '../common/Button.jsx'
+import ScrollReveal from '../core/scroll-reveal.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 /**
@@ -86,30 +87,33 @@ export default function HowItWorks() {
     >
       <Container>
         {/* Section Editorial Header */}
-        <div className="max-w-2xl text-left">
-          {/* Eyebrow Label */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sage/50 border border-sage text-forest text-xs font-sans font-semibold tracking-widest uppercase mb-4">
-            <Sparkles className="w-3.5 h-3.5 text-terracotta" aria-hidden="true" />
-            <span>The TripMind Experience</span>
+        <ScrollReveal>
+          <div className="max-w-2xl text-left">
+            {/* Eyebrow Label */}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sage/50 border border-sage text-forest text-xs font-sans font-semibold tracking-widest uppercase mb-4">
+              <Sparkles className="w-3.5 h-3.5 text-terracotta" aria-hidden="true" />
+              <span>The TripMind Experience</span>
+            </div>
+
+            {/* Section Heading */}
+            <h2
+              id="how-it-works-heading"
+              className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-forest tracking-tight leading-[1.2] mb-4"
+            >
+              How to use TripMind.
+            </h2>
+
+            {/* Supporting Text */}
+            <p className="font-sans text-stone text-base sm:text-lg leading-relaxed">
+              From initial wanderlust to day-by-day exploration, here is how TripMind turns travel
+              aspirations into structured, budget-conscious journeys in five intuitive steps.
+            </p>
           </div>
-
-          {/* Section Heading */}
-          <h2
-            id="how-it-works-heading"
-            className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-forest tracking-tight leading-[1.2] mb-4"
-          >
-            How to use TripMind.
-          </h2>
-
-          {/* Supporting Text */}
-          <p className="font-sans text-stone text-base sm:text-lg leading-relaxed">
-            From initial wanderlust to day-by-day exploration, here is how TripMind turns travel
-            aspirations into structured, budget-conscious journeys in five intuitive steps.
-          </p>
-        </div>
+        </ScrollReveal>
 
         {/* 5-Step Workflow Cards Grid */}
-        <ol className="mt-12 sm:mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 lg:gap-4 xl:gap-5 list-none p-0 m-0">
+        <ScrollReveal delay={0.1} yOffset={16}>
+          <ol className="mt-12 sm:mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 lg:gap-4 xl:gap-5 list-none p-0 m-0">
           {STEPS.map((step, index) => {
             const Icon = step.icon
             const isLastOnTablet = index === STEPS.length - 1
@@ -170,6 +174,7 @@ export default function HowItWorks() {
             )
           })}
         </ol>
+        </ScrollReveal>
 
         {/* Bottom Callout Banner */}
         <div className="mt-12 sm:mt-16 p-6 sm:p-8 rounded-2xl bg-white border border-sage shadow-xs flex flex-col md:flex-row items-center justify-between gap-6">

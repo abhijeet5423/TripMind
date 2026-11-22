@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Sparkles, RefreshCw, Compass } from 'lucide-react'
 import Container from '../common/Container.jsx'
 import DestinationCard from './DestinationCard.jsx'
+import ScrollReveal from '../core/scroll-reveal.jsx'
 import * as destinationApi from '../../services/api/destinationApi.js'
 import { resolveDestinationImage } from '../../utils/destinationImages.js'
 
@@ -114,26 +115,28 @@ export default function DestinationDiscovery() {
     >
       <Container>
         {/* 1. Section Editorial Header */}
-        <div className="max-w-2xl text-left">
-          {/* Eyebrow Label */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sage/50 border border-sage text-forest text-xs font-sans font-semibold tracking-widest uppercase mb-4">
-            <Sparkles className="w-3.5 h-3.5 text-terracotta" aria-hidden="true" />
-            <span>Curated Inspiration</span>
+        <ScrollReveal>
+          <div className="max-w-2xl text-left">
+            {/* Eyebrow Label */}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sage/50 border border-sage text-forest text-xs font-sans font-semibold tracking-widest uppercase mb-4">
+              <Sparkles className="w-3.5 h-3.5 text-terracotta" aria-hidden="true" />
+              <span>Curated Inspiration</span>
+            </div>
+
+            {/* Section Heading */}
+            <h2
+              id="destinations-heading"
+              className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-forest tracking-tight leading-[1.2] mb-4"
+            >
+              Find your next somewhere.
+            </h2>
+
+            {/* Supporting Text */}
+            <p className="font-sans text-stone text-base sm:text-lg leading-relaxed">
+              From quiet mountain escapes to vibrant cultural cities, discover places worth travelling for.
+            </p>
           </div>
-
-          {/* Section Heading */}
-          <h2
-            id="destinations-heading"
-            className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-forest tracking-tight leading-[1.2] mb-4"
-          >
-            Find your next somewhere.
-          </h2>
-
-          {/* Supporting Text */}
-          <p className="font-sans text-stone text-base sm:text-lg leading-relaxed">
-            From quiet mountain escapes to vibrant cultural cities, discover places worth travelling for.
-          </p>
-        </div>
+        </ScrollReveal>
 
         {/* 2. Interactive Category Filter Pills */}
         <div className="mt-8 sm:mt-10 flex flex-col gap-6">
@@ -250,18 +253,20 @@ export default function DestinationDiscovery() {
 
           {/* Populated Destination Grid */}
           {!error && destinations.length > 0 && (
-            <div
-              className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 transition-opacity duration-200 ${
-                loading ? 'opacity-60' : 'opacity-100'
-              }`}
-            >
-              {destinations.map((destination) => (
-                <DestinationCard
-                  key={destination.id || destination.slug}
-                  destination={destination}
-                />
-              ))}
-            </div>
+            <ScrollReveal yOffset={14} delay={0.05}>
+              <div
+                className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 transition-opacity duration-200 ${
+                  loading ? 'opacity-60' : 'opacity-100'
+                }`}
+              >
+                {destinations.map((destination) => (
+                  <DestinationCard
+                    key={destination.id || destination.slug}
+                    destination={destination}
+                  />
+                ))}
+              </div>
+            </ScrollReveal>
           )}
         </div>
       </Container>

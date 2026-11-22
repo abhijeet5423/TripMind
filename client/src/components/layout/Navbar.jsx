@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import Container from '../common/Container.jsx'
 import Button from '../common/Button.jsx'
+import AnimatedBackground from '../core/animated-background.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 /**
@@ -123,36 +124,56 @@ export default function Navbar({ className = '' }) {
 
           {/* Desktop Navigation Links */}
           <nav
-            className="hidden md:flex items-center gap-4 lg:gap-8 text-sm font-sans font-medium text-stone"
+            className="hidden md:flex items-center text-sm font-sans font-medium text-stone"
             aria-label="Main Navigation"
           >
-            {navLinks.map((link) => {
-              if (link.to) {
-                const isActive = location.pathname === link.to
-                return (
-                  <Link
-                    key={link.label}
-                    to={link.to}
-                    className={`transition-colors duration-150 relative py-1 ${
+            <AnimatedBackground
+              className="bg-forest/5 rounded-lg"
+              transition={{
+                type: 'spring',
+                bounce: 0.15,
+                duration: 0.3,
+              }}
+              enableHover
+            >
+              {navLinks.map((link) => {
+                const isActive = link.to ? location.pathname === link.to : false
+                const linkContent = (
+                  <span
+                    className={`px-3 py-1.5 transition-colors duration-150 relative block ${
                       isActive
-                        ? 'text-forest font-semibold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-forest'
+                        ? 'text-forest font-semibold after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:bg-forest'
                         : 'hover:text-forest'
                     }`}
                   >
                     {link.label}
-                  </Link>
+                  </span>
                 )
-              }
-              return (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  className="hover:text-forest transition-colors duration-150 relative py-1"
-                >
-                  {link.label}
-                </a>
-              )
-            })}
+
+                if (link.to) {
+                  return (
+                    <Link
+                      key={link.label}
+                      to={link.to}
+                      data-id={link.label}
+                      className="focus:outline-none focus-visible:ring-1 focus-visible:ring-forest rounded-lg"
+                    >
+                      {linkContent}
+                    </Link>
+                  )
+                }
+                return (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    data-id={link.label}
+                    className="focus:outline-none focus-visible:ring-1 focus-visible:ring-forest rounded-lg"
+                  >
+                    {linkContent}
+                  </a>
+                )
+              })}
+            </AnimatedBackground>
           </nav>
 
           {/* Desktop Call to Actions & Profile Hover Menu */}

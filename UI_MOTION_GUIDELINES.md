@@ -1,7 +1,8 @@
 # TripMind — Global UI Motion Guidelines
 
-> **Status:** ACTIVE & MANDATORY  
+> **Status:** ACTIVE & MANDATORY (Implemented & Verified — See ADR-027)  
 > **Applies to:** All frontend developers, UI contributors, and AI coding agents working on TripMind.  
+> **Implementation Location:** `client/src/components/core/`  
 > **Aesthetic Philosophy:** Premium, Calm, Modern, Trustworthy, and Purposeful Motion.  
 > **Anti-Pattern:** Never turn TripMind into an animation-effects showcase or gimmick demo.
 

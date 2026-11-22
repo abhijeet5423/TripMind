@@ -11,6 +11,7 @@ import {
   Check,
 } from 'lucide-react'
 import Button from './Button.jsx'
+import AnimatedFormField from '../core/animated-form-field.jsx'
 import { useTrip } from '../../hooks/useTrip.js'
 
 const VALID_PACES = ['relaxed', 'moderate', 'fast-paced']
@@ -762,21 +763,23 @@ function EditTripDialog({ trip, onClose, onSuccess }) {
                   >
                     Origin (Starting Location) <span className="text-terracotta">*</span>
                   </label>
-                  <input
-                    ref={firstInputRef}
-                    type="text"
-                    id="edit-startingLocation"
-                    name="startingLocation"
-                    value={formData.startingLocation}
-                    onChange={handleChange}
-                    disabled={isUpdating}
-                    placeholder="e.g. San Francisco, CA"
-                    className={`w-full px-3.5 py-2.5 rounded-lg border bg-white text-sm text-charcoal font-sans transition-all focus:outline-none focus:ring-1 ${
-                      errors.startingLocation
-                        ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
-                        : 'border-sage focus:border-forest focus:ring-forest'
-                    }`}
-                  />
+                  <AnimatedFormField hasError={Boolean(errors.startingLocation)} disabled={isUpdating}>
+                    <input
+                      ref={firstInputRef}
+                      type="text"
+                      id="edit-startingLocation"
+                      name="startingLocation"
+                      value={formData.startingLocation}
+                      onChange={handleChange}
+                      disabled={isUpdating}
+                      placeholder="e.g. San Francisco, CA"
+                      className={`w-full px-3.5 py-2.5 rounded-lg border bg-white text-sm text-charcoal font-sans transition-all focus:outline-none focus:ring-1 ${
+                        errors.startingLocation
+                          ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
+                          : 'border-sage focus:border-blue-500 focus:ring-blue-500'
+                      }`}
+                    />
+                  </AnimatedFormField>
                   {errors.startingLocation && (
                     <p className="mt-1 text-xs text-burnt-crimson flex items-center gap-1 font-medium">
                       <AlertCircle className="w-3 h-3" />
@@ -792,20 +795,22 @@ function EditTripDialog({ trip, onClose, onSuccess }) {
                   >
                     Destination <span className="text-terracotta">*</span>
                   </label>
-                  <input
-                    type="text"
-                    id="edit-destination"
-                    name="destination"
-                    value={formData.destination}
-                    onChange={handleChange}
-                    disabled={isUpdating}
-                    placeholder="e.g. Kyoto, Japan"
-                    className={`w-full px-3.5 py-2.5 rounded-lg border bg-white text-sm text-charcoal font-sans transition-all focus:outline-none focus:ring-1 ${
-                      errors.destination
-                        ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
-                        : 'border-sage focus:border-forest focus:ring-forest'
-                    }`}
-                  />
+                  <AnimatedFormField hasError={Boolean(errors.destination)} disabled={isUpdating}>
+                    <input
+                      type="text"
+                      id="edit-destination"
+                      name="destination"
+                      value={formData.destination}
+                      onChange={handleChange}
+                      disabled={isUpdating}
+                      placeholder="e.g. Kyoto, Japan"
+                      className={`w-full px-3.5 py-2.5 rounded-lg border bg-white text-sm text-charcoal font-sans transition-all focus:outline-none focus:ring-1 ${
+                        errors.destination
+                          ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
+                          : 'border-sage focus:border-blue-500 focus:ring-blue-500'
+                      }`}
+                    />
+                  </AnimatedFormField>
                   {errors.destination && (
                     <p className="mt-1 text-xs text-burnt-crimson flex items-center gap-1 font-medium">
                       <AlertCircle className="w-3 h-3" />

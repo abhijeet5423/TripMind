@@ -14,6 +14,7 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import PushPin from './PushPin.jsx'
+import BorderTrail from '../core/border-trail.jsx'
 import { getStablePinColor } from '../../utils/pinPalette.js'
 import { getDestinationPhoto } from '../../utils/destinationImages.js'
 
@@ -126,7 +127,7 @@ const ROTATION_CLASSES = [
  * @param {Function} props.onEdit - Callback to edit trip
  * @param {Function} props.onDelete - Callback to delete trip
  */
-export default function PinnedTripCard({ trip, index = 0, onEdit, onDelete }) {
+export default function PinnedTripCard({ trip, index = 0, isFeatured = false, onEdit, onDelete }) {
   const [imageError, setImageError] = useState(false)
   const tripKey = trip._id || trip.id
   const dateRangeStr = formatTripDates(trip.departureDate, trip.returnDate)
@@ -160,6 +161,19 @@ export default function PinnedTripCard({ trip, index = 0, onEdit, onDelete }) {
 
       {/* Main Paper Sheet Container */}
       <article className="relative bg-[#FAF7EE] text-charcoal rounded-sm border border-[#E2D8C3] pt-5 pb-5 px-4 sm:px-5 shadow-[0_4px_16px_rgba(40,25,15,0.12),_0_1px_3px_rgba(40,25,15,0.06)] group-hover:shadow-[0_12px_28px_rgba(40,25,15,0.20)] transition-shadow flex flex-col justify-between h-full min-h-[440px]">
+        {/* Selective BorderTrail on Prominent / Featured Journey Note */}
+        {isFeatured && (
+          <BorderTrail
+            active={isFeatured}
+            size={65}
+            transition={{
+              duration: 8,
+              ease: 'linear',
+              repeat: Infinity,
+            }}
+            className="bg-gradient-to-r from-terracotta/40 via-forest/30 to-terracotta/40"
+          />
+        )}
         {/* Subtle Paper Texture Faint Ruled Lines */}
         <div
           className="absolute inset-0 rounded-sm pointer-events-none opacity-25 bg-[radial-gradient(#D5C9B0_1px,transparent_1px)] [background-size:16px_16px]"

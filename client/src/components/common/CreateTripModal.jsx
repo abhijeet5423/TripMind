@@ -14,6 +14,7 @@ import {
   Edit3,
 } from 'lucide-react'
 import Button from './Button.jsx'
+import AnimatedFormField from '../core/animated-form-field.jsx'
 import { useTrip } from '../../hooks/useTrip.js'
 
 const INITIAL_FORM_STATE = {
@@ -684,23 +685,25 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
                     <span className="w-2 h-2 rounded-full bg-stone" />
                     <span>Origin / Starting Location <span className="text-terracotta">*</span></span>
                   </label>
-                  <input
-                    ref={firstInputRef}
-                    id="startingLocation"
-                    name="startingLocation"
-                    type="text"
-                    required
-                    disabled={isCreating}
-                    value={formData.startingLocation}
-                    onChange={handleChange}
-                    placeholder="e.g. San Francisco, CA or London, UK"
-                    className={`w-full px-4 py-2.5 rounded-lg border bg-white text-charcoal text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors ${
-                      errors.startingLocation
-                        ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
-                        : 'border-sage focus:border-forest focus:ring-forest'
-                    }`}
-                    aria-invalid={Boolean(errors.startingLocation)}
-                  />
+                  <AnimatedFormField hasError={Boolean(errors.startingLocation)} disabled={isCreating}>
+                    <input
+                      ref={firstInputRef}
+                      id="startingLocation"
+                      name="startingLocation"
+                      type="text"
+                      required
+                      disabled={isCreating}
+                      value={formData.startingLocation}
+                      onChange={handleChange}
+                      placeholder="e.g. San Francisco, CA or London, UK"
+                      className={`w-full px-4 py-2.5 rounded-lg border bg-white text-charcoal text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors ${
+                        errors.startingLocation
+                          ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
+                          : 'border-sage focus:border-blue-500 focus:ring-blue-500'
+                      }`}
+                      aria-invalid={Boolean(errors.startingLocation)}
+                    />
+                  </AnimatedFormField>
                   {errors.startingLocation && (
                     <p className="text-xs text-burnt-crimson mt-1 font-medium">
                       {errors.startingLocation}
@@ -722,22 +725,24 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
                       Focal Point
                     </span>
                   </div>
-                  <input
-                    id="destination"
-                    name="destination"
-                    type="text"
-                    required
-                    disabled={isCreating}
-                    value={formData.destination}
-                    onChange={handleChange}
-                    placeholder="e.g. Kyoto, Japan or Amalfi Coast, Italy"
-                    className={`w-full px-4 py-3 rounded-lg border bg-white text-charcoal font-serif text-base sm:text-lg placeholder:font-sans placeholder:text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors shadow-2xs ${
-                      errors.destination
-                        ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
-                        : 'border-forest/40 focus:border-forest focus:ring-forest'
-                    }`}
-                    aria-invalid={Boolean(errors.destination)}
-                  />
+                  <AnimatedFormField hasError={Boolean(errors.destination)} disabled={isCreating}>
+                    <input
+                      id="destination"
+                      name="destination"
+                      type="text"
+                      required
+                      disabled={isCreating}
+                      value={formData.destination}
+                      onChange={handleChange}
+                      placeholder="e.g. Kyoto, Japan or Amalfi Coast, Italy"
+                      className={`w-full px-4 py-3 rounded-lg border bg-white text-charcoal font-serif text-base sm:text-lg placeholder:font-sans placeholder:text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors shadow-2xs ${
+                        errors.destination
+                          ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
+                          : 'border-forest/40 focus:border-blue-500 focus:ring-blue-500'
+                      }`}
+                      aria-invalid={Boolean(errors.destination)}
+                    />
+                  </AnimatedFormField>
                   {errors.destination && (
                     <p className="text-xs text-burnt-crimson mt-1 font-medium">
                       {errors.destination}

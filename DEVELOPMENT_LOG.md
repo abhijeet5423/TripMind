@@ -33,6 +33,57 @@
 
 ## 2. Session History
 
+### [2026-11-22] — Complete UI Motion & Animation Enhancement
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Implement a coordinated set of 7 purposeful, premium UI motion enhancements across TripMind following `UI_MOTION_GUIDELINES.md` and `UI_DESIGN_SYSTEM.md`. Integrate `@/components/core` primitives powered by `motion` (v14.14.0) with zero CLS layout shifts, composite-only GPU properties (`transform`, `opacity`), strict `prefers-reduced-motion` compliance, and verified Edge CDP end-to-end testing with zero regressions.
+- **Branch / Status:** `main` — Implemented, verified, and passing 100%.
+
+#### 1. Files Created / Modified
+- [`client/package.json`](./client/package.json) — Added `motion` (v14.14.0) for React 19 compatibility.
+- [`client/vite.config.js`](./client/vite.config.js) — Configured `@` path alias resolving to `client/src`.
+- [`client/src/components/core/animated-background.jsx`](./client/src/components/core/animated-background.jsx) — Created spring-physics sliding pill container with `layoutId` for desktop navigation items.
+- [`client/src/components/core/border-trail.jsx`](./client/src/components/core/border-trail.jsx) — Created hardware-accelerated CSS `offset-path: rect(...)` border trail with reduced-motion suppression.
+- [`client/src/components/core/text-effect.jsx`](./client/src/components/core/text-effect.jsx) — Created character-staggered 3D entrance typography with 3D perspective and reduced-motion static fallback.
+- [`client/src/components/core/scroll-progress.jsx`](./client/src/components/core/scroll-progress.jsx) — Created fixed 2.5px spring-smoothed scroll progress bar using `useScroll` and `useSpring`.
+- [`client/src/components/core/tilt.jsx`](./client/src/components/core/tilt.jsx) — Created subtle 3D perspective tilt wrapper (`rotationFactor: 4.5`, pointer-fine gated).
+- [`client/src/components/core/animated-form-field.jsx`](./client/src/components/core/animated-form-field.jsx) — Created focus-activated animated border wrapper for all form inputs with error and blur suppression.
+- [`client/src/components/core/scroll-reveal.jsx`](./client/src/components/core/scroll-reveal.jsx) — Created subtle viewport scroll-reveal component with `whileInView` and `once: true`.
+- [`client/src/components/layout/Navbar.jsx`](./client/src/components/layout/Navbar.jsx) — Integrated `AnimatedBackground` across desktop navigation links (`How It Works`, `Destinations`, `Itineraries`, `About`).
+- [`client/src/components/dashboard/PinnedTripCard.jsx`](./client/src/components/dashboard/PinnedTripCard.jsx) — Added selective `BorderTrail` on featured noticeboard trip card (`isFeatured={idx === 0}`).
+- [`client/src/components/dashboard/CorkBoard.jsx`](./client/src/components/dashboard/CorkBoard.jsx) — Wrapped search input in `AnimatedFormField` and passed `isFeatured` prop.
+- [`client/src/components/landing/Hero.jsx`](./client/src/components/landing/Hero.jsx) — Integrated `TextEffect` on primary editorial heading (*"Your next great journey starts here."*).
+- [`client/src/pages/LandingPage.jsx`](./client/src/pages/LandingPage.jsx) — Integrated `ScrollProgress` tracking landing page scroll.
+- [`client/src/pages/TripDetailPage.jsx`](./client/src/pages/TripDetailPage.jsx) — Integrated `ScrollProgress` tracking itinerary page scroll.
+- [`client/src/components/landing/DestinationCard.jsx`](./client/src/components/landing/DestinationCard.jsx) — Integrated `Tilt` subtle 3D hover physics on destination cards.
+- [`client/src/components/landing/HowItWorks.jsx`](./client/src/components/landing/HowItWorks.jsx) — Integrated `ScrollReveal` on step cards and section header.
+- [`client/src/components/landing/DestinationDiscovery.jsx`](./client/src/components/landing/DestinationDiscovery.jsx) — Integrated `ScrollReveal` on discovery section header and grid.
+- [`client/src/pages/LoginPage.jsx`](./client/src/pages/LoginPage.jsx) — Wrapped email and password fields in `AnimatedFormField`.
+- [`client/src/pages/RegisterPage.jsx`](./client/src/pages/RegisterPage.jsx) — Wrapped name, email, and password fields in `AnimatedFormField`.
+- [`client/src/components/common/CreateTripModal.jsx`](./client/src/components/common/CreateTripModal.jsx) — Wrapped trip creation inputs in `AnimatedFormField`.
+- [`client/src/components/common/EditTripModal.jsx`](./client/src/components/common/EditTripModal.jsx) — Wrapped trip edit inputs in `AnimatedFormField`.
+- [`client/src/components/itinerary/AddActivityModal.jsx`](./client/src/components/itinerary/AddActivityModal.jsx) — Wrapped activity creation inputs in `AnimatedFormField`.
+- [`client/src/components/itinerary/EditActivityModal.jsx`](./client/src/components/itinerary/EditActivityModal.jsx) — Wrapped activity edit inputs in `AnimatedFormField`.
+- [`scratch/test_motion_enhancements.mjs`](./scratch/test_motion_enhancements.mjs) — Automated Microsoft Edge CDP verification suite testing all 7 animations, reduced-motion accessibility, and network health.
+- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — Added Section 5.21 detailing reusable motion primitives, component APIs, and integration guidelines.
+- [`UI_MOTION_GUIDELINES.md`](./UI_MOTION_GUIDELINES.md) — Updated approved inventory with concrete implementation references and properties.
+- [`DECISIONS.md`](./DECISIONS.md) — Added ADR-027 confirming the motion architecture and accessibility standard.
+
+#### 2. Key Implementation Details & Concepts
+- **Component Architecture:** Created 7 reusable core motion primitives under `@/components/core/` isolating motion complexity from business logic.
+- **Hardware-Accelerated Composite-Only Transforms:** All animations animate strictly `transform` (translation, rotation, scale) and `opacity`. Heavy layout-triggering properties (`width`, `height`, `top`, `left`, `margin`) are completely avoided.
+- **Strict `prefers-reduced-motion` Safeguards:** Every component initializes media query state synchronously via `useState(() => matchMedia(...).matches)` and provides static, zero-duration DOM fallbacks.
+- **Viewport Budgeting & Single-Item Focus:** Prohibited simultaneous competing Level 4 animations. `BorderTrail` is selectively restricted to at most one featured dashboard card (`idx === 0`).
+- **Form Input Usability & Error Precedence:** `AnimatedFormField` activates `BorderTrail` only upon `:focus-within` / `focusin`. Inactive fields remain static. Validation errors immediately suppress the animation in favor of static high-contrast `border-burnt-crimson`.
+- **Zero CLS & Accessibility Preservation:** Overlay effects use `pointer-events-none` and `aria-hidden="true"` to prevent blocking touch/click events or interfering with assistive technology.
+
+#### 3. Verification & Testing Performed
+- **Automated Motion CDP Suite (`scratch/test_motion_enhancements.mjs`):** 28 assertions passed, 0 failed. Verified AnimatedBackground hover pill, selective dashboard BorderTrail, focus-activated form borders, TextEffect 3D decomposition, ScrollProgress scaleX tracking, 3D Tilt perspective, ScrollReveal mounting, reduced-motion fallbacks, 0 console errors, and 0 failed network requests.
+- **Day 51 Full Regression Suite (`scratch/test_day51_verification.mjs`):** 66 assertions passed, 0 failed across 7 responsive viewports (Desktop Large 1920px to Mobile Narrow 320px). Verified zero regressions on hero video behavior, destination discovery, and itinerary preselection funnel.
+- **Production Build (`npm --prefix client run build`):** Built Vite production bundle in 1.08s with 0 errors.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Zero blockers. All 7 UI motion enhancements are complete, documented, and regression-verified.
+
 ### [2026-11-22] — Global UI Motion Guidelines Specification
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Establish the global animation and motion standards for TripMind by creating `UI_MOTION_GUIDELINES.md`. Define purposeful motion principles, inventory of approved animations (AnimatedBackground, BorderTrail, TextEffect, ScrollProgress, Tilt, Section Reveals), standardized timing and duration tiers, 4-tier animation hierarchy, strict accessibility and `prefers-reduced-motion` compliance, mobile performance constraints, and future animation approval criteria without modifying application source code.

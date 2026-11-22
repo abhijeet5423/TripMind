@@ -590,6 +590,31 @@ The typographic identity balances literary prestige with modern legibility throu
 - **Budget Planner Navbar Link Removal:** "Budget Planner" link is removed from both desktop navbar and mobile slide-out drawer. The underlying budget calculation engines, activity cost recalculation, and modal budget inputs remain completely intact.
 - **Direct Itineraries Routing:** The "Itineraries" navbar link routes directly to `/dashboard` (the user's saved itineraries noticeboard) with visual active state indicator (`border-terracotta text-terracotta`).
 
+---
+
+### 5.21 UI Motion & Animation Integration Standards
+
+TripMind adheres to a calm, purposeful motion architecture powered by `motion` (v14.14.0) with `@/components/core` primitives. All animations strictly comply with [`UI_MOTION_GUIDELINES.md`](./UI_MOTION_GUIDELINES.md).
+
+#### 1. Reusable Component Catalog (`client/src/components/core/`)
+
+| Component | Target Interface Surface | Primary Purpose | Timing / Mechanics |
+| :--- | :--- | :--- | :--- |
+| `AnimatedBackground` | Desktop Navbar (`Navbar.jsx`) | Fluid spatial indicator for hovered nav item | 300ms spring (`bounce: 0.15`), `layoutId` pill |
+| `BorderTrail` | Featured Noticeboard Card (`PinnedTripCard.jsx`) | Subtle visual framing on high-priority journey | 6s loop, `offset-path: rect()`, max 1 per viewport |
+| `AnimatedFormField` | Form inputs across all modals and auth pages | Confirms active input focus state | Activates `BorderTrail` on focus; suppressed on error |
+| `TextEffect` | Hero Heading (`Hero.jsx`) | Literary staggered entrance for headline | 3D `rotateX: 90 -> 0`, 0.04s char stagger, 0.2s duration |
+| `ScrollProgress` | Landing & Itinerary pages | Global reading orientation and scroll depth | 2.5px top bar, `useScroll` + `useSpring` |
+| `Tilt` | Destination Discovery Cards (`DestinationCard.jsx`) | Subtle tactile feedback on hover | Max 4.5° 3D perspective tilt, pointer-fine gated |
+| `ScrollReveal` | Editorial Landing Sections (`HowItWorks.jsx`, `DestinationDiscovery.jsx`) | Gentle fade-up reveal on scroll | `y: 14 -> 0`, `opacity: 0 -> 1`, `once: true` |
+
+#### 2. Key Architecture Rules
+- **Composite-Only GPU Acceleration:** Animations modify only `transform` and `opacity`. Reflow-triggering properties (`width`, `height`, `margin`, `top`, `left`) are prohibited.
+- **Mandatory Reduced-Motion Gating:** Every core motion component synchronously evaluates `window.matchMedia('(prefers-reduced-motion: reduce)')` and renders instant, static fallbacks without animation.
+- **Accessibility & Non-Interference:** Animated overlays enforce `pointer-events-none` and `aria-hidden="true"`, ensuring full click-through to underlying inputs and zero screen-reader interference.
+- **Validation Precedence:** `AnimatedFormField` suppresses all motion when `hasError` is true, immediately prioritizing accessible static error borders (`border-burnt-crimson`).
+
+
 
 
 

@@ -4,6 +4,7 @@ import { Eye, EyeOff, AlertCircle, ArrowLeft, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 import Container from '../components/common/Container.jsx'
 import Button from '../components/common/Button.jsx'
+import AnimatedFormField from '../components/core/animated-form-field.jsx'
 import authBackdrop from '../assets/tama66-night-sky-10506842.jpg'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -172,24 +173,26 @@ export default function RegisterPage() {
               >
                 Full Name
               </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                autoComplete="name"
-                required
-                disabled={isSubmitting}
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="Alex Mercer"
-                className={`w-full px-4 py-2.5 rounded-lg border bg-white text-charcoal font-sans text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors ${
-                  errors.name
-                    ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
-                    : 'border-sage focus:border-forest focus:ring-forest'
-                }`}
-                aria-invalid={Boolean(errors.name)}
-                aria-describedby={errors.name ? 'name-error' : undefined}
-              />
+              <AnimatedFormField hasError={Boolean(errors.name)} disabled={isSubmitting}>
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  autoComplete="name"
+                  required
+                  disabled={isSubmitting}
+                  value={formData.name}
+                  onChange={handleChange}
+                  placeholder="Alex Mercer"
+                  className={`w-full px-4 py-2.5 rounded-lg border bg-white text-charcoal font-sans text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors ${
+                    errors.name
+                      ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
+                      : 'border-sage focus:border-blue-500 focus:ring-blue-500'
+                  }`}
+                  aria-invalid={Boolean(errors.name)}
+                  aria-describedby={errors.name ? 'name-error' : undefined}
+                />
+              </AnimatedFormField>
               {errors.name && (
                 <p id="name-error" className="text-xs text-burnt-crimson mt-1 font-medium">
                   {errors.name}
@@ -205,24 +208,26 @@ export default function RegisterPage() {
               >
                 Email Address
               </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                disabled={isSubmitting}
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="alex.mercer@example.com"
-                className={`w-full px-4 py-2.5 rounded-lg border bg-white text-charcoal font-sans text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors ${
-                  errors.email
-                    ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
-                    : 'border-sage focus:border-forest focus:ring-forest'
-                }`}
-                aria-invalid={Boolean(errors.email)}
-                aria-describedby={errors.email ? 'email-error' : undefined}
-              />
+              <AnimatedFormField hasError={Boolean(errors.email)} disabled={isSubmitting}>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  disabled={isSubmitting}
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="alex.mercer@example.com"
+                  className={`w-full px-4 py-2.5 rounded-lg border bg-white text-charcoal font-sans text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors ${
+                    errors.email
+                      ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
+                      : 'border-sage focus:border-blue-500 focus:ring-blue-500'
+                  }`}
+                  aria-invalid={Boolean(errors.email)}
+                  aria-describedby={errors.email ? 'email-error' : undefined}
+                />
+              </AnimatedFormField>
               {errors.email && (
                 <p id="email-error" className="text-xs text-burnt-crimson mt-1 font-medium">
                   {errors.email}
@@ -241,35 +246,37 @@ export default function RegisterPage() {
                 </label>
                 <span className="text-xs text-stone/70">Min 8 characters</span>
               </div>
-              <div className="relative">
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  required
-                  disabled={isSubmitting}
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder="At least 8 characters"
-                  className={`w-full pl-4 pr-11 py-2.5 rounded-lg border bg-white text-charcoal font-sans text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors ${
-                    errors.password
-                      ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
-                      : 'border-sage focus:border-forest focus:ring-forest'
-                  }`}
-                  aria-invalid={Boolean(errors.password)}
-                  aria-describedby={errors.password ? 'password-error' : undefined}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  disabled={isSubmitting}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone hover:text-forest p-1 focus:outline-none cursor-pointer transition-colors"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
+              <AnimatedFormField hasError={Boolean(errors.password)} disabled={isSubmitting}>
+                <div className="relative">
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    required
+                    disabled={isSubmitting}
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="At least 8 characters"
+                    className={`w-full pl-4 pr-11 py-2.5 rounded-lg border bg-white text-charcoal font-sans text-sm placeholder:text-stone/50 focus:outline-none focus:ring-1 transition-colors ${
+                      errors.password
+                        ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
+                        : 'border-sage focus:border-blue-500 focus:ring-blue-500'
+                    }`}
+                    aria-invalid={Boolean(errors.password)}
+                    aria-describedby={errors.password ? 'password-error' : undefined}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    disabled={isSubmitting}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone hover:text-forest p-1 focus:outline-none cursor-pointer transition-colors"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </AnimatedFormField>
               {errors.password && (
                 <p id="password-error" className="text-xs text-burnt-crimson mt-1 font-medium">
                   {errors.password}

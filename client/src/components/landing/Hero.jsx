@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, Sparkles, Compass } from 'lucide-react'
 import Container from '../common/Container.jsx'
 import Button from '../common/Button.jsx'
+import TextEffect from '../core/text-effect.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
 import heroPoster from '../../assets/hero/hero-poster.webp'
 import heroVideo from '../../assets/hero/hero-video.mp4'
@@ -114,9 +115,11 @@ export default function Hero() {
             <span>Intelligent Journey Curation</span>
           </div>
 
-          {/* Main Editorial Headline */}
+          {/* Main Editorial Headline with Character-by-Character Entrance */}
           <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold text-sand-ivory tracking-tight leading-[1.15] sm:leading-[1.12] mb-5 sm:mb-6 drop-shadow-md">
-            Your next great journey starts here.
+            <TextEffect per="char" delay={0.15} stagger={0.04} duration={0.2}>
+              Your next great journey starts here.
+            </TextEffect>
           </h1>
 
           {/* Supporting Text */}
