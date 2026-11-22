@@ -33,6 +33,69 @@
 
 ## 2. Session History
 
+### [2026-11-22] — Day 55: Temporary Protected Production SMTP Diagnostic (Render Free Plan)
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Render Shell is unavailable on the Render Free Plan. Implement a temporary, securely protected, non-destructive diagnostic mechanism to verify the live production Gmail SMTP connection directly from inside the running Render backend (`https://tripmind-0b2x.onrender.com`):
+  1. **Nodemailer Transport Reuse:** Reused existing Nodemailer transporter configuration from `server/src/services/emailService.js` without duplicating or reconstructing SMTP configuration.
+  2. **Multi-Layered Security Protection:**
+     - Explicit feature flag `SMTP_DIAGNOSTIC_ENABLED=true` (disabled by default in all environments).
+     - Strict conditional route mounting: route is mounted in Express *only* when the flag is enabled. When disabled, the endpoint returns HTTP 404 (zero footprint in the router).
+     - Cryptographic authentication: requires a high-entropy secret token passed strictly and exclusively via the `x-smtp-diagnostic-token` header (Bearer and JSON body alternatives are deliberately excluded to prevent token leakage in HTTP access logs or body parsers).
+     - Constant-time comparison: compares SHA-256 digests using `crypto.timingSafeEqual` with fixed 32-byte buffers to prevent length and timing leakage.
+     - Strict HTTP verb enforcement: strictly accepts `POST` requests. All non-POST methods return HTTP 405 `METHOD_NOT_ALLOWED`.
+     - Strict dedicated rate limiting: `smtpDiagnosticLimiter` restricts requests to 5 attempts per 15 minutes per IP.
+  3. **Non-Destructive Transport Verification (`verifySmtpConnection`):**
+     - Invokes Nodemailer's native `transporter.verify()` to validate socket connection, TLS handshake, and Gmail authentication.
+     - Zero emails dispatched, zero user accounts created/mutated/deleted, zero database operations.
+  4. **Sanitized Diagnostic Reporting:**
+     - Returns strictly `{ success: true/false, code, message }`.
+     - Maps raw errors to sanitized codes: `EAUTH` (authentication failure/App Password format), `ETIMEDOUT` (TCP connection timeout), `ECONNREFUSED` (port/firewall blockage), `ENOTFOUND` (DNS resolution failure), `ETLS` (TLS/STARTTLS negotiation failure), or `EUNKNOWN`.
+     - Never returns SMTP credentials, passwords, sender addresses, recipient addresses, raw server traces, or tokens.
+- **Branch / Status:** `main` — Pre-deployment security review completed; Bearer/body alternatives removed; 41 unit assertions passing (0 failures); ready for temporary live Render deployment.
+
+#### 1. Files Created / Modified
+- [`server/src/config/env.js`](./server/src/config/env.js) — *Modified.* Added `config.smtpDiagnostic: { enabled, token }`.
+- [`server/.env.example`](./server/.env.example) — *Modified.* Documented `SMTP_DIAGNOSTIC_ENABLED` and `SMTP_DIAGNOSTIC_TOKEN` template with 48-hex-character token guidance (`randomBytes(24).toString('hex')`).
+- [`server/src/services/emailService.js`](./server/src/services/emailService.js) — *Modified.* Added and exported `verifySmtpConnection()` using existing transporter and sanitized error mapper.
+- [`server/src/middleware/rateLimiter.js`](./server/src/middleware/rateLimiter.js) — *Modified.* Added `smtpDiagnosticLimiter` (5 req / 15 min) and wired into `resetAllRateLimiters()`.
+- [`server/src/routes/diagnostic.routes.js`](./server/src/routes/diagnostic.routes.js) — *Created.* Dedicated router with constant-time token verification strictly via `x-smtp-diagnostic-token`, `POST /smtp-verify`, and 405 verb rejection.
+- [`server/src/app.js`](./server/src/app.js) — *Modified.* Conditionally registered `/api/diagnostic` router *only* when `config.smtpDiagnostic?.enabled === true`.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — *Modified.* Documented temporary protected SMTP diagnostic architecture in Section 5.11.3 (header-only token requirement and 48-hex-character token note).
+- [`DECISIONS.md`](./DECISIONS.md) — *Modified.* Recorded ADR-031 for temporary protected production SMTP diagnostic.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Appended Day 55 session log and security review findings.
+
+#### 2. Key Implementation Details & Concepts
+- **Constant-Time SHA-256 Token Verification:** Calling `crypto.timingSafeEqual` directly on arbitrary strings throws an exception if buffer lengths differ and exposes string length via execution timing. Hashing both candidate and expected tokens to SHA-256 fixed-length 32-byte buffers eliminates length mismatches and side-channel timing leaks.
+- **Header-Only Token Ingestion (`x-smtp-diagnostic-token`):** Accepting tokens exclusively via the custom header prevents credentials from appearing in web proxy access logs (common with query strings) or application request body audit traces. Bearer authorization is also excluded to eliminate ambiguity with user authentication tokens.
+- **Cryptographic Token Generation Entropy:** Documented that `crypto.randomBytes(24).toString('hex')` generates exactly 48 hexadecimal characters (each byte yields 2 hex digits, providing 192 bits of cryptographic entropy), correcting any misconception that 24 random bytes produces a 24-character or 32-character string.
+- **Conditional Zero-Footprint Route Registration:** By wrapping `app.use('/api/diagnostic', diagnosticRoutes)` in an `if (config.smtpDiagnostic?.enabled)` block in `app.js`, Express does not mount the route table unless explicitly turned on via Render environment variables. In standard production operation, `/api/diagnostic/*` immediately resolves to the standard 404 handler.
+- **Strict Error Sanitization Contract:** Gmail authentication failure responses often contain provider-specific URLs or details. The error mapper extracts standardized codes (`EAUTH`, `ETIMEDOUT`, `ECONNREFUSED`, `ENOTFOUND`, `ETLS`) and returns a clean, uniform diagnostic string.
+- **Diagnostic File Verification:** Verified that `test_smtp_parsing_logic.mjs` was neither created nor committed; the comprehensive test suite was established in `scratch/test_day55_smtp_diagnostic.mjs`.
+
+#### 3. Verification & Testing Performed
+- **Automated Diagnostic Suite (`scratch/test_day55_smtp_diagnostic.mjs`):**
+  - Section 1: Route registration isolation when disabled (returns 404).
+  - Section 2: Method restrictions (GET, PUT, DELETE return 405 Method Not Allowed).
+  - Section 3: Diagnostic token authentication channel isolation (missing token returns 401, wrong token returns 403, Bearer token returns 401, body token returns 401, header token succeeds with 200).
+  - Section 4: Mock transporter verification and error code mapping (`EAUTH`, `ETIMEDOUT`, `ECONNREFUSED`, `ENOTFOUND`, `ETLS`).
+  - Section 5: Rate limiter verification (5 requests allowed, 6th rejected with 429 and `Retry-After`).
+  - Section 6: Zero side-effects confirmation (zero emails sent, zero database queries).
+  - Result: **41 passed, 0 failed**.
+
+#### 4. Operational Next Steps & Cleanup Plan
+- Deploy changes to Render.
+- Generate secret token: `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"` (48 hex characters).
+- Add `SMTP_DIAGNOSTIC_ENABLED=true` and `SMTP_DIAGNOSTIC_TOKEN=<48-char-hex>` to Render environment variables.
+- Run one `curl` verification request to confirm live Gmail SMTP authentication:
+  ```bash
+  curl -X POST https://tripmind-0b2x.onrender.com/api/diagnostic/smtp-verify \
+       -H "x-smtp-diagnostic-token: <48-char-hex>"
+  ```
+- Remove `SMTP_DIAGNOSTIC_TOKEN` and set `SMTP_DIAGNOSTIC_ENABLED=false` (or remove both) in Render environment variables.
+- Delete `server/src/routes/diagnostic.routes.js` and revert conditional mount in `app.js`.
+
+---
+
 ### [2026-11-22] — Final Project Closure: README & Documentation Finalization
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Finalize TripMind's project documentation and repository presentation for production and recruiter readiness:

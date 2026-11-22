@@ -219,6 +219,18 @@ export const verifyEmailLimiter = createRateLimiter({
 })
 
 /**
+ * 9. Temporary SMTP Diagnostic Rate Limiter
+ * Strictly limits diagnostic verification requests (5 requests per 15 minutes per IP).
+ */
+export const smtpDiagnosticLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 5,
+  errorCode: 'RATE_LIMIT_EXCEEDED',
+  message: 'Diagnostic rate limit exceeded. Please wait before retrying.',
+  keyGenerator: (req) => req.ip || 'anonymous',
+})
+
+/**
  * Helper to reset all rate limiters across the application (useful in automated test suites).
  */
 export function resetAllRateLimiters() {
@@ -230,6 +242,7 @@ export function resetAllRateLimiters() {
   resetPasswordLimiter.reset()
   resendVerificationLimiter.reset()
   verifyEmailLimiter.reset()
+  smtpDiagnosticLimiter.reset()
 }
 
 export default assistantLimiter

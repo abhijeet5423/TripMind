@@ -846,6 +846,14 @@ TripMind's account recovery and email verification subsystems implement strict c
 - **Zero Token/Credential Logging:** Transporter errors and delivery results are logged with sanitized metadata; tokens and recipient credentials are never exposed in log output.
 - **Strict Testing Isolation & Production Safeguards:** Provides mock hooks (`setMockTransport`, `resetMockTransport`) strictly restricted to automated tests in non-production environments (`setMockTransport` explicitly throws if `config.nodeEnv === 'production'`). Production never silently falls back to mock delivery. When SMTP credentials are unconfigured and mock transport is absent, `isEmailConfigured()` returns `false` and `getTransporter()` throws HTTP 503 `EMAIL_SERVICE_UNCONFIGURED`. User registration safely rolls back MongoDB persistence upon delivery failure, while recovery endpoints (`forgotPassword`, `resendVerification`) catch delivery errors safely to maintain strict anti-enumeration contracts without leaking email existence or crashing.
 
+#### 3. Temporary Protected SMTP Diagnostic Mechanism (Day 55)
+To verify live production Gmail SMTP connectivity on hosting environments without SSH/Shell access (e.g., Render Free Plan):
+- **Conditional Mounting:** Mounts `POST /api/diagnostic/smtp-verify` *only* if `config.smtpDiagnostic.enabled === true`. Otherwise, the route table contains zero diagnostic endpoints (returns HTTP 404).
+- **Constant-Time Cryptographic Token Validation:** Enforces a dedicated `SMTP_DIAGNOSTIC_TOKEN` supplied strictly and exclusively via the `x-smtp-diagnostic-token` header (Bearer and JSON body alternatives are deliberately excluded to prevent token leakage in server access logs or payload parsers). Token generation uses `crypto.randomBytes(24).toString('hex')`, which yields 48 hexadecimal characters (192 bits of entropy). Token validation computes SHA-256 digests of both expected and provided tokens before invoking `crypto.timingSafeEqual`, preventing timing attacks and buffer length runtime exceptions.
+- **Dedicated Rate Limiting:** Enforces `smtpDiagnosticLimiter` (5 attempts per 15 minutes per IP).
+- **Non-Destructive Transport Verification:** Reuses `getTransporter()` and invokes Nodemailer's native `transporter.verify()` method. Never dispatches email, registers users, or modifies database records.
+- **Sanitized Response DTO:** Returns strictly `{ success: true }` or `{ success: false, error: { code, message } }` with sanitized error codes (`EAUTH`, `ETIMEDOUT`, `ECONNREFUSED`, `ENOTFOUND`, `ETLS`). Excludes credentials, email addresses, server traces, and environment values.
+
 ---
 
 ## 6. Mapping Architecture & OpenStreetMap Policies

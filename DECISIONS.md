@@ -728,6 +728,26 @@
 
 ---
 
+### ADR-031: Temporary Protected Production SMTP Diagnostic Mechanism for Constrained Hosting (Render Free Plan)
+- **Status:** 🟢 CONFIRMED (Implemented Day 55)
+- **Context:** Render Free Plan does not provide an interactive SSH Shell or CLI access to running container environments. While SMTP environment variables (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`) were configured on Render, production registration failures required definitive verification of actual Gmail SMTP connectivity and authentication without guessing, exposing credentials, sending test emails, or creating fake user accounts.
+- **Decision:**
+  1. **Direct Transporter Reuse:** Reuse `emailService.getTransporter()` rather than creating a separate or duplicated SMTP client, ensuring verification reflects the exact configuration and transport used by production registration.
+  2. **Non-Destructive Verification:** Call `transporter.verify()` to validate TCP connection, TLS/STARTTLS handshake, and SMTP AUTH without sending an email or altering database state.
+  3. **Strict Conditional Registration:** In `server/src/app.js`, wrap the route mounting in `if (config.smtpDiagnostic?.enabled)`. When disabled or unconfigured, the route does not exist in the Express routing table and returns HTTP 404.
+  4. **Cryptographic Protection & Constant-Time Verification:** Require high-entropy `SMTP_DIAGNOSTIC_TOKEN` generated via `crypto.randomBytes(24).toString('hex')` (yielding 48 hexadecimal characters / 192 bits of entropy). Accept the token strictly and exclusively via the `x-smtp-diagnostic-token` header, explicitly rejecting Bearer authorization and request body alternatives to prevent accidental token exposure in HTTP proxy access logs or payload traces. Validate incoming tokens by hashing candidate and expected tokens with SHA-256 and comparing the resulting 32-byte buffers with `crypto.timingSafeEqual` to avoid timing side-channels and buffer length mismatch errors.
+  5. **Strict Rate Limiting & Method Enforcing:** Apply `smtpDiagnosticLimiter` (5 requests / 15 minutes per IP). Reject all non-`POST` HTTP methods with HTTP 405 `METHOD_NOT_ALLOWED`.
+  6. **Strict Error Sanitization:** Sanitize all transporter errors into standardized error codes (`EAUTH`, `ETIMEDOUT`, `ECONNREFUSED`, `ENOTFOUND`, `ETLS`) and generic operational messages. Never return passwords, email addresses, tokens, or raw SMTP dialogue.
+  7. **Ephemeral Operational Policy:** This diagnostic is strictly temporary. Following verification, the environment variables are removed from Render, disabling the endpoint immediately, followed by code removal in the subsequent cleanup commit.
+- **Rationale:**
+  - Provides empirical proof of SMTP connectivity and credential validity directly inside the cloud environment.
+  - Zero attack surface when the feature flag is disabled (`SMTP_DIAGNOSTIC_ENABLED !== 'true'`).
+  - Immune to brute-force attacks via rate limiting and timing-safe authentication.
+- **Consequences:**
+  - Facilitates immediate identification of Gmail App Password misconfiguration or cloud egress restrictions without impacting production users.
+
+---
+
 ## 2. Pending Decisions (🟡 UNDER EVALUATION)
 
 The following architectural and technical choices are open for evaluation during future implementation planning. **Do not mark pending decisions as confirmed.**

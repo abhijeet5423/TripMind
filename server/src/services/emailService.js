@@ -97,6 +97,123 @@ function getTransporter() {
 }
 
 /**
+ * Sanitizes an SMTP error, mapping it to a predictable diagnostic error code and
+ * human-readable explanation without exposing passwords, tokens, or recipient data.
+ *
+ * @param {Error} error - Raw error from Nodemailer or TCP socket
+ * @returns {{ code: string, message: string }}
+ */
+function sanitizeSmtpError(error) {
+  const code = (error.code || error.name || '').toUpperCase()
+  const rawMsg = (error.message || '').toLowerCase()
+  const rawResponse = (error.response || '').toLowerCase()
+
+  // 1. Authentication failure (invalid App Password, spaces in password, 2FA disabled)
+  if (
+    code === 'EAUTH' ||
+    rawMsg.includes('auth') ||
+    rawMsg.includes('username and password not accepted') ||
+    rawMsg.includes('invalid credentials') ||
+    rawResponse.includes('535') ||
+    rawResponse.includes('534')
+  ) {
+    return {
+      code: 'EAUTH',
+      message:
+        'SMTP authentication failed. Verify SMTP_USER and ensure SMTP_PASS is a 16-character App Password without internal spaces.',
+    }
+  }
+
+  // 2. Timeout errors (socket, connection, greeting)
+  if (
+    code === 'ETIMEDOUT' ||
+    code === 'ESOCKETTIMEDOUT' ||
+    code === 'ECONNTIMEOUT' ||
+    rawMsg.includes('timeout') ||
+    rawMsg.includes('timed out')
+  ) {
+    return {
+      code: 'ETIMEDOUT',
+      message:
+        'SMTP connection timed out. Outbound port 587/465 may be restricted by the hosting provider or the host is unresponsive.',
+    }
+  }
+
+  // 3. Connection refused
+  if (code === 'ECONNREFUSED' || rawMsg.includes('connection refused')) {
+    return {
+      code: 'ECONNREFUSED',
+      message:
+        'SMTP connection refused. Verify that SMTP_HOST and SMTP_PORT are correct and accepting connections.',
+    }
+  }
+
+  // 4. DNS resolution failure
+  if (code === 'ENOTFOUND' || code === 'EDNS' || rawMsg.includes('getaddrinfo')) {
+    return {
+      code: 'ENOTFOUND',
+      message: 'SMTP DNS resolution failed. Check the SMTP_HOST hostname.',
+    }
+  }
+
+  // 5. TLS / SSL protocol mismatch
+  if (
+    code.includes('SSL') ||
+    code.includes('TLS') ||
+    code === 'ESOCKET' ||
+    rawMsg.includes('ssl') ||
+    rawMsg.includes('tls') ||
+    rawMsg.includes('wrong version number')
+  ) {
+    return {
+      code: 'ETLS',
+      message:
+        'TLS/SSL negotiation failed. Ensure SMTP_PORT 587 has SMTP_SECURE=false (STARTTLS) or port 465 has SMTP_SECURE=true.',
+    }
+  }
+
+  // 6. Generic sanitized fallback
+  return {
+    code: code || 'ESMTP_VERIFICATION_FAILED',
+    message: 'SMTP connection verification failed. Check server network and credentials.',
+  }
+}
+
+/**
+ * Performs a non-destructive SMTP connectivity and authentication verification.
+ * Calls transporter.verify() against the configured Nodemailer transport.
+ * Does NOT send any email, create users, or mutate database state.
+ *
+ * @returns {Promise<{ success: boolean, code?: string, message: string }>}
+ */
+export async function verifySmtpConnection() {
+  const transporter = getTransporter()
+
+  // In test environments with mockTransport, if verify is not implemented on mock, provide fallback
+  if (mockTransport && typeof transporter.verify !== 'function') {
+    return {
+      success: true,
+      message: 'Mock email transport verified successfully.',
+    }
+  }
+
+  try {
+    await transporter.verify()
+    return {
+      success: true,
+      message: 'SMTP connection and authentication verified successfully.',
+    }
+  } catch (error) {
+    const sanitized = sanitizeSmtpError(error)
+    return {
+      success: false,
+      code: sanitized.code,
+      message: sanitized.message,
+    }
+  }
+}
+
+/**
  * Generates editorial HTML wrapper adhering to TripMind design standards.
  *
  * @param {Object} options

@@ -222,4 +222,10 @@ export const config = {
       ? parseInt(process.env.SHARE_RATE_LIMIT_MAX, 10)
       : 60, // 60 requests per minute
   },
+
+  // Temporary SMTP Diagnostic Configuration (Render Free Plan)
+  smtpDiagnostic: {
+    enabled: process.env.SMTP_DIAGNOSTIC_ENABLED === 'true',
+    token: (process.env.SMTP_DIAGNOSTIC_TOKEN || '').trim(),
+  },
 }
