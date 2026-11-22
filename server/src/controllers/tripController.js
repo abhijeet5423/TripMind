@@ -424,11 +424,39 @@ export async function generateTripItinerary(req, res, next) {
     }
 
     // 8. Return HTTP 200 OK with persisted itinerary conforming to standardized envelope
+    const persistedTripObj =
+      persistedTrip && typeof persistedTrip.toObject === 'function'
+        ? persistedTrip.toObject()
+        : persistedTrip
+
+    // Construct itinerary response preserving AI metadata while injecting persisted subdocument IDs
+    const responseItinerary =
+      shouldPersist && Array.isArray(persistedTripObj?.days) && persistedTripObj.days.length > 0
+        ? {
+            ...aiResult.data,
+            days: persistedTripObj.days,
+            budget: {
+              ...(aiResult.data.budget || {}),
+              totalEstimated:
+                persistedTripObj.budgetSummary?.totalEstimated ??
+                aiResult.data.budget?.totalEstimated ??
+                0,
+              categories:
+                persistedTripObj.budgetSummary?.categories ??
+                aiResult.data.budget?.categories ??
+                {},
+            },
+            summary: persistedTripObj.summary || aiResult.data.summary,
+            travelTips: persistedTripObj.travelTips || aiResult.data.travelTips,
+          }
+        : aiResult.data
+
     return res.status(200).json({
       success: true,
       data: {
         tripId: String(persistedTrip._id || tripId),
-        itinerary: aiResult.data,
+        trip: persistedTripObj,
+        itinerary: responseItinerary,
         ...(aiResult.meta && { meta: aiResult.meta }),
       },
       message: shouldPersist

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   X,
   Plus,
@@ -65,11 +65,19 @@ export default function AddActivityModal({
   })
   const [validationErrors, setValidationErrors] = useState({})
   const [submitError, setSubmitError] = useState(null)
+  const isSubmittingRef = useRef(false)
+
+  // Reset synchronous submission lock when modal visibility toggles
+  useEffect(() => {
+    if (!isOpen) {
+      isSubmittingRef.current = false
+    }
+  }, [isOpen])
 
   // Escape key listener to close modal
   useEffect(() => {
     function handleKeyDown(e) {
-      if (e.key === 'Escape' && isOpen && !isSaving) {
+      if (e.key === 'Escape' && isOpen && !isSaving && !isSubmittingRef.current) {
         onClose()
       }
     }
@@ -134,9 +142,16 @@ export default function AddActivityModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!validate() || isSaving) return
 
+    // Synchronous guard blocking rapid duplicate submissions immediately
+    if (isSubmittingRef.current || isSaving) return
+
+    if (!validate()) return
+
+    // Engage synchronous submission lock before awaiting async dispatch
+    isSubmittingRef.current = true
     setSubmitError(null)
+
     try {
       const payload = {
         title: formData.title.trim(),
@@ -153,6 +168,8 @@ export default function AddActivityModal({
       await onSave(payload)
       onClose()
     } catch (err) {
+      // Reset lock on failure so the user can address issues and retry
+      isSubmittingRef.current = false
       setSubmitError(err?.message || 'Failed to add activity. Please try again.')
     }
   }
@@ -164,7 +181,7 @@ export default function AddActivityModal({
       aria-modal="true"
       aria-labelledby="add-activity-modal-title"
       onClick={(e) => {
-        if (e.target === e.currentTarget && !isSaving) {
+        if (e.target === e.currentTarget && !isSaving && !isSubmittingRef.current) {
           onClose()
         }
       }}

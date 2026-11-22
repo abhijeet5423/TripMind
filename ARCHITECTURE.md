@@ -594,7 +594,7 @@ TripMind utilizes JWT for stateless authentication and `bcrypt` for salted passw
       - `GEMINI_SERVICE_UNAVAILABLE` -> `503 Service Unavailable`
       - `GEMINI_AUTH_FAILED`, `GEMINI_NETWORK_ERROR`, `GEMINI_EMPTY_RESPONSE`, `GEMINI_PARSE_ERROR` -> `502 Bad Gateway`
       - `GEMINI_CONFIG_ERROR`, `PERSISTENCE_FAILED` / internal -> `500 Internal Server Error`
-    - **Success Envelope:** Returns HTTP 200 with `{ success: true, data: { tripId, itinerary, meta }, message: "Itinerary generated and saved successfully." }`. Optional `?persist=false` query parameter supports preview generation without database mutation.
+    - **Success Envelope:** Returns HTTP 200 with `{ success: true, data: { tripId, trip, itinerary, meta }, message: "Itinerary generated and saved successfully." }`. Both `trip.days` and `itinerary.days` contain authoritative, persisted Mongoose subdocument `_id` values for all days and scheduled activities. Optional `?persist=false` query parameter supports preview generation without database mutation.
 
 ### 5.5 AI Travel Assistant API Architecture (ADR-024)
 - **Nested Resource Route:** `POST /api/trips/:tripId/assistant/messages` (mounted in `trip.routes.js` via `assistant.routes.js` with `mergeParams: true`).

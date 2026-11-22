@@ -33,6 +33,63 @@
 
 ## 2. Session History
 
+### [2026-11-22] — Bug Fix: Resolve Add Activity Intermittent Failure (Persisted Day IDs & Synchronous Concurrency Guard)
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Resolve the intermittent failure of the "Add Activity" functionality on the itinerary page by addressing the root causes identified during diagnostic investigation: (1) itinerary generation returning raw AI JSON lacking MongoDB subdocument `_id` values, causing the frontend handler to silently exit, and (2) rapid double-clicks dispatching concurrent requests, triggering Mongoose `VersionError` (HTTP 500).
+- **Scope Boundaries:** Backend trip controller, frontend trip detail page, and itinerary add-activity modal. Local implementation and verification only. Zero Git staging, commits, pushes, or deployments.
+
+#### 1. Files Created / Modified
+- [`server/src/controllers/tripController.js`](./server/src/controllers/tripController.js) — *Modified.* Updated `generateTripItinerary` to construct the returned `itinerary` and `trip` objects from `persistedTrip` (the post-save Mongoose document) rather than raw `aiResult.data`. Ensures every day and activity subdocument includes its authoritative MongoDB `_id` while preserving all AI metadata, summary, travel tips, and standardized envelope properties.
+- [`client/src/pages/TripDetailPage.jsx`](./client/src/pages/TripDetailPage.jsx) — *Modified.* Updated `executeGeneration` to ingest persisted days with `_id` values, preventing raw un-identified arrays from overwriting React state, while preserving the traveler's currently viewed day (`selectedDayNumber`). Updated `handleSaveNewActivity` to replace silent early termination (`if (!trip?._id || !targetDay?._id) return`) with explicit identifier validation throwing helpful, user-visible error messages.
+- [`client/src/components/itinerary/AddActivityModal.jsx`](./client/src/components/itinerary/AddActivityModal.jsx) — *Modified.* Added a synchronous component-level submission guard (`isSubmittingRef`) that immediately blocks duplicate submissions before asynchronous state propagation, resets on failure to allow retry, and prevents concurrent double-click race conditions and Mongoose `VersionError` 500s.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — *Modified.* Updated Section 5.4 documentation for `POST /api/trips/:id/generate-itinerary` to specify that `data.trip` and `data.itinerary` contain persisted Mongoose subdocument `_id` identifiers.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Documented implementation details, root causes addressed, and empirical verification results.
+
+#### 2. Key Implementation Details & Root Cause Fixes
+- **Fix 1: Return Persisted Itinerary Data with Authoritative Subdocument IDs:**
+  - In `tripController.js`, `saveTripItinerary` executes atomic `Trip.findOneAndUpdate({ _id: tripId, userId }, ...)` returning `persistedTrip` with generated subdocument ObjectIds.
+  - Previously, line 431 returned `itinerary: aiResult.data` (raw un-persisted AI output without `_id`s).
+  - Now, `responseItinerary` injects `persistedTripObj.days` (where every day and activity has its MongoDB `_id`), aggregates budget totals, and supplies `trip: persistedTripObj` in the `data` envelope.
+- **Fix 2: Synchronize Frontend State Post-Generation:**
+  - In `TripDetailPage.jsx`, `executeGeneration` extracts `persistedTrip?.days || generatedItin?.days`.
+  - State updater preserves existing itinerary info, budget summary, and dynamic properties.
+  - `setSelectedDayNumber` now checks whether the traveler's previously selected day is within the new day count; if so, it maintains the active day tab rather than forcing a jump back to Day 1.
+- **Fix 3: Remove Silent Failure in Activity Creation:**
+  - In `TripDetailPage.jsx`, `handleSaveNewActivity` now explicitly checks `!trip?._id`, `!targetDay`, and `!targetDay?._id`.
+  - If any identifier is missing, it throws a descriptive `Error` instead of silently returning `undefined`.
+  - `AddActivityModal.jsx` catches the error, sets `submitError`, and keeps the modal open with a clear explanation, rather than closing blindly.
+- **Fix 4: Prevent Concurrent Submissions via Synchronous Ref Guard:**
+  - In `AddActivityModal.jsx`, added `isSubmittingRef = useRef(false)`.
+  - At the very beginning of `handleSubmit`, `if (isSubmittingRef.current || isSaving) return` synchronously blocks rapid secondary clicks before React 18 batched renders can update the `isSaving` prop.
+  - Set `isSubmittingRef.current = true` immediately before `await onSave(payload)`.
+  - In the `catch` block, `isSubmittingRef.current = false` allows the traveler to retry if submission fails.
+  - Eliminates Mongoose `VersionError` / `NoMatchingDocumentError` HTTP 500 race conditions.
+
+#### 3. Verification & Testing Performed
+- **Comprehensive Regression Suite (`scratch/test_fix_add_activity_regression.mjs`):**
+  - **Category A (Generation Response Contract):** 12 of 12 tests passed. Verified returned days and activities carry valid MongoDB `_id` values, budget totals match, and metadata is preserved.
+  - **Category B (Immediate Add Activity Post-Generation):** 7 of 7 tests passed. Verified that without refreshing the page, adding an activity uses the persisted day `_id`, dispatches HTTP 201 POST, and persists to MongoDB.
+  - **Category C (Add Activity After Refresh):** 4 of 4 tests passed. Verified normal behavior across page reload.
+  - **Category D (Missing Identifier Handling):** 4 of 4 tests passed. Missing trip ID or day ID throws explicit errors; invalid IDs rejected by backend with HTTP 400 `INVALID_ID`.
+  - **Category E (Duplicate Submission Protection):** 3 of 3 tests passed. Simulated rapid double-click; verified 2nd request is synchronously dropped, and exactly 1 API dispatch occurs.
+  - **Category F (Edit and Delete Regression):** 5 of 5 tests passed. Verified editing and deleting activities immediately after generation and after refresh; verified complete database cleanup.
+  - **Category G (Budget and Itinerary Integrity):** 5 of 5 tests passed. Adding activity updates budget; deleting recalculates budget; selected day preservation logic verified.
+  - **Total Regression Suite:** 40 of 40 tests passed (100%).
+- **Existing Regression Test Suites:**
+  - `scratch/test_day27_itinerary_api.mjs`: 67 of 67 tests passed (100%).
+  - `scratch/test_day28_itinerary_validation.mjs`: 112 of 112 tests passed (100%).
+  - `scratch/test_day33_add_remove_activity.mjs`: 48 of 48 tests passed (100%).
+  - `scratch/test_ai_fix.mjs`: 18 of 18 tests passed (100%).
+- **Frontend Production Build:**
+  - `npm --prefix client run build` completed cleanly in 1.05s (2,607 modules transformed, zero JSX/build errors).
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- Local implementation and verification are 100% complete.
+- Production deployment to Render (`https://tripmind-0b2x.onrender.com/`) and Vercel (`https://trip-mind-brown.vercel.app/`) is pending explicit user approval.
+- Per strict operating rules, zero Git staging, commit, push, or deployment commands were performed.
+
+
+
 ### [2026-11-22] — AI/API Bug Investigation 01: Generate Itinerary HTTP 503 & Intermittent Failures
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Investigate and resolve production error `POST /api/trips/:id/generate-itinerary` returning HTTP 503 (Service Unavailable) and intermittent AI itinerary generation failures on the deployed platform (`https://trip-mind-brown.vercel.app/` / `https://tripmind-0b2x.onrender.com/`).

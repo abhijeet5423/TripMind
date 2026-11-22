@@ -220,31 +220,41 @@ export default function TripDetailPage() {
       }
 
       const generatedItin = response?.data?.itinerary
+      const persistedTrip = response?.data?.trip
 
-      if (!generatedItin) {
+      if (!generatedItin && !persistedTrip) {
         throw new Error('Server returned an empty itinerary payload.')
       }
+
+      // Prioritize persisted days with authoritative MongoDB _id values; never overwrite with raw un-identified arrays
+      const incomingDays =
+        persistedTrip?.days && persistedTrip.days.length > 0
+          ? persistedTrip.days
+          : generatedItin?.days || []
 
       // Seamless in-memory state update reflecting the backend-persisted itinerary
       setTrip((prev) => {
         if (!prev) return prev
         const totalEst =
-          typeof generatedItin.budget?.totalEstimated === 'number'
+          typeof persistedTrip?.budgetSummary?.totalEstimated === 'number'
+            ? persistedTrip.budgetSummary.totalEstimated
+            : typeof generatedItin?.budget?.totalEstimated === 'number'
             ? generatedItin.budget.totalEstimated
             : 0
 
         const updated = {
           ...prev,
-          days: generatedItin.days || [],
-          budgetSummary: {
+          ...(persistedTrip ? persistedTrip : {}),
+          days: incomingDays,
+          budgetSummary: persistedTrip?.budgetSummary || {
             ...(prev.budgetSummary || {}),
             totalEstimated: totalEst,
             totalSpent: 0,
             remaining: Math.max(0, (prev.budget || 0) - totalEst),
-            categories: generatedItin.budget?.categories || {},
+            categories: generatedItin?.budget?.categories || {},
           },
-          summary: generatedItin.summary || '',
-          travelTips: generatedItin.travelTips || [],
+          summary: persistedTrip?.summary || generatedItin?.summary || '',
+          travelTips: persistedTrip?.travelTips || generatedItin?.travelTips || [],
         }
 
         // Keep TripContext in sync so returning to dashboard displays updated state
@@ -255,8 +265,15 @@ export default function TripDetailPage() {
         return updated
       })
 
-      // Reset day selection to Day 1
-      setSelectedDayNumber(1)
+      // Preserve currently selected day if within the new day count; otherwise clamp safely
+      setSelectedDayNumber((prevDay) => {
+        const count = incomingDays.length
+        if (count === 0) return 1
+        if (prevDay >= 1 && prevDay <= count) {
+          return prevDay
+        }
+        return 1
+      })
       setSuccessMessage(
         response.message || 'Your multi-day itinerary has been curated and saved successfully!'
       )
@@ -367,11 +384,21 @@ export default function TripDetailPage() {
    * Adds a new activity to the selected day via POST API and updates state.
    */
   const handleSaveNewActivity = async (payload) => {
+    if (!trip?._id) {
+      throw new Error('Trip identifier is missing. Please refresh the page and try again.')
+    }
+
     const targetDay =
       (trip?.days && trip.days.find((d) => d.dayNumber === selectedDayNumber)) ||
       trip?.days?.[0]
 
-    if (!trip?._id || !targetDay?._id) return
+    if (!targetDay) {
+      throw new Error('Selected itinerary day could not be found.')
+    }
+
+    if (!targetDay?._id) {
+      throw new Error('Day identifier is missing or unpersisted. Please refresh the page and try again.')
+    }
 
     setIsCreatingActivity(true)
 
