@@ -36,7 +36,7 @@ import ScrollProgress from '../components/core/scroll-progress.jsx'
 import * as tripApi from '../services/api/tripApi.js'
 import { useTrip } from '../hooks/useTrip.js'
 import { mapItineraryError } from '../utils/itineraryErrorHelper.js'
-import { getDestinationPhoto } from '../utils/destinationImages.js'
+import { getDestinationPhotos } from '../utils/destinationImages.js'
 import { getDestinationCoordinates, getPlottableActivities } from '../utils/mapUtils.js'
 import { exportTripToPdf } from '../utils/tripPdfExporter.js'
 
@@ -111,7 +111,7 @@ export default function TripDetailPage() {
   const [trip, setTrip] = useState(initialTripFromState)
   const [loadingTrip, setLoadingTrip] = useState(!initialTripFromState)
   const [tripError, setTripError] = useState(null)
-  const [imageError, setImageError] = useState(false)
+  const [imageErrors, setImageErrors] = useState({})
 
   // Itinerary Generation States
   const [isGenerating, setIsGenerating] = useState(false)
@@ -140,10 +140,10 @@ export default function TripDetailPage() {
   // Itinerary Sharing State (Day 44)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
 
-  // Destination Photograph (Task B2)
-  const destinationPhoto = trip?.destination
-    ? getDestinationPhoto(trip.destination, trip.coverImageUrl, true)
-    : null
+  // Destination Photographs (Day 52 — supports 0, 1, or 2 images)
+  const destinationPhotos = useMemo(() => {
+    return getDestinationPhotos(trip)
+  }, [trip])
 
   // Destination Map Coordinates (Day 38 Map Foundation)
   const mapCoordinates = useMemo(() => {
@@ -852,40 +852,66 @@ export default function TripDetailPage() {
               )}
             </div>
 
-            {/* Visual Destination Photograph Plate (Task B2) */}
-            {destinationPhoto && (
-              <div className="w-full lg:w-72 xl:w-80 shrink-0 overflow-hidden rounded-xl border border-sage/80 shadow-xs bg-sand-ivory relative group select-none">
-                <div className="aspect-[16/10] sm:aspect-[16/9] lg:aspect-[4/3] w-full overflow-hidden relative">
-                  {!imageError ? (
-                    <img
-                      src={destinationPhoto.src}
-                      alt={destinationPhoto.alt || `Photograph of ${trip.destination}`}
-                      loading="lazy"
-                      decoding="async"
-                      onError={() => setImageError(true)}
-                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-sage/35 via-sand-ivory to-sage/20 flex flex-col items-center justify-center p-4 text-center">
-                      <Compass className="w-8 h-8 text-forest/70 mb-1" />
-                      <span className="font-serif text-xs font-bold text-forest">{trip.destination}</span>
-                    </div>
-                  )}
-                  <div
-                    className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none"
-                    aria-hidden="true"
-                  />
-                  <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between text-[11px] text-white">
-                    <span className="font-medium truncate drop-shadow-sm flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-terracotta shrink-0" />
-                      <span>{trip.destination}</span>
-                    </span>
-                    {destinationPhoto.photographer && (
-                      <span className="text-[9px] text-sand-ivory/80 truncate ml-2 drop-shadow-xs">
-                        Photo: {destinationPhoto.photographer}
-                      </span>
-                    )}
-                  </div>
+            {/* Visual Destination Photograph Plate(s) (Day 52 — supports 0, 1, or 2 images) */}
+            {destinationPhotos.length > 0 && (
+              <div
+                className={`w-full shrink-0 overflow-hidden select-none ${
+                  destinationPhotos.length === 1
+                    ? 'lg:w-72 xl:w-80'
+                    : 'lg:w-[32rem] xl:w-[36rem]'
+                }`}
+              >
+                <div
+                  className={`grid gap-3 ${
+                    destinationPhotos.length === 1
+                      ? 'grid-cols-1'
+                      : 'grid-cols-1 sm:grid-cols-2'
+                  }`}
+                >
+                  {destinationPhotos.map((photo, pIdx) => {
+                    const isBroken = Boolean(imageErrors[photo.src || pIdx])
+                    return (
+                      <div
+                        key={photo.src || pIdx}
+                        className="rounded-xl border border-sage/80 shadow-xs bg-sand-ivory overflow-hidden relative group"
+                      >
+                        <div className="aspect-[16/10] sm:aspect-[16/9] lg:aspect-[4/3] w-full overflow-hidden relative">
+                          {!isBroken ? (
+                            <img
+                              src={photo.src}
+                              alt={photo.alt || `Photograph of ${trip.destination}`}
+                              loading="lazy"
+                              decoding="async"
+                              onError={() =>
+                                setImageErrors((prev) => ({ ...prev, [photo.src || pIdx]: true }))
+                              }
+                              className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-sage/35 via-sand-ivory to-sage/20 flex flex-col items-center justify-center p-4 text-center">
+                              <Compass className="w-8 h-8 text-forest/70 mb-1" />
+                              <span className="font-serif text-xs font-bold text-forest">{trip.destination}</span>
+                            </div>
+                          )}
+                          <div
+                            className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent pointer-events-none"
+                            aria-hidden="true"
+                          />
+                          <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between text-[11px] text-white">
+                            <span className="font-medium truncate drop-shadow-sm flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-terracotta shrink-0" />
+                              <span>{photo.caption || trip.destination}</span>
+                            </span>
+                            {photo.photographer && (
+                              <span className="text-[9px] text-sand-ivory/80 truncate ml-2 drop-shadow-xs">
+                                Photo: {photo.photographer}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}

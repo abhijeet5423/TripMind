@@ -630,6 +630,35 @@
 
 ---
 
+### ADR-028: Destination Imagery Architecture, Mobile Scroll-Snap Carousels, and Database Index Optimization
+- **Status:** 🟢 CONFIRMED (Implemented)
+- **Context:** TripMind required visual enrichment for travel itineraries and PDF exports, improved mobile user experience for homepage discovery and instructional content, and database query optimization for filtered user trip lookups and public sharing.
+- **Decision:**
+  1. **Destination Imagery Model & Fallback Pipeline:**
+     - Extended `Trip` schema with backward-compatible `destinationImages` subdocument array (`[{ url, alt, caption }]`), supporting up to 2 photographs per trip.
+     - Implemented `getDestinationPhotos(trip)` resolving images across a deterministic priority pipeline: (1) `trip.destinationImages`, (2) `trip.coverImageUrl`, (3) curated destination image registry (Kyoto, Swiss Alps, Bali, Manali, Varanasi, Amalfi), or (4) empty array `[]`.
+     - Uses standard native `new URL(..., import.meta.url).href` for asset paths, eliminating bundler incompatibilities and runtime `ERR_UNKNOWN_FILE_EXTENSION` errors in Node test harnesses.
+  2. **Itinerary UI & PDF Export Imagery Layout:**
+     - UI dual-photo plate in `TripDetailPage.jsx` using responsive `grid-cols-1 sm:grid-cols-2` grid, rounded-xl styling, and per-image load error handling that gracefully falls back to an editorial Compass icon badge plate.
+     - Integrated printable `.pdf-imagery-gallery` into client-side PDF generator (`tripPdfExporter.js`) with CSS page-break avoidance (`break-inside: avoid`), safe image load error hiding (`onerror="this.parentElement.style.display='none';"`), Indian Rupee glyph (`₹`), and Unicode glyph preservation.
+  3. **Zero-Dependency Native Mobile Carousels:**
+     - Replaced vertical stacking on mobile (< 768px) with native CSS scroll-snapping horizontal carousels (`snap-x snap-mandatory scroll-smooth no-scrollbar`) for both "How to Use TripMind" (`HowItWorks.jsx`) and "Find Your Next Somewhere" (`DestinationDiscovery.jsx`).
+     - Preserved desktop/tablet grid systems (`md:grid`) completely without altering layouts at >= 768px.
+     - Employed viewport-percentage card widths (`82vw` and `84vw`) providing ~16–18vw peek affordances that intuitively indicate scrollability.
+     - Synchronized dot indicator navigation with touch scroll and click-to-scroll handlers.
+  4. **Database Index Optimization:**
+     - Added compound index `{ userId: 1, status: 1, createdAt: -1 }` on `Trip` collection to accelerate status-filtered user dashboard queries.
+     - Verified partialFilterExpression index on `shareSettings.shareTokenHash` (optimizing storage by only indexing shared trips with string hashes).
+- **Rationale:**
+  - Enriches visual appeal of itineraries and exports at ₹0 operational cost (no paid image APIs).
+  - Significantly reduces mobile scroll length and cognitive fatigue while strictly maintaining zero horizontal page overflow.
+  - Improves MongoDB query performance from $O(N)$ collection scans to $O(1)$/$O(\log N)$ index seeks.
+- **Consequences:**
+  - Legacy trips with 0 images continue to load cleanly with zero layout shift or empty image plates.
+  - Carousels rely entirely on native browser scrolling with zero runtime bundle bloat.
+
+---
+
 ## 2. Pending Decisions (🟡 UNDER EVALUATION)
 
 The following architectural and technical choices are open for evaluation during future implementation planning. **Do not mark pending decisions as confirmed.**

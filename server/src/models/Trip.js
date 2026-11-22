@@ -422,6 +422,31 @@ const tripSchema = new mongoose.Schema(
       default: '',
       maxlength: [500, 'Cover image URL cannot exceed 500 characters'],
     },
+    destinationImages: {
+      type: [
+        {
+          url: {
+            type: String,
+            trim: true,
+            maxlength: [500, 'Destination image URL cannot exceed 500 characters'],
+          },
+          alt: {
+            type: String,
+            trim: true,
+            maxlength: [200, 'Destination image alt cannot exceed 200 characters'],
+            default: '',
+          },
+          caption: {
+            type: String,
+            trim: true,
+            maxlength: [200, 'Destination image caption cannot exceed 200 characters'],
+            default: '',
+          },
+        },
+      ],
+      default: [],
+      alias: 'images',
+    },
     interests: {
       type: [
         {
@@ -509,12 +534,16 @@ const tripSchema = new mongoose.Schema(
 )
 
 /**
- * Compound Index Strategy
+ * Database Index Strategy
  *
- * Optimizes user dashboard queries that retrieve all trips for a specific user
- * sorted by creation date descending.
+ * 1. Optimizes user dashboard queries that retrieve all trips for a specific user
+ *    sorted by creation date descending.
+ * 2. Optimizes filtered user queries by status (draft, upcoming, completed) and date.
+ * 3. Public shared itinerary lookups are indexed via shareSettingsSchema.shareTokenHash with
+ *    partialFilterExpression for strings (Day 44 / Day 52).
  */
 tripSchema.index({ userId: 1, createdAt: -1 })
+tripSchema.index({ userId: 1, status: 1, createdAt: -1 })
 
 const Trip = mongoose.model('Trip', tripSchema)
 

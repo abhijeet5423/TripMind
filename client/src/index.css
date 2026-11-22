@@ -92,6 +92,15 @@
   animation: shimmer 1.8s infinite;
 }
 
+/* Hide scrollbars during native horizontal carousel scrolling */
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* Reduced Motion Accessibility Overrides */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {

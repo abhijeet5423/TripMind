@@ -33,6 +33,52 @@
 
 ## 2. Session History
 
+### [2026-11-22] — Day 52: Itinerary Visual Enhancement, Mobile UX & Performance Optimization
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Complete Day 52 development deliverables: (1) Enrich itineraries and PDF exports with destination/place imagery supporting 0, 1, or 2 images, broken image handling, and legacy record compatibility; (2) Enhance mobile homepage UX with two distinct native CSS scroll-snapping horizontal carousels ("How to Use TripMind" and "Find Your Next Somewhere") with interactive indicators and peek previews; (3) Inspect and optimize database query indexes (`{ userId: 1, status: 1, createdAt: -1 }` and sparse/partial token hash index); (4) Perform comprehensive regression verification across 6 viewports with real physical PDF export inspection.
+- **Branch / Status:** `main` — Fully implemented, verified, and passing 100%.
+
+#### 1. Files Created / Modified
+- [`server/src/models/Trip.js`](./server/src/models/Trip.js) — Added `destinationImages` subdocument schema with alias `images`; added compound index `{ userId: 1, status: 1, createdAt: -1 }` for status-filtered dashboard queries.
+- [`server/src/validators/tripValidator.js`](./server/src/validators/tripValidator.js) — Added `destinationImages` and `images` to `ALLOWED_UPDATE_FIELDS`; implemented array validation, string/object sanitization, and length capping (max 10 items, max 500 chars per URL) for create and update endpoints.
+- [`client/src/utils/destinationImages.js`](./client/src/utils/destinationImages.js) — Implemented `getDestinationPhotos(trip)` supporting 0, 1, or 2 images via deterministic priority fallback (custom images -> cover image -> curated destination map -> empty array); switched bundled WebP paths to standard `new URL(..., import.meta.url).href` for zero-configuration compatibility across bundlers and Node test environments.
+- [`client/src/utils/tripPdfExporter.js`](./client/src/utils/tripPdfExporter.js) — Integrated `destinationPhotos` into client-side PDF HTML generator (`.pdf-imagery-gallery`, `.one-photo` / `.two-photos` grid); enforced CSS page-break avoidance (`break-inside: avoid`); added safe `onerror` inline hiding; verified Indian Rupee glyph (`₹`) and Unicode glyph preservation.
+- [`client/src/pages/TripDetailPage.jsx`](./client/src/pages/TripDetailPage.jsx) — Added responsive dual-photo plate (`grid-cols-1 sm:grid-cols-2`) and single-photo plate; implemented per-image error tracking (`imageErrors` map) with automatic fallback to an editorial Compass icon badge plate on broken URLs; ensured zero layout shift or empty plates for 0-image trips.
+- [`client/src/components/landing/HowItWorks.jsx`](./client/src/components/landing/HowItWorks.jsx) — Converted instructional steps to native CSS horizontal scroll carousel on mobile (< 768px) with `snap-x snap-mandatory`, `w-[82vw]` peek preview, and interactive terracotta (`#C25E3E`) dot indicators; preserved 5-column grid on desktop/tablet.
+- [`client/src/components/landing/DestinationDiscovery.jsx`](./client/src/components/landing/DestinationDiscovery.jsx) — Converted destination catalog to native CSS horizontal scroll carousel on mobile (< 768px) with `snap-x snap-mandatory`, `w-[84vw]` peek preview, and interactive forest green (`#173D35`) dot indicators; preserved 2/3-column grid on desktop/tablet; preserved all "Create Itinerary" preselection deep links.
+- [`client/src/index.css`](./client/src/index.css) — Added `@utility no-scrollbar` utility to cleanly suppress scrollbars during horizontal carousel scrolling.
+- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — Added Section 5.22: "Responsive Mobile Carousels and Itinerary Imagery Standards".
+- [`DECISIONS.md`](./DECISIONS.md) — Added ADR-028: "Destination Imagery Architecture, Mobile Scroll-Snap Carousels, and Database Index Optimization".
+- [`scratch/test_day52_verification.mjs`](./scratch/test_day52_verification.mjs) — Created automated verification suite covering database indexes, 5 imagery cases, physical disk PDF export inspection, Edge CDP UI rendering, 6 viewports, and zero console/network errors.
+
+#### 2. Key Implementation Details & Concepts
+- **Backward-Compatible Imagery Schema:** Mongoose subdocuments default `destinationImages` to `[]`. Legacy trips without image fields continue to load without warnings or missing-property errors, resolving `getDestinationPhotos(trip)` to `[]`.
+- **Physical Disk PDF Generation:** Generated real physical PDF `scratch/day52_trip_itinerary_export.pdf` (>11MB, valid `%PDF-` magic header) via Microsoft Edge CDP `Page.printToPDF` with background graphics enabled and A4 margins.
+- **Differentiated Mobile Carousels:** Both mobile carousels utilize pure CSS scroll snapping without third-party libraries:
+  - *Instructional (`HowItWorks`):* Step-number badges, compact information cards (`82vw`), terracotta dot indicators.
+  - *Discovery (`DestinationDiscovery`):* Curated 4:3 photography, category badges (`84vw`), forest green dot indicators, "Create Itinerary" CTA.
+- **Database Query Indexing:**
+  - Added `{ userId: 1, status: 1, createdAt: -1 }` on `Trip` collection to optimize status-filtered queries (`status: upcoming`, `status: completed`, `status: draft`).
+  - Confirmed partial index on `shareSettings.shareTokenHash` with `partialFilterExpression: { 'shareSettings.shareTokenHash': { $type: 'string' } }` preventing unshared trips from bloating index memory.
+
+#### 3. Verification & Testing Performed
+- **Automated Verification Suite (`scratch/test_day52_verification.mjs`):** 73 Passed, 0 Failed.
+  - DB indexes verified: `{ userId: 1, createdAt: -1 }`, `{ userId: 1, status: 1, createdAt: -1 }`, `shareSettings.shareTokenHash` partial index, `User.email` unique index.
+  - 5 test trips verified: 2 images, 1 image, 0 images, broken image URL fallback, older legacy trip.
+  - PDF generation verified: A4 page rules, INR currency (`₹`), Unicode glyphs (`📍`, `🧭`), safe `onerror` suppression, disk export file validation.
+  - Itinerary UI verified: dual-photo plate with `sm:grid-cols-2`, zero empty plates on 0-image trips, Compass badge fallback on broken image.
+  - Mobile carousels verified across 6 viewports (320px, 375px, 430px, 768px, 1024px, 1280px): zero horizontal page overflow (`scrollWidth <= clientWidth`), dot visibility/hiding, scroll synchronization.
+  - Zero browser console errors and zero unexpected failed network requests.
+- **Day 51 Regression Suite (`scratch/test_day51_verification.mjs`):** 66 Passed, 0 Failed.
+- **Client Build & Linting:**
+  - `npm --prefix client run build`: Built production bundle in 3.48s with 0 errors.
+  - `npx --prefix client eslint ...`: 0 errors, 0 warnings across all modified components and utilities.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- None. Day 52 objectives are 100% complete and verified. Ready for Day 53 release preparation.
+
+---
+
 ### [2026-11-22] — Complete UI Motion & Animation Enhancement
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Implement a coordinated set of 7 purposeful, premium UI motion enhancements across TripMind following `UI_MOTION_GUIDELINES.md` and `UI_DESIGN_SYSTEM.md`. Integrate `@/components/core` primitives powered by `motion` (v14.14.0) with zero CLS layout shifts, composite-only GPU properties (`transform`, `opacity`), strict `prefers-reduced-motion` compliance, and verified Edge CDP end-to-end testing with zero regressions.

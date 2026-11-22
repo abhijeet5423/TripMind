@@ -1,10 +1,10 @@
-import kyotoImg from '../assets/destinations/kyoto-japan.webp'
-import swissAlpsImg from '../assets/destinations/swiss-alps-switzerland.webp'
-import baliImg from '../assets/destinations/bali-indonesia.webp'
-import manaliImg from '../assets/destinations/manali-india.webp'
-import varanasiImg from '../assets/destinations/varanasi-india.webp'
-import amalfiImg from '../assets/destinations/amalfi-coast-italy.webp'
-import fallbackCoverImg from '../assets/painting-mountain-lake-with-mountain-background.webp'
+const kyotoImg = new URL('../assets/destinations/kyoto-japan.webp', import.meta.url).href
+const swissAlpsImg = new URL('../assets/destinations/swiss-alps-switzerland.webp', import.meta.url).href
+const baliImg = new URL('../assets/destinations/bali-indonesia.webp', import.meta.url).href
+const manaliImg = new URL('../assets/destinations/manali-india.webp', import.meta.url).href
+const varanasiImg = new URL('../assets/destinations/varanasi-india.webp', import.meta.url).href
+const amalfiImg = new URL('../assets/destinations/amalfi-coast-italy.webp', import.meta.url).href
+const fallbackCoverImg = new URL('../assets/painting-mountain-lake-with-mountain-background.webp', import.meta.url).href
 
 /**
  * Curated destination image registry with verified attribution records.
@@ -171,3 +171,85 @@ export function getDestinationPhoto(destination = '', coverImageUrl = '', useGen
 
   return null
 }
+
+/**
+ * Resolves up to two relevant destination photographs for a trip.
+ * Supports:
+ * - Explicit trip.destinationImages or trip.images array (1 or 2 images)
+ * - trip.coverImageUrl (single image)
+ * - Curated destination matching (Kyoto, Swiss Alps, Bali, Manali, Varanasi, Amalfi)
+ * - Preserves custom alt text and captions
+ * - Graceful zero-length array for trips without images
+ *
+ * @param {Object} trip - The trip entity
+ * @param {Object} [options={}] - Resolution options
+ * @returns {Array<Object>} Array of up to two resolved image objects
+ */
+export function getDestinationPhotos(trip) {
+  if (!trip || typeof trip !== 'object') return []
+
+  const photos = []
+
+  // 1. Inspect explicit destinationImages or images array on the trip document
+  const rawImages = trip.destinationImages || trip.images
+  if (Array.isArray(rawImages) && rawImages.length > 0) {
+    for (const item of rawImages) {
+      if (typeof item === 'string' && item.trim()) {
+        photos.push({
+          src: item.trim(),
+          alt: `Photograph representing ${trip.destination || 'trip'}`,
+          caption: trip.destination || '',
+          isCustom: true,
+          photographer: null,
+        })
+      } else if (item && typeof item === 'object') {
+        const src = (item.url || item.src || '').trim()
+        if (src) {
+          photos.push({
+            src,
+            alt: item.alt || `Photograph representing ${trip.destination || 'trip'}`,
+            caption: item.caption || trip.destination || '',
+            isCustom: true,
+            photographer: item.photographer || null,
+          })
+        }
+      }
+      if (photos.length >= 2) break
+    }
+  }
+
+  // 2. If no photos found yet and coverImageUrl exists
+  if (photos.length === 0 && trip.coverImageUrl && typeof trip.coverImageUrl === 'string' && trip.coverImageUrl.trim()) {
+    photos.push({
+      src: trip.coverImageUrl.trim(),
+      alt: `Photograph of ${trip.destination || 'destination'}`,
+      caption: trip.destination || '',
+      isCustom: true,
+      photographer: null,
+    })
+  }
+
+  // 3. If still no photos found, check curated destination match (Kyoto, Swiss Alps, etc.)
+  if (photos.length === 0 && trip.destination) {
+    const normalized = String(trip.destination).toLowerCase().trim()
+    for (const entry of CURATED_DESTINATION_MAP) {
+      if (entry.keywords.some((kw) => normalized.includes(kw))) {
+        photos.push({
+          src: entry.image,
+          alt: entry.alt,
+          caption: entry.name,
+          photographer: entry.photographer,
+          license: entry.license,
+          platform: entry.platform,
+          isCustom: false,
+        })
+        break
+      }
+    }
+  }
+
+  // 4. Return up to 2 photographs
+  return photos.slice(0, 2)
+}
+
+

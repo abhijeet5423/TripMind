@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Compass,
@@ -78,6 +79,26 @@ const STEPS = [
  */
 export default function HowItWorks() {
   const { isAuthenticated } = useAuth()
+  const [activeStep, setActiveStep] = useState(0)
+  const carouselRef = useRef(null)
+
+  const handleScroll = () => {
+    if (!carouselRef.current) return
+    const el = carouselRef.current
+    const scrollLeft = el.scrollLeft
+    const cardWidth = el.firstElementChild?.offsetWidth || 1
+    const newIndex = Math.round(scrollLeft / cardWidth)
+    setActiveStep(Math.max(0, Math.min(STEPS.length - 1, newIndex)))
+  }
+
+  const scrollToStep = (index) => {
+    if (!carouselRef.current) return
+    const el = carouselRef.current
+    const card = el.children[index]
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+    }
+  }
 
   return (
     <section
@@ -111,9 +132,14 @@ export default function HowItWorks() {
           </div>
         </ScrollReveal>
 
-        {/* 5-Step Workflow Cards Grid */}
+        {/* 5-Step Workflow Cards Grid / Mobile Horizontal Carousel */}
         <ScrollReveal delay={0.1} yOffset={16}>
-          <ol className="mt-12 sm:mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 lg:gap-4 xl:gap-5 list-none p-0 m-0">
+          <ol
+            ref={carouselRef}
+            onScroll={handleScroll}
+            className="mt-12 sm:mt-16 flex md:grid md:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-4 xl:gap-5 list-none p-0 m-0 overflow-x-auto md:overflow-visible snap-x snap-mandatory scroll-smooth no-scrollbar pb-3 md:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0"
+            style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+          >
           {STEPS.map((step, index) => {
             const Icon = step.icon
             const isLastOnTablet = index === STEPS.length - 1
@@ -121,7 +147,7 @@ export default function HowItWorks() {
             return (
               <li
                 key={step.stepNumber}
-                className={`relative flex flex-col h-full bg-white rounded-2xl p-6 sm:p-5 lg:p-6 border border-sage shadow-xs hover:shadow-md hover:border-forest/40 transition-all duration-200 group ${
+                className={`relative flex flex-col h-full bg-white rounded-2xl p-5 sm:p-5 lg:p-6 border border-sage shadow-xs hover:shadow-md hover:border-forest/40 transition-all duration-200 group shrink-0 w-[82vw] sm:w-[72vw] md:w-auto snap-center ${
                   isLastOnTablet ? 'md:col-span-2 lg:col-span-1' : ''
                 }`}
               >
@@ -174,6 +200,29 @@ export default function HowItWorks() {
             )
           })}
         </ol>
+
+        {/* Mobile Subtle Dot Pagination Indicators */}
+        <div
+          className="flex md:hidden items-center justify-center gap-1.5 mt-5"
+          role="tablist"
+          aria-label="Workflow step indicators"
+        >
+          {STEPS.map((step, idx) => (
+            <button
+              key={step.stepNumber}
+              type="button"
+              role="tab"
+              aria-selected={activeStep === idx}
+              aria-label={`Go to step ${step.stepNumber}: ${step.title}`}
+              onClick={() => scrollToStep(idx)}
+              className={`h-1.5 rounded-full transition-all duration-200 cursor-pointer ${
+                activeStep === idx
+                  ? 'w-6 bg-terracotta'
+                  : 'w-1.5 bg-sage hover:bg-stone/50'
+              }`}
+            />
+          ))}
+        </div>
         </ScrollReveal>
 
         {/* Bottom Callout Banner */}

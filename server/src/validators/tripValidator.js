@@ -45,6 +45,8 @@ const ALLOWED_UPDATE_FIELDS = new Set([
   'currency',
   'status',
   'coverImageUrl',
+  'destinationImages',
+  'images',
   'interests',
   'travelPreferences',
 ])
@@ -340,6 +342,57 @@ export function validateCreateTrip(req, res, next) {
         })
       } else {
         req.body.interests = cleanInterests
+      }
+    }
+  }
+
+  // 11b. Destination images validation (optional)
+  const createImagesRaw = req.body.destinationImages !== undefined ? req.body.destinationImages : req.body.images
+  if (createImagesRaw !== undefined && createImagesRaw !== null) {
+    if (!Array.isArray(createImagesRaw)) {
+      details.push({
+        field: 'destinationImages',
+        message: 'Destination images must be an array',
+      })
+    } else if (createImagesRaw.length > 10) {
+      details.push({
+        field: 'destinationImages',
+        message: 'Destination images array cannot exceed 10 items',
+      })
+    } else {
+      const cleanImages = []
+      let imagesValid = true
+      for (const item of createImagesRaw) {
+        if (typeof item === 'string') {
+          const trimmed = item.trim()
+          if (trimmed.length > 500) {
+            imagesValid = false
+            break
+          }
+          if (trimmed.length > 0) {
+            cleanImages.push({ url: trimmed, alt: '', caption: '' })
+          }
+        } else if (item && typeof item === 'object') {
+          const url = typeof item.url === 'string' ? item.url.trim() : ''
+          const alt = typeof item.alt === 'string' ? item.alt.trim().slice(0, 200) : ''
+          const caption = typeof item.caption === 'string' ? item.caption.trim().slice(0, 200) : ''
+          if (!url || url.length > 500) {
+            imagesValid = false
+            break
+          }
+          cleanImages.push({ url, alt, caption })
+        } else {
+          imagesValid = false
+          break
+        }
+      }
+      if (!imagesValid) {
+        details.push({
+          field: 'destinationImages',
+          message: 'Each destination image must be a valid URL string or object with url',
+        })
+      } else {
+        req.body.destinationImages = cleanImages
       }
     }
   }
@@ -871,6 +924,57 @@ export function validateUpdateTrip(req, res, next) {
         })
       } else {
         req.body.coverImageUrl = trimmedUrl
+      }
+    }
+  }
+
+  // 12b. Destination images validation (if present)
+  const updateImagesRaw = req.body.destinationImages !== undefined ? req.body.destinationImages : req.body.images
+  if (updateImagesRaw !== undefined && updateImagesRaw !== null) {
+    if (!Array.isArray(updateImagesRaw)) {
+      details.push({
+        field: 'destinationImages',
+        message: 'Destination images must be an array',
+      })
+    } else if (updateImagesRaw.length > 10) {
+      details.push({
+        field: 'destinationImages',
+        message: 'Destination images array cannot exceed 10 items',
+      })
+    } else {
+      const cleanImages = []
+      let imagesValid = true
+      for (const item of updateImagesRaw) {
+        if (typeof item === 'string') {
+          const trimmed = item.trim()
+          if (trimmed.length > 500) {
+            imagesValid = false
+            break
+          }
+          if (trimmed.length > 0) {
+            cleanImages.push({ url: trimmed, alt: '', caption: '' })
+          }
+        } else if (item && typeof item === 'object') {
+          const url = typeof item.url === 'string' ? item.url.trim() : ''
+          const alt = typeof item.alt === 'string' ? item.alt.trim().slice(0, 200) : ''
+          const caption = typeof item.caption === 'string' ? item.caption.trim().slice(0, 200) : ''
+          if (!url || url.length > 500) {
+            imagesValid = false
+            break
+          }
+          cleanImages.push({ url, alt, caption })
+        } else {
+          imagesValid = false
+          break
+        }
+      }
+      if (!imagesValid) {
+        details.push({
+          field: 'destinationImages',
+          message: 'Each destination image must be a valid URL string or object with url',
+        })
+      } else {
+        req.body.destinationImages = cleanImages
       }
     }
   }

@@ -614,6 +614,38 @@ TripMind adheres to a calm, purposeful motion architecture powered by `motion` (
 - **Accessibility & Non-Interference:** Animated overlays enforce `pointer-events-none` and `aria-hidden="true"`, ensuring full click-through to underlying inputs and zero screen-reader interference.
 - **Validation Precedence:** `AnimatedFormField` suppresses all motion when `hasError` is true, immediately prioritizing accessible static error borders (`border-burnt-crimson`).
 
+---
+
+### 5.22 Responsive Mobile Carousels and Itinerary Imagery Standards (Day 52)
+
+#### 1. Native Mobile Horizontal Carousels
+To eliminate mobile page scroll fatigue while preserving desktop layout density, TripMind implements two differentiated horizontal scroll carousels on mobile viewports (< 768px):
+- **Architecture:** Zero external dependencies. Powered by pure CSS scroll snapping (`overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar`).
+- **Peek Affordance:** Cards utilize viewport-percentage widths to reveal a partial edge of the adjacent slide (~16vw–18vw peek), intuitively communicating horizontal affordance without requiring text prompts.
+  - *Instructional Carousel (`HowItWorks.jsx`):* `w-[82vw] sm:w-[72vw] md:w-auto`. Compact, instructional, step-badge led with `#C25E3E` terracotta pagination pills.
+  - *Destination Discovery Carousel (`DestinationDiscovery.jsx`):* `w-[84vw] sm:w-[75vw] md:w-auto`. Image-focused, 4:3 photograph led with `#173D35` forest green pagination pills.
+- **Interactive Slide Indicators:** Dot pagination indicators (`role="tablist"`) update synchronously on touch scroll (`scrollLeft / cardWidth`) and allow direct tap-to-scroll navigation (`scrollIntoView({ behavior: 'smooth', inline: 'center' })`). Dots are cleanly hidden on tablet/desktop viewports (`flex md:hidden`).
+- **Viewport Containment:** Employs negative outer margins with compensating internal padding (`-mx-4 px-4 sm:mx-0 sm:px-0`) ensuring cards scroll flush to viewport edges while strictly preventing page-level horizontal overflow (`scrollWidth <= clientWidth`).
+- **Desktop/Tablet Preservation:** On tablet and desktop (`md:` breakpoint and above), containers immediately revert to structured CSS grids (`md:grid md:grid-cols-2 lg:grid-cols-5` for How It Works, `md:grid-cols-2 lg:grid-cols-3` for Destinations).
+
+#### 2. Itinerary Destination Imagery Standards
+- **Photo Capacity & Resolution:** Supports up to 2 high-resolution destination photographs per itinerary, resolved via `getDestinationPhotos(trip)`.
+- **Resolution Hierarchy:**
+  1. Explicit trip subdocument array: `trip.destinationImages` (or alias `trip.images`).
+  2. Trip cover photograph: `trip.coverImageUrl`.
+  3. Curated destination registry: Matches keywords against curated destinations (Kyoto, Swiss Alps, Bali, Manali, Varanasi, Amalfi).
+  4. Fallback: Returns empty array `[]` for uncurated/legacy trips without custom images.
+- **Trip Detail UI Layout (`TripDetailPage.jsx`):**
+  - *2 Images:* Dual-photo plate with responsive `grid-cols-1 sm:grid-cols-2` grid, rounded-xl borders, and subtle gradient captions.
+  - *1 Image:* Single-photo plate with 16:10 aspect ratio and rounded-xl borders.
+  - *0 Images / Legacy Trips:* Completely omits the image plate container, rendering a clean editorial header with zero empty frames or layout shifts.
+  - *Broken URL Resilience:* Implements per-image error tracking (`imageErrors` map). If an image fails to load, gracefully falls back to an editorial Compass icon badge plate without layout collapse.
+- **PDF Itinerary Export (`tripPdfExporter.js`):**
+  - Renders `.pdf-imagery-gallery` containing `.two-photos` or `.one-photo` grid before day-by-day schedules.
+  - Enforces CSS page break avoidance (`break-inside: avoid; page-break-inside: avoid;`).
+  - Safe image loading fallback: Includes `onerror="this.parentElement.style.display='none';"` preventing broken image placeholders from appearing in downloaded/printed documents.
+  - Preserves Indian Rupee currency glyph (`₹`), full Unicode travel icons (`📍`, `🧭`), and typography across A4 print media.
+
 
 
 

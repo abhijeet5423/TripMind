@@ -11,6 +11,8 @@
  * Supports multi-currency formatting including Indian Rupee (₹) and full Unicode glyphs.
  */
 
+import { getDestinationPhotos } from './destinationImages.js'
+
 /**
  * Escapes raw strings for safe HTML rendering.
  */
@@ -116,6 +118,7 @@ function getCategoryBadgeClass(category) {
 export function generateTripPdfHtml(trip) {
   if (!trip) return ''
 
+  const destinationPhotos = getDestinationPhotos(trip)
   const currency = trip.currency || 'INR'
   const dateRangeStr = formatTripDates(trip.departureDate, trip.returnDate)
   const travellers = trip.numberOfTravellers || 1
@@ -381,6 +384,52 @@ export function generateTripPdfHtml(trip) {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .pdf-imagery-gallery {
+      margin-top: 14px;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .pdf-gallery-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .pdf-gallery-grid.one-photo {
+      grid-template-columns: 1fr;
+    }
+
+    .pdf-gallery-grid.two-photos {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .pdf-photo-card {
+      background-color: #FFFFFF;
+      border: 1px solid #CCD5C0;
+      border-radius: 6px;
+      overflow: hidden;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .pdf-photo-img {
+      width: 100%;
+      height: 135px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .pdf-photo-caption {
+      padding: 4px 8px;
+      font-size: 7pt;
+      color: #686E65;
+      background-color: #FAFAF7;
+      border-top: 1px solid #E8ECE1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
     .summary-card {
@@ -749,6 +798,27 @@ export function generateTripPdfHtml(trip) {
         <div class="meta-val">${targetBudget > 0 ? formatCurrency(targetBudget, currency) : 'Flexible'}</div>
       </div>
     </div>
+
+    ${destinationPhotos.length > 0 ? `
+      <div class="pdf-imagery-gallery no-break">
+        <div class="pdf-gallery-grid ${destinationPhotos.length === 1 ? 'one-photo' : 'two-photos'}">
+          ${destinationPhotos.map((photo) => `
+            <div class="pdf-photo-card">
+              <img
+                src="${escapeHtml(photo.src)}"
+                alt="${escapeHtml(photo.alt || trip.destination || 'Destination photo')}"
+                class="pdf-photo-img"
+                onerror="this.parentElement.style.display='none';"
+              />
+              <div class="pdf-photo-caption">
+                <span style="font-weight: 600; color: #173D35;">📍 ${escapeHtml(photo.caption || trip.destination)}</span>
+                ${photo.photographer ? `<span>Photo: ${escapeHtml(photo.photographer)}</span>` : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
 
     ${trip.summary ? `
       <div class="summary-card">

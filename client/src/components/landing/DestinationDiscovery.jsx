@@ -32,8 +32,28 @@ export default function DestinationDiscovery() {
   const [error, setError] = useState(null)
   const [activeFilter, setActiveFilter] = useState('All')
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [activeDestinationIndex, setActiveDestinationIndex] = useState(0)
+  const destinationCarouselRef = useRef(null)
 
   const latestRequestId = useRef(0)
+
+  const handleDestinationScroll = () => {
+    if (!destinationCarouselRef.current) return
+    const el = destinationCarouselRef.current
+    const scrollLeft = el.scrollLeft
+    const cardWidth = el.firstElementChild?.offsetWidth || 1
+    const newIndex = Math.round(scrollLeft / cardWidth)
+    setActiveDestinationIndex(Math.max(0, Math.min(destinations.length - 1, newIndex)))
+  }
+
+  const scrollToDestination = (index) => {
+    if (!destinationCarouselRef.current) return
+    const el = destinationCarouselRef.current
+    const card = el.children[index]
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+    }
+  }
 
   // Fetch destinations from backend API whenever filter or retry triggers
   useEffect(() => {
@@ -251,18 +271,46 @@ export default function DestinationDiscovery() {
             </div>
           )}
 
-          {/* Populated Destination Grid */}
+          {/* Populated Destination Grid / Mobile Horizontal Carousel */}
           {!error && destinations.length > 0 && (
             <ScrollReveal yOffset={14} delay={0.05}>
               <div
-                className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 transition-opacity duration-200 ${
+                ref={destinationCarouselRef}
+                onScroll={handleDestinationScroll}
+                className={`flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-8 transition-opacity duration-200 overflow-x-auto md:overflow-visible snap-x snap-mandatory scroll-smooth no-scrollbar pb-3 md:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0 ${
                   loading ? 'opacity-60' : 'opacity-100'
                 }`}
+                style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
               >
                 {destinations.map((destination) => (
-                  <DestinationCard
+                  <div
                     key={destination.id || destination.slug}
-                    destination={destination}
+                    className="shrink-0 w-[84vw] sm:w-[75vw] md:w-auto snap-center h-full"
+                  >
+                    <DestinationCard destination={destination} />
+                  </div>
+                ))}
+              </div>
+
+              {/* Mobile Image-Led Destination Pagination Indicators */}
+              <div
+                className="flex md:hidden items-center justify-center gap-1.5 mt-5"
+                role="tablist"
+                aria-label="Destination slide indicators"
+              >
+                {destinations.map((destination, idx) => (
+                  <button
+                    key={destination.id || destination.slug || idx}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeDestinationIndex === idx}
+                    aria-label={`Go to destination ${destination.name || destination.destination}`}
+                    onClick={() => scrollToDestination(idx)}
+                    className={`h-1.5 rounded-full transition-all duration-200 cursor-pointer ${
+                      activeDestinationIndex === idx
+                        ? 'w-7 bg-forest'
+                        : 'w-1.5 bg-sage hover:bg-stone/50'
+                    }`}
                   />
                 ))}
               </div>
