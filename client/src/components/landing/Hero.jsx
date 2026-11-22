@@ -5,13 +5,7 @@ import Container from '../common/Container.jsx'
 import Button from '../common/Button.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
 import heroPoster from '../../assets/hero/hero-poster.webp'
-
-const videoModules = import.meta.glob('../../assets/hero video.mp4', {
-  eager: true,
-  import: 'default',
-})
-
-const heroVideo = videoModules['../../assets/hero video.mp4'] || null
+import heroVideo from '../../assets/hero/hero-video.mp4'
 
 /**
  * Hero Component
@@ -64,6 +58,7 @@ export default function Hero() {
           muted
           loop
           playsInline
+          preload="auto"
           poster={heroPoster}
           onError={() => setVideoFailed(true)}
           className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none select-none"

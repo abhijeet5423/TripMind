@@ -33,6 +33,53 @@
 
 ## 2. Session History
 
+### [2026-11-22] — Production Bug Fix 01: Background Video Not Playing
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Diagnose and resolve the production defect where the landing page background video does not play on the deployed Vercel production frontend (`https://trip-mind-brown.vercel.app/`).
+- **Scope Boundaries:** Landing page hero background video asset and component ONLY. Zero unrelated UI changes. Zero broad Git staging (`git add`), zero commits, zero pushes, zero deployments.
+
+#### 1. Files Created / Modified
+- `client/src/assets/hero/hero-video.mp4` — *Created.* Web-optimized 1080p H.264 (AVC1) silent background video asset (1920x1080, 10.87s, 4.55 MB, audio track stripped, streamed via HTTP Range requests / 206 Partial Content).
+- [`client/src/components/landing/Hero.jsx`](./client/src/components/landing/Hero.jsx) — *Modified.* Replaced the dynamic glob resolution pattern targeting the untracked 208 MB file with a direct import of `hero-video.mp4`; added `preload="auto"` to the `<video>` element.
+- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — *Modified.* Updated Section 5.8 documenting the 1080p H.264 web delivery video asset, master asset preservation, and browser playback specifications.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Documented production bug diagnosis, root cause analysis, implementation details, and validation results.
+
+#### 2. Key Implementation Details & Concepts
+- **Root Cause Diagnosis:**
+  1. *Git & Build Exclusion:* Root `.gitignore` explicitly excluded `/client/src/assets/hero video.mp4` due to its 208.41 MB size exceeding GitHub's 100 MB per-file push limit.
+  2. *Glob Null Evaluation:* `Hero.jsx` resolved the video via `import.meta.glob('../../assets/hero video.mp4', { eager: true, import: 'default' })`. In production on Vercel, the file was absent, causing the glob to evaluate to `{}` and `heroVideo` to `null`.
+  3. *DOM Omission:* The JSX condition `!prefersReducedMotion && !videoFailed && heroVideo` evaluated to `false`, omitting the `<video>` element from the production DOM entirely and rendering only the static fallback poster (`hero-poster.webp`).
+  4. *Codec & Format Incompatibility:* The master video was 4K UHD (3840x2160) encoded in HEVC/H.265 (`hvc1`) with the `moov` atom located at the end of the file. Even if deployed, Chrome and Edge without external HEVC extensions cannot decode `hvc1` in HTML5 `<video>`, resulting in 0x0 frame dimensions.
+- **Web-Optimized Video Transcoding:**
+  - Preserved the master 208 MB HEVC video on local disk (`client/src/assets/hero video.mp4`) as an archive asset.
+  - Transcoded the exact sequence to 1080p (1920x1080, 10.87s) H.264 (`avc1`) at 3.5 Mbps with stripped audio using Windows Media Transcoding APIs. Box hierarchy contains `ftyp`, `uuid`, `mdat`, and `moov` (streamed via standard HTTP Range requests).
+  - File size reduced from 208.41 MB to 4.55 MB (97.8% reduction), well under GitHub and Vercel 100 MB limits.
+- **Component Hardening:**
+  - Direct import in `Hero.jsx` ensures deterministic bundling in Vite production builds.
+  - Added `preload="auto"` alongside `autoPlay`, `muted`, `loop`, and `playsInline`.
+  - Maintained the dual-layer fallback: eager 1920x1080 WebP poster rendered underneath as base layer and graceful fallback upon error or `prefers-reduced-motion`.
+
+#### 3. Verification & Testing Performed
+- **Live Production CDP Inspection:** Automated headless Edge inspection of `https://trip-mind-brown.vercel.app/` via Chrome DevTools Protocol confirmed `videoFound: false`, `imgFound: true` (`hero-poster-DyaYZXaO.webp`, 1920x1080), 0 media network requests, and zero console errors.
+- **Production Bundle Verification:** Executed `npm --prefix client run build`. Successfully bundled `dist/assets/hero-video-DpuIs5DC.mp4` (4,768.87 kB) and `dist/assets/hero-poster-DyaYZXaO.webp` (515.95 kB) with zero errors in 1.23s.
+- **Headless Browser CDP Playback Verification:**
+  - Verified on local production build server via Edge CDP:
+    - `<video>` mounted and active: `vSrc` resolved to `hero-video-DpuIs5DC.mp4`.
+    - Resolution: `1920x1080`.
+    - ReadyState: `4` (`HAVE_ENOUGH_DATA`).
+    - Playback state: `vPaused: false`, `currentTime` advancing.
+    - Attributes verified: `autoplay: true`, `muted: true`, `loop: true`, `playsInline: true`, `preload: "auto"`.
+    - Error state: `vError: null`.
+- **Responsive Viewport Verification:**
+  - Desktop (1440x900): Video covers hero container 1:1, `overflowX: false`.
+  - Tablet (768x1024): Video covers hero container 1:1, `overflowX: false`.
+  - Mobile (375x667): Video covers hero container 1:1, `overflowX: false`.
+- **Accessibility & Fallback Verification:**
+  - Under `prefers-reduced-motion: reduce`: `<video>` is cleanly unmounted, static 1920x1080 poster image is fully visible and complete.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- **Next Steps:** Await explicit user approval before staging, committing, pushing to GitHub, or triggering production redeployment.
+
 ### [2026-11-21] — Production Vercel API Proxy Configuration
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Configure production Vercel edge reverse proxy routing by replacing the temporary `<RENDER_SERVICE_HOST>` placeholder in `client/vercel.json` with the confirmed live Render backend host (`https://tripmind-0b2x.onrender.com`), verify production builds and API routing behavior, stage approved files, commit, and push to `origin main`.
