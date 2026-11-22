@@ -33,6 +33,83 @@
 
 ## 2. Session History
 
+### [2026-11-22] — Day 54: Forgot Password, Password Reset, Email Verification & Resend Verification
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Upgrade TripMind's authentication system with production-grade self-service password recovery and email verification while preserving the existing HttpOnly cookie architecture (ADR-010), maintaining legacy user login compatibility for existing accounts in MongoDB Atlas, and enforcing anti-enumeration defenses:
+  1. **Forgot Password Flow:** Self-service password recovery initiation with 32-byte cryptographic hex tokens, 30-minute expiration, SHA-256 storage, and strict anti-enumeration defense.
+  2. **Secure Password Reset Flow:** Single-use token consumption, PARITY-validated password reset with client/server length and bcrypt byte checks, single-point bcrypt hashing via Mongoose `pre('save')` hook, token invalidation, and session cookie clearance.
+  3. **Email Verification Flow:** Newly registered accounts begin with `isEmailVerified: false` and are blocked from logging in (HTTP 403 `EMAIL_NOT_VERIFIED`) until verified via single-use 24-hour cryptographic verification tokens.
+  4. **Resend Verification Flow:** Dedicated endpoint with strict anti-enumeration defense, allowing unverified users to obtain fresh verification links.
+  5. **Legacy Account Migration Compatibility:** Pre-existing MongoDB Atlas user records (where `isEmailVerified` is `undefined`) retain immediate login access (`user.isEmailVerified !== false`).
+  6. **Transactional Email Service:** Implemented `emailService.js` using Nodemailer with editorial HTML templates adhering to TripMind design standards, mock transport support for unit/integration testing, and silent development fallback.
+  7. **Security & Rate Limiting:** Implemented dedicated rate limiters for auth recovery endpoints (`forgotPasswordLimiter` 5/15m, `resetPasswordLimiter` 10/15m, `resendVerificationLimiter` 3/15m, `verifyEmailLimiter` 15/15m).
+  8. **Frontend Editorial Interfaces:** Built `ForgotPasswordPage`, `ResetPasswordPage`, `VerifyEmailPage`, and `ResendVerificationPage` with deep-green `BorderTrail`, night-sky backdrops, password visibility toggles, and neutral confirmation screens. Updated `LoginPage` with "Forgot password?" CTA and amber unverified notification banner; updated `RegisterPage` with post-registration verification card.
+- **Branch / Status:** `main` — Fully implemented, verified, passing 86 Day 54 automated tests, 23 Edge CDP visual tests, and 229 regression tests (Day 46, 47, 48, 50).
+
+#### 1. Files Created / Modified
+- [`server/src/utils/crypto.js`](./server/src/utils/crypto.js) — *Created.* Cryptographic token generator (`generateSecureToken` using `crypto.randomBytes(32).toString('hex')`) and one-way token hasher (`hashToken` via SHA-256 hex digest).
+- [`server/src/services/emailService.js`](./server/src/services/emailService.js) — *Created.* Transactional email service using Nodemailer with editorial HTML templates, zero sensitive data/token logging, mock transport hooks (`setMockTransport`, `resetMockTransport`), and development silent fallback.
+- [`server/src/models/User.js`](./server/src/models/User.js) — *Modified.* Extended User schema with `isEmailVerified` (no default, preserving `undefined` for legacy records), `emailVerificationTokenHash` (`select: false`), `emailVerificationExpires` (`select: false`), `passwordResetTokenHash` (`select: false`), `passwordResetExpires` (`select: false`), and `passwordChangedAt`. Added `user.isVerified()` instance method and updated `toJSON`/`toObject` projections.
+- [`server/src/config/env.js`](./server/src/config/env.js) — *Modified.* Added SMTP configuration (`config.email`) and dedicated rate limit environment variables for recovery and verification flows.
+- [`server/.env.example`](./server/.env.example) — *Modified.* Documented SMTP configuration keys (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`).
+- [`server/src/middleware/rateLimiter.js`](./server/src/middleware/rateLimiter.js) — *Modified.* Implemented `forgotPasswordLimiter` (5/15m), `resetPasswordLimiter` (10/15m), `resendVerificationLimiter` (3/15m), `verifyEmailLimiter` (15/15m), and updated `resetAllRateLimiters()`.
+- [`server/src/validators/authValidator.js`](./server/src/validators/authValidator.js) — *Modified.* Added `validateForgotPassword`, `validateResetPassword`, `validateVerifyEmail`, and `validateResendVerification`.
+- [`server/src/services/authService.js`](./server/src/services/authService.js) — *Modified.* Updated `registerUser` (24h verification token generation, email dispatch), updated `loginUser` (blocks `isEmailVerified === false` with 403 `EMAIL_NOT_VERIFIED`), added `verifyEmail` (atomic token consumption via `findOneAndUpdate`), added `resendVerification` (anti-enumeration generic response), added `forgotPassword` (30m token generation, anti-enumeration), and added `resetPassword` (token consumption, password update via `pre('save')` hook).
+- [`server/src/controllers/authController.js`](./server/src/controllers/authController.js) — *Modified.* Updated `register` (no session cookie issued for unverified users), added `forgotPassword`, `resetPassword` (clears existing session cookie), `verifyEmail`, and `resendVerification`.
+- [`server/src/routes/auth.routes.js`](./server/src/routes/auth.routes.js) — *Modified.* Mounted `POST /forgot-password`, `POST /reset-password`, `POST /verify-email`, `POST /resend-verification` with their respective rate limiters and validators.
+- [`client/src/services/api/authApi.js`](./client/src/services/api/authApi.js) — *Modified.* Exported `forgotPassword`, `resetPassword`, `verifyEmail`, `resendVerification` API client methods.
+- [`client/src/context/AuthContext.jsx`](./client/src/context/AuthContext.jsx) — *Modified.* Updated `register` method to omit automatic login session establishment for unverified accounts.
+- [`client/src/pages/ForgotPasswordPage.jsx`](./client/src/pages/ForgotPasswordPage.jsx) — *Created.* Responsive password recovery page with deep-green `BorderTrail`, anti-enumeration neutral confirmation view, and back to sign in link.
+- [`client/src/pages/ResetPasswordPage.jsx`](./client/src/pages/ResetPasswordPage.jsx) — *Created.* Password reset interface with token reader, password match validation, visibility toggles, success state, and expired/invalid link banners.
+- [`client/src/pages/VerifyEmailPage.jsx`](./client/src/pages/VerifyEmailPage.jsx) — *Created.* Email verification consumer with automatic verification on mount, verifying spinner, success state, expired link view, and invalid link view with resend CTA.
+- [`client/src/pages/ResendVerificationPage.jsx`](./client/src/pages/ResendVerificationPage.jsx) — *Created.* Resend verification link page with query parameter email prepopulation, neutral confirmation state, and back to sign in.
+- [`client/src/pages/LoginPage.jsx`](./client/src/pages/LoginPage.jsx) — *Modified.* Added "Forgot password?" CTA beside password label; added error handling for `EMAIL_NOT_VERIFIED` displaying an amber warning alert with a direct "Resend verification email" link.
+- [`client/src/pages/RegisterPage.jsx`](./client/src/pages/RegisterPage.jsx) — *Modified.* Updated post-registration UX to present an editorial "Check Your Inbox" confirmation card instead of attempting immediate redirect to dashboard.
+- [`client/src/App.jsx`](./client/src/App.jsx) — *Modified.* Registered routes for `/forgot-password`, `/reset-password`, `/verify-email`, and `/resend-verification`.
+- [`DECISIONS.md`](./DECISIONS.md) — *Modified.* Recorded ADR-030 documenting Email Verification and Password Recovery Architecture.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — *Modified.* Documented password recovery and email verification architecture and email service.
+- [`PROJECT_CONTEXT.md`](./PROJECT_CONTEXT.md) — *Modified.* Updated authentication capabilities.
+- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — *Modified.* Added specifications for new authentication and recovery views.
+
+#### 2. Key Implementation Details & Concepts
+- **Cryptographic Token Entropy & Hashing:** Tokens are generated as 32-byte cryptographically secure random values (`crypto.randomBytes(32).toString('hex')`, 256 bits of entropy). Stored in MongoDB exclusively as SHA-256 hashes (`hashToken`), ensuring token database dumps cannot be weaponized.
+- **Strict Anti-Enumeration Design:** `POST /api/auth/forgot-password` and `POST /api/auth/resend-verification` return identical HTTP 200 responses with identical messages whether an email address exists, is unverified, is already verified, or is completely unknown.
+- **Legacy Account Gating Strategy:** Mongoose schema intentionally omits `default: false` on `isEmailVerified` so legacy documents hydrate with `isEmailVerified: undefined`. The login gating logic checks `if (user.isEmailVerified === false)` (or `user.isVerified()`), grandfathering legacy accounts while requiring newly registered accounts to verify.
+- **Single-Point Password Hashing:** Password updates strictly trigger the Mongoose User `pre('save')` hook (`user.password = newPassword; await user.save()`), eliminating duplicate hashing bugs and ensuring bcrypt salt generation is uniform.
+- **Session Cookie Invalidation:** On password reset, `res.clearCookie('token', cookieOptions)` invalidates any active session cookie on the resetting client.
+- **Atomic Single-Use Invalidation:** Email verification uses atomic MongoDB updates (`findOneAndUpdate` with `$unset: { emailVerificationTokenHash: 1, emailVerificationExpires: 1 }`), preventing concurrent replay attacks.
+
+#### 3. Verification & Testing Performed
+- **Automated Day 54 Test Suite (`scratch/test_day54_auth_flows.mjs`):** 86 passing assertions covering:
+  - Email verification token generation, expiration (24h), invalid token rejection, reused token rejection, successful verification, and database state cleanup.
+  - Login gating: blocked with HTTP 403 `EMAIL_NOT_VERIFIED` before verification; succeeds with HTTP 200 and HttpOnly session cookie after verification.
+  - Anti-enumeration on forgot password and resend verification.
+  - Password reset with valid token, weak password rejection, confirmation mismatch rejection, single-point bcrypt hash update, old password rejection, new password login acceptance.
+  - Legacy user compatibility: accounts without `isEmailVerified` log in immediately without verification hurdles.
+  - Parameter tampering protection: attempts to modify `role` or `name` during reset are ignored.
+  - Rate limiting enforcement on `forgotPasswordLimiter` and `resendVerificationLimiter`.
+- **Edge CDP Visual & Interaction Suite (`scratch/test_day54_visual_cdp.mjs`):** 23 passing tests and 8 screenshots verifying:
+  - `/login`: presence and positioning of "Forgot password?" link.
+  - `/forgot-password`: layout, input, submit, and neutral confirmation transition ("Check Your Email").
+  - `/reset-password?token=...`: inputs, password confirmation, and dual visibility toggle controls.
+  - `/resend-verification?email=...`: query email prepopulation, submit, and neutral confirmation view ("Check Your Inbox").
+  - `/verify-email`: missing token error state rendering ("Invalid Verification Link").
+  - `/register`: registration fields and post-registration confirmation card.
+- **Full Backend Regression Suite:**
+  - Day 46 Security & Helmet Headers (`test_day46_security.mjs`): 39 PASSED, 0 FAILED.
+  - Day 47 Security Audit & Access Control (`test_day47_audit.mjs`): 71 PASSED, 0 FAILED.
+  - Day 48 API Edge Cases & Postman Verification (`test_day48_api_edge_cases.mjs`): 77 PASSED, 0 FAILED.
+  - Day 50 Backend Audit & CSRF Defense (`test_day50_backend_audit.mjs`): 42 PASSED, 0 FAILED.
+  - Total: 315 passing automated backend tests across all suites.
+- **Build & Lint Verification:**
+  - `npm --prefix client run lint`: Passed with 0 errors, 0 warnings.
+  - `npm --prefix client run build`: Production build succeeded in 1.11s with 0 errors.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- None. Day 54 authentication enhancement is fully implemented, verified, documented, and production-ready.
+
+---
+
 ### [2026-11-22] — Day 53: BorderTrail Placement & Color Correction Across Forms
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Correct the `BorderTrail` animation implementation across all TripMind forms: (1) Completely eliminate input-level animations, blue circular glows, and moving gradient spots behind placeholder and entered text across email, password, text inputs, textareas, and search fields; (2) Apply `BorderTrail` exclusively to the outer border perimeter of standalone form cards/containers (`LoginPage`, `RegisterPage`, `CreateTripModal`, `EditTripModal`, `AddActivityModal`, `EditActivityModal`); (3) Match the animation color to the primary button design token (`#173D35` / `var(--color-forest)` with `#2E5B3D` / olive grove transition); (4) Implement a dual-layer card architecture (`z-10` inner surface with backdrop blur) ensuring 0% background bleed into the card interior; (5) Restore clean static borders (`border-sage`) and brand focus rings (`focus:border-forest focus:ring-forest`), removing all misplaced `focus:border-blue-500` rings; (6) Verify responsiveness, accessibility (`prefers-reduced-motion`), and cross-device functionality.

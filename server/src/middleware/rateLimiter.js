@@ -171,6 +171,54 @@ export const publicShareRateLimiter = createRateLimiter({
 })
 
 /**
+ * 5. Forgot Password Rate Limiter
+ * Limits password recovery initiation requests (5 per 15 minutes per IP).
+ */
+export const forgotPasswordLimiter = createRateLimiter({
+  windowMs: config.rateLimit?.forgotPasswordWindowMs || 15 * 60 * 1000,
+  maxRequests: config.rateLimit?.forgotPasswordMax || 5,
+  errorCode: 'RATE_LIMIT_EXCEEDED',
+  message: 'Too many password reset requests. Please wait before retrying.',
+  keyGenerator: (req) => req.ip || 'anonymous',
+})
+
+/**
+ * 6. Reset Password Rate Limiter
+ * Limits password reset submission attempts (10 per 15 minutes per IP).
+ */
+export const resetPasswordLimiter = createRateLimiter({
+  windowMs: config.rateLimit?.resetPasswordWindowMs || 15 * 60 * 1000,
+  maxRequests: config.rateLimit?.resetPasswordMax || 10,
+  errorCode: 'RATE_LIMIT_EXCEEDED',
+  message: 'Too many password reset attempts. Please wait before retrying.',
+  keyGenerator: (req) => req.ip || 'anonymous',
+})
+
+/**
+ * 7. Resend Verification Email Rate Limiter
+ * Prevents email spamming and abuse (3 requests per 15 minutes per IP).
+ */
+export const resendVerificationLimiter = createRateLimiter({
+  windowMs: config.rateLimit?.resendVerificationWindowMs || 15 * 60 * 1000,
+  maxRequests: config.rateLimit?.resendVerificationMax || 3,
+  errorCode: 'RATE_LIMIT_EXCEEDED',
+  message: 'Too many verification email requests. Please wait before retrying.',
+  keyGenerator: (req) => req.ip || 'anonymous',
+})
+
+/**
+ * 8. Verify Email Endpoint Rate Limiter
+ * Limits verification token consumption attempts (15 per 15 minutes per IP).
+ */
+export const verifyEmailLimiter = createRateLimiter({
+  windowMs: config.rateLimit?.verifyEmailWindowMs || 15 * 60 * 1000,
+  maxRequests: config.rateLimit?.verifyEmailMax || 15,
+  errorCode: 'RATE_LIMIT_EXCEEDED',
+  message: 'Too many verification attempts. Please wait before retrying.',
+  keyGenerator: (req) => req.ip || 'anonymous',
+})
+
+/**
  * Helper to reset all rate limiters across the application (useful in automated test suites).
  */
 export function resetAllRateLimiters() {
@@ -178,6 +226,10 @@ export function resetAllRateLimiters() {
   apiRateLimiter.reset()
   aiRateLimiter.reset()
   publicShareRateLimiter.reset()
+  forgotPasswordLimiter.reset()
+  resetPasswordLimiter.reset()
+  resendVerificationLimiter.reset()
+  verifyEmailLimiter.reset()
 }
 
 export default assistantLimiter

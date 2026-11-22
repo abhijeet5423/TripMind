@@ -146,6 +146,16 @@ export const config = {
   geminiModel: (process.env.GEMINI_MODEL && process.env.GEMINI_MODEL.trim()) || 'gemini-3.5-flash-lite',
   trustProxy: process.env.TRUST_PROXY ? parseInt(process.env.TRUST_PROXY, 10) : 1,
 
+  // Email / SMTP Configuration
+  email: {
+    smtpHost: (process.env.SMTP_HOST || '').trim(),
+    smtpPort: parseInt(process.env.SMTP_PORT, 10) || 587,
+    smtpSecure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_PORT === '465',
+    smtpUser: (process.env.SMTP_USER || '').trim(),
+    smtpPass: (process.env.SMTP_PASS || '').trim(),
+    from: (process.env.EMAIL_FROM && process.env.EMAIL_FROM.trim()) || 'TripMind <no-reply@tripmind.com>',
+  },
+
   // Rate Limiting Configurations (with sensible production defaults)
   rateLimit: {
     // General API rate limiter
@@ -163,6 +173,38 @@ export const config = {
     authMax: process.env.AUTH_RATE_LIMIT_MAX
       ? parseInt(process.env.AUTH_RATE_LIMIT_MAX, 10)
       : 10, // 10 attempts per 15 minutes
+
+    // Forgot password rate limiter
+    forgotPasswordWindowMs: process.env.FORGOT_PASSWORD_RATE_LIMIT_WINDOW_MS
+      ? parseInt(process.env.FORGOT_PASSWORD_RATE_LIMIT_WINDOW_MS, 10)
+      : 15 * 60 * 1000, // 15 minutes
+    forgotPasswordMax: process.env.FORGOT_PASSWORD_RATE_LIMIT_MAX
+      ? parseInt(process.env.FORGOT_PASSWORD_RATE_LIMIT_MAX, 10)
+      : 5, // 5 requests per 15 minutes
+
+    // Reset password rate limiter
+    resetPasswordWindowMs: process.env.RESET_PASSWORD_RATE_LIMIT_WINDOW_MS
+      ? parseInt(process.env.RESET_PASSWORD_RATE_LIMIT_WINDOW_MS, 10)
+      : 15 * 60 * 1000, // 15 minutes
+    resetPasswordMax: process.env.RESET_PASSWORD_RATE_LIMIT_MAX
+      ? parseInt(process.env.RESET_PASSWORD_RATE_LIMIT_MAX, 10)
+      : 10, // 10 attempts per 15 minutes
+
+    // Resend email verification rate limiter
+    resendVerificationWindowMs: process.env.RESEND_VERIFICATION_RATE_LIMIT_WINDOW_MS
+      ? parseInt(process.env.RESEND_VERIFICATION_RATE_LIMIT_WINDOW_MS, 10)
+      : 15 * 60 * 1000, // 15 minutes
+    resendVerificationMax: process.env.RESEND_VERIFICATION_RATE_LIMIT_MAX
+      ? parseInt(process.env.RESEND_VERIFICATION_RATE_LIMIT_MAX, 10)
+      : 3, // 3 requests per 15 minutes
+
+    // Verify email endpoint rate limiter
+    verifyEmailWindowMs: process.env.VERIFY_EMAIL_RATE_LIMIT_WINDOW_MS
+      ? parseInt(process.env.VERIFY_EMAIL_RATE_LIMIT_WINDOW_MS, 10)
+      : 15 * 60 * 1000, // 15 minutes
+    verifyEmailMax: process.env.VERIFY_EMAIL_RATE_LIMIT_MAX
+      ? parseInt(process.env.VERIFY_EMAIL_RATE_LIMIT_MAX, 10)
+      : 15, // 15 requests per 15 minutes
 
     // AI endpoints rate limiter (assistant & generation)
     aiWindowMs: process.env.AI_RATE_LIMIT_WINDOW_MS

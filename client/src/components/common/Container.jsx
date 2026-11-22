@@ -1,5 +1,3 @@
-import React from 'react'
-
 /**
  * Container Component
  * Establishes consistent horizontal page gutters and maximum widths.

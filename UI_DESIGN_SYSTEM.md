@@ -220,7 +220,7 @@ The typographic identity balances literary prestige with modern legibility throu
 - **Universal Browser Compatibility:** Encoded in standard H.264 / AVC1 profile (1080p, audio stripped, 4.55 MB) streamed efficiently via standard HTTP Range requests (206 Partial Content), guaranteeing instant progressive playback and reliable muted autoplay across Chrome, Safari, Edge, Firefox, and mobile browsers.
 
 #### 2. Shared Authentication Backdrop (`client/src/assets/tama66-night-sky-10506842.jpg`)
-- **Single Shared Asset Rule:** Both `LoginPage.jsx` and `RegisterPage.jsx` import and render the exact same asset: `client/src/assets/tama66-night-sky-10506842.jpg`.
+- **Single Shared Asset Rule:** All authentication and recovery views (`LoginPage.jsx`, `RegisterPage.jsx`, `ForgotPasswordPage.jsx`, `ResetPasswordPage.jsx`, `VerifyEmailPage.jsx`, and `ResendVerificationPage.jsx`) import and render the exact same asset: `client/src/assets/tama66-night-sky-10506842.jpg`.
 - **Full-Page Coverage & Natural Colors:** Rendered full-screen behind the authentication content using `object-cover object-center` (`absolute inset-0 w-full h-full`). Displays the night sky in its natural colors with zero stretching or distortion.
 - **Zero Background Overlays:** Completely eliminates all gradient overlays, dark ambient overlays, uniform color veils, opacity layers, image filters, and background blur applied to the background.
 - **Form Card Contrast Isolation:** The elevated form card (`bg-white/95 backdrop-blur-md rounded-xl border border-sage/80 shadow-[0_12px_40px_rgba(16,45,39,0.35)]`) provides 100% of the required form contrast (WCAG AAA contrast for inputs, labels, and buttons against dark charcoal text), guaranteeing readability without requiring background overlays.
@@ -705,6 +705,31 @@ To prevent gradient bleed into the card's surface:
 #### 4. Clean Static Inputs & Brand Focus States
 - All input fields retain clean static borders (`border-sage`).
 - Focus states utilize TripMind forest green (`border-sage focus:border-forest focus:ring-forest`), removing any misplaced blue rings.
+
+---
+
+### 5.15 Authentication & Account Recovery Screens (Day 54)
+
+#### 1. Screen Inventory & Visual Roles
+1. **Login Page (`/login`):**
+   - Includes "Forgot password?" inline text link adjacent to password field label, routing to `/forgot-password` with email prefill query if entered.
+   - Detects `EMAIL_NOT_VERIFIED` code upon failed login and renders a dedicated amber warning banner (`bg-amber-500/10 border-amber-500/30 text-amber-900`) with an explicit "Resend verification email" action link.
+2. **Forgot Password Page (`/forgot-password`):**
+   - Single email input form inside dual-layer `BorderTrail` container.
+   - On submission, transitions smoothly into a neutral confirmation view ("Check Your Email") without exposing account existence.
+3. **Reset Password Page (`/reset-password`):**
+   - Consumes reset token from URL query string.
+   - Features new password and confirm password inputs, password length indicator (min 8 chars), and independent visibility toggle controls (`Eye` / `EyeOff`).
+   - Handles missing, expired, and invalid token states with clear editorial alert banners.
+4. **Verify Email Page (`/verify-email`):**
+   - Automatic verification on mount.
+   - Distinct visual states: Verifying (animated spinner), Success ("Email Confirmed!" with green badge and Sign In CTA), Expired ("Verification Link Expired" with Resend CTA), and Invalid ("Invalid Verification Link").
+5. **Resend Verification Page (`/resend-verification`):**
+   - Pre-populates email from query parameter if provided.
+   - Transitions to a neutral confirmation state ("Check Your Inbox") ensuring anti-enumeration.
+6. **Register Page (`/register`):**
+   - Upon successful registration, replaces the form with a "Check Your Inbox" confirmation card, instructing the user to activate their account before signing in.
+
 
 
 

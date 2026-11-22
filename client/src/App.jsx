@@ -4,6 +4,10 @@ import Footer from './components/layout/Footer.jsx'
 import LandingPage from './pages/LandingPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
+import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx'
+import ResetPasswordPage from './pages/ResetPasswordPage.jsx'
+import VerifyEmailPage from './pages/VerifyEmailPage.jsx'
+import ResendVerificationPage from './pages/ResendVerificationPage.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
 import TripDetailPage from './pages/TripDetailPage.jsx'
 import TripExportPage from './pages/TripExportPage.jsx'
@@ -81,6 +85,30 @@ export default function App() {
           element={
             <PublicOnlyRoute>
               <RegisterPage />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <PublicOnlyRoute>
+              <ForgotPasswordPage />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/reset-password"
+          element={<ResetPasswordPage />}
+        />
+        <Route
+          path="/verify-email"
+          element={<VerifyEmailPage />}
+        />
+        <Route
+          path="/resend-verification"
+          element={
+            <PublicOnlyRoute>
+              <ResendVerificationPage />
             </PublicOnlyRoute>
           }
         />

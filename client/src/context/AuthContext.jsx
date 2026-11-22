@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import * as authApi from '../services/api/authApi.js'
 
 const AuthContext = createContext(null)
@@ -32,7 +32,7 @@ export function AuthProvider({ children }) {
         setUser(null)
         return null
       }
-    } catch (error) {
+    } catch {
       // 401 Unauthorized or missing cookie is an expected unauthenticated state, not a crash
       setUser(null)
       return null
@@ -49,7 +49,7 @@ export function AuthProvider({ children }) {
         if (isMounted && response?.data?.user) {
           setUser(response.data.user)
         }
-      } catch (error) {
+      } catch {
         if (isMounted) {
           setUser(null)
         }
@@ -81,18 +81,15 @@ export function AuthProvider({ children }) {
   }, [])
 
   /**
-   * Registers a new user and automatically logs them in to establish session.
+   * Registers a new user account with unverified email status.
    *
    * @param {Object} data - { name, email, password }
    * @returns {Promise<Object>} The newly registered user object
    */
   const register = useCallback(async ({ name, email, password }) => {
-    await authApi.registerUser({ name, email, password })
-    // Automatically log in after successful registration to issue session cookie
-    const loginResponse = await authApi.loginUser({ email, password })
-    const authenticatedUser = loginResponse?.data?.user || null
-    setUser(authenticatedUser)
-    return authenticatedUser
+    const response = await authApi.registerUser({ name, email, password })
+    const registeredUser = response?.data?.user || null
+    return registeredUser
   }, [])
 
   /**
@@ -101,7 +98,7 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     try {
       await authApi.logoutUser()
-    } catch (error) {
+    } catch {
       // Even if network fails, reset frontend state
     } finally {
       setUser(null)
@@ -125,6 +122,7 @@ export function AuthProvider({ children }) {
  * Custom Hook: useAuth
  * Accesses authentication context state and actions.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext)
   if (!context) {

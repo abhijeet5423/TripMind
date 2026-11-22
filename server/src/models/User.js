@@ -44,12 +44,41 @@ const userSchema = new mongoose.Schema(
       // SECURITY NOTE: The role field must never be assigned from untrusted client input.
       // Registration controllers must discard or omit client-supplied role payloads.
     },
+    isEmailVerified: {
+      type: Boolean,
+      // IMPORTANT: No default: false. Legacy accounts created prior to Day 54 have
+      // isEmailVerified as undefined in MongoDB and remain grandfathered in.
+      // Newly registered accounts explicitly set isEmailVerified: false.
+    },
+    emailVerificationTokenHash: {
+      type: String,
+      select: false,
+    },
+    emailVerificationExpires: {
+      type: Date,
+      select: false,
+    },
+    passwordResetTokenHash: {
+      type: String,
+      select: false,
+    },
+    passwordResetExpires: {
+      type: Date,
+      select: false,
+    },
+    passwordChangedAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
     toJSON: {
       transform: (doc, ret) => {
         delete ret.password
+        delete ret.emailVerificationTokenHash
+        delete ret.emailVerificationExpires
+        delete ret.passwordResetTokenHash
+        delete ret.passwordResetExpires
         delete ret.__v
         return ret
       },
@@ -57,6 +86,10 @@ const userSchema = new mongoose.Schema(
     toObject: {
       transform: (doc, ret) => {
         delete ret.password
+        delete ret.emailVerificationTokenHash
+        delete ret.emailVerificationExpires
+        delete ret.passwordResetTokenHash
+        delete ret.passwordResetExpires
         delete ret.__v
         return ret
       },
@@ -94,6 +127,17 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
     return false
   }
   return bcrypt.compare(candidatePassword, this.password)
+}
+
+/**
+ * Checks whether the user account is verified.
+ * Accounts created prior to Day 54 have isEmailVerified as undefined and are grandfathered in.
+ * Newly registered accounts have isEmailVerified explicitly set to false until verified.
+ *
+ * @returns {boolean} True if verified or legacy account, false if pending verification.
+ */
+userSchema.methods.isVerified = function () {
+  return this.isEmailVerified !== false
 }
 
 const User = mongoose.model('User', userSchema)

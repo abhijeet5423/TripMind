@@ -689,6 +689,38 @@
 
 ---
 
+### ADR-030: Email Verification and Password Recovery Architecture
+- **Status:** 🟢 CONFIRMED
+- **Context:** TripMind accounts require self-service password recovery and verified email communication to protect user itineraries, prevent account takeover, and avoid fake account creation, while preserving the existing stateless HttpOnly cookie architecture (ADR-010) and guaranteeing that legacy accounts predating this feature in MongoDB Atlas retain uninterrupted access.
+- **Decision:**
+  1. **Token Cryptography & Storage:**
+     - High-entropy tokens generated using `crypto.randomBytes(32).toString('hex')` (256 bits).
+     - Tokens are stored in MongoDB exclusively as SHA-256 hashes (`hashToken`), ensuring that a read-only database leak does not expose valid authentication tokens.
+     - Single-use lifecycle: tokens are consumed atomically using MongoDB `$unset` operations.
+     - Expirations: 24 hours for email verification; 30 minutes for password reset.
+  2. **Strict Anti-Enumeration Design:**
+     - `POST /api/auth/forgot-password` and `POST /api/auth/resend-verification` return identical generic success responses (HTTP 200) regardless of whether an email is registered, unverified, already verified, or unknown.
+  3. **Legacy Migration Safety:**
+     - The Mongoose `User` schema declares `isEmailVerified: { type: Boolean }` without a default value, ensuring that legacy documents in MongoDB Atlas hydrate with `isEmailVerified: undefined`.
+     - Login authorization logic evaluates `if (user.isEmailVerified === false)` (or `user.isVerified()`), grandfathering legacy accounts while strictly enforcing verification for newly registered accounts.
+  4. **Single-Point Password Hashing:**
+     - Password updates assign the plain text password to the user document and trigger `user.save()`, utilizing the single-point Mongoose `pre('save')` bcrypt hook and eliminating double-hashing vulnerabilities.
+  5. **Session Invalidation on Password Reset:**
+     - Calling `res.clearCookie('token', cookieOptions)` upon password reset terminates active client sessions on the resetting device.
+  6. **Rate Limiting Protection:**
+     - Tiered rate limiters: `forgotPasswordLimiter` (5 per 15 min), `resetPasswordLimiter` (10 per 15 min), `resendVerificationLimiter` (3 per 15 min), and `verifyEmailLimiter` (15 per 15 min).
+  7. **Transactional Email Service:**
+     - Implemented in `server/src/services/emailService.js` using Nodemailer with editorial HTML templates, zero sensitive data/token logging, mock transport hooks for testing, and silent development fallback when SMTP is not configured.
+- **Rationale:**
+  - Guarantees high cryptographic security and compliance with OWASP password recovery guidelines.
+  - Completely prevents account enumeration attacks.
+  - Ensures seamless backward compatibility with existing users in MongoDB Atlas without requiring complex database migration scripts.
+- **Consequences:**
+  - Newly registered users cannot log in until they verify their email.
+  - Unit and integration tests must configure mock transports or rely on the development fallback transport.
+
+---
+
 ## 2. Pending Decisions (🟡 UNDER EVALUATION)
 
 The following architectural and technical choices are open for evaluation during future implementation planning. **Do not mark pending decisions as confirmed.**

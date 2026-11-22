@@ -824,6 +824,28 @@ Because `SameSite=None` causes the browser to include session cookies on cross-s
   ```
 - **CSP connectSrc:** Helmet's `contentSecurityPolicy.directives.connectSrc` explicitly includes `https://trip-mind-brown.vercel.app`, `config.clientUrl`, `https://*.openstreetmap.org`, and `https://*.mongodb.net`, ensuring browser connectivity is never blocked by security header misalignments.
 
+### 5.11 Password Recovery & Email Verification Architecture (Day 54)
+
+#### 1. Security Architecture & Threat Model
+TripMind's account recovery and email verification subsystems implement strict cryptographic isolation, single-use token lifecycle, anti-enumeration defenses, and single-point password hashing:
+- **Token Generation:** 32-byte cryptographically secure random values via `crypto.randomBytes(32).toString('hex')` (256 bits of entropy).
+- **One-Way Token Hashing:** Tokens are stored in MongoDB strictly as SHA-256 hashes (`hashToken(token)`). Plaintext tokens are never stored, logged, or returned in database queries (`select: false`).
+- **Token Expirations:** Verification tokens expire after 24 hours; password reset tokens expire after 30 minutes.
+- **Single-Use Atomic Consumption:** Email verification uses atomic MongoDB updates (`findOneAndUpdate` with `$unset`), eliminating race conditions and token replay. Password reset invalidates token fields and clears the current HttpOnly session cookie (`res.clearCookie('token', cookieOptions)`).
+- **Anti-Enumeration Defense:** `POST /api/auth/forgot-password` and `POST /api/auth/resend-verification` return identical generic HTTP 200 responses regardless of whether the email address is registered, unverified, already verified, or unregistered.
+- **Dedicated Rate Limiting:**
+  - `forgotPasswordLimiter`: 5 requests per 15 minutes per IP.
+  - `resetPasswordLimiter`: 10 requests per 15 minutes per IP.
+  - `resendVerificationLimiter`: 3 requests per 15 minutes per IP.
+  - `verifyEmailLimiter`: 15 requests per 15 minutes per IP.
+- **Legacy Migration Safety:** Mongoose schema field `isEmailVerified: { type: Boolean }` omits default values so pre-existing documents in MongoDB Atlas hydrate with `isEmailVerified: undefined`. The login gating logic checks `if (user.isEmailVerified === false)` (or `user.isVerified()`), allowing legacy travelers to log in seamlessly without requiring database migrations.
+
+#### 2. Transactional Email Service (`server/src/services/emailService.js`)
+- **Transport Architecture:** Built on Nodemailer with standard SMTP configuration (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`).
+- **Templates:** Responsive editorial HTML email templates featuring TripMind's warm ivory palette (`#F7F5EF`), forest green buttons (`#173D35`), fallback copyable URLs, and clear expiration notices.
+- **Zero Token/Credential Logging:** Transporter errors and delivery results are logged with sanitized metadata; tokens and recipient credentials are never exposed in log output.
+- **Test & Development Fallback:** Provides mock hooks (`setMockTransport`, `resetMockTransport`) for automated testing and a silent dev fallback that prevents local development crashes when SMTP credentials are absent.
+
 ---
 
 ## 6. Mapping Architecture & OpenStreetMap Policies
