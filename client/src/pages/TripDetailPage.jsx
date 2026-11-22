@@ -698,12 +698,12 @@ export default function TripDetailPage() {
           </div>
 
           {/* Journey Header Banner Card with Editorial Photograph (Task B2 & B3) */}
-          <div className="bg-white rounded-2xl border border-sage p-6 sm:p-8 shadow-[0_2px_8px_rgba(23,61,53,0.04)] flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="bg-white rounded-2xl border border-sage p-5 sm:p-8 shadow-[0_2px_8px_rgba(23,61,53,0.04)] flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="flex-1 space-y-4">
               {/* Destination & Title */}
               <div>
                 <div className="flex flex-wrap items-center gap-3 mb-2">
-                  <h1 className="font-serif text-3xl sm:text-4xl font-bold text-forest">
+                  <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-forest">
                     {trip.destination}
                   </h1>
                   <span className="px-3 py-0.5 rounded-full text-xs font-semibold bg-sand-ivory text-stone border border-sage capitalize">
@@ -753,7 +753,7 @@ export default function TripDetailPage() {
                   size="lg"
                   onClick={handleActionClick}
                   disabled={isGenerating}
-                  className={`gap-2.5 font-semibold text-sm sm:text-base px-6 py-3.5 shadow-md hover:shadow-lg focus-visible:ring-2 focus-visible:ring-offset-2 transition-all cursor-pointer ${
+                  className={`w-full sm:w-auto justify-center gap-2.5 font-semibold text-sm sm:text-base px-6 py-3.5 shadow-md hover:shadow-lg focus-visible:ring-2 focus-visible:ring-offset-2 transition-all cursor-pointer ${
                     hasItinerary
                       ? 'bg-forest hover:bg-forest-dark text-sand-ivory border-forest focus-visible:ring-forest'
                       : 'bg-terracotta hover:bg-terracotta-dark text-white border-terracotta focus-visible:ring-terracotta'
@@ -1018,8 +1018,7 @@ export default function TripDetailPage() {
                 <LeafletMapContainer
                   center={mapCoordinates.center}
                   zoom={mapCoordinates.zoom}
-                  className="w-full rounded-xl overflow-hidden border border-sage/80 shadow-2xs"
-                  height="400px"
+                  className="w-full rounded-xl overflow-hidden border border-sage/80 shadow-2xs h-[280px] sm:h-[360px] lg:h-[400px]"
                   ariaLabel={`Interactive exploration map for ${trip.destination}`}
                 >
                   <ActivityMarkers
@@ -1051,7 +1050,7 @@ export default function TripDetailPage() {
                   </div>
 
                   {/* Horizontal Scrollable Day Tabs */}
-                  <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
+                  <div className="flex items-center gap-2 overflow-x-auto scrollbar-none touch-pan-x pb-1.5 max-w-full">
                     {days.map((day) => {
                       const isSelected = day.dayNumber === selectedDayNumber
                       return (
@@ -1059,7 +1058,7 @@ export default function TripDetailPage() {
                           key={day.dayNumber}
                           type="button"
                           onClick={() => setSelectedDayNumber(day.dayNumber)}
-                          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                          className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all cursor-pointer ${
                             isSelected
                               ? 'bg-forest text-sand-ivory shadow-xs border border-forest'
                               : 'bg-white text-stone border border-sage hover:border-forest/40 hover:text-forest'
@@ -1076,7 +1075,7 @@ export default function TripDetailPage() {
                 {selectedDay && (
                   <div className="space-y-6">
                     {/* Day Header Canvas */}
-                    <div className="bg-sand-ivory rounded-2xl border border-sage/70 p-6 sm:p-7">
+                    <div className="bg-sand-ivory rounded-2xl border border-sage/70 p-4 sm:p-7">
                       <div className="flex flex-wrap items-center justify-between gap-2.5 mb-2">
                         <span className="text-xs font-bold text-terracotta uppercase tracking-wider">
                           Day {selectedDay.dayNumber} of {days.length}
@@ -1103,7 +1102,7 @@ export default function TripDetailPage() {
                         </p>
                       )}
 
-                      <div className="mt-4 pt-3 border-t border-sage/50 flex flex-wrap items-center justify-between gap-3 text-xs text-stone">
+                      <div className="mt-4 pt-3 border-t border-sage/50 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs text-stone">
                         <div className="flex items-center gap-2">
                           <Clock className="w-3.5 h-3.5 text-forest" />
                           <span>
@@ -1119,7 +1118,7 @@ export default function TripDetailPage() {
                           variant="secondary"
                           size="sm"
                           onClick={() => setIsAddingActivity(true)}
-                          className="gap-1.5 py-1 px-3 text-xs font-semibold bg-white hover:bg-sand-ivory border-sage text-forest hover:text-forest-dark cursor-pointer shadow-2xs"
+                          className="w-full sm:w-auto justify-center gap-1.5 py-1.5 px-3 text-xs font-semibold bg-white hover:bg-sand-ivory border-sage text-forest hover:text-forest-dark cursor-pointer shadow-2xs"
                         >
                           <Plus className="w-3.5 h-3.5 text-terracotta" />
                           <span>Add Activity</span>

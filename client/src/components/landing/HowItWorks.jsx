@@ -182,13 +182,13 @@ export default function HowItWorks() {
               AI pacing and budget tracking.
             </p>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-3 shrink-0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 w-full md:w-auto shrink-0">
             <Button
               variant="outline"
               size="md"
               as="a"
               href="#destinations"
-              className="text-xs sm:text-sm"
+              className="w-full sm:w-auto justify-center text-xs sm:text-sm"
             >
               Browse Destinations
             </Button>
@@ -197,7 +197,7 @@ export default function HowItWorks() {
               size="md"
               as={Link}
               to={isAuthenticated ? '/dashboard' : '/register'}
-              className="text-xs sm:text-sm gap-1.5 shadow-xs"
+              className="w-full sm:w-auto justify-center text-xs sm:text-sm gap-1.5 shadow-xs"
             >
               <span>Start Planning Free</span>
               <ArrowRight className="w-4 h-4" aria-hidden="true" />

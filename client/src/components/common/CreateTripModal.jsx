@@ -550,7 +550,7 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-charcoal/50 backdrop-blur-xs overflow-y-auto animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 bg-charcoal/50 backdrop-blur-xs overflow-y-auto animate-fadeIn"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isCreating) handleModalClose()
       }}
@@ -564,7 +564,7 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
         onClick={(e) => e.stopPropagation()}
       >
         {/* Step 3. Progress Indicator Header (Essential Requirement) */}
-        <div className="px-6 py-4 bg-sand-ivory/60 border-b border-sage/60">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-sand-ivory/60 border-b border-sage/60">
           <div className="flex items-center justify-between gap-3 mb-2.5">
             <div>
               <span className="text-[11px] uppercase tracking-widest text-terracotta font-bold block">
@@ -625,7 +625,7 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
                       }`}
                     />
                   </div>
-                  <div className="flex items-center justify-between text-[11px] font-medium">
+                  <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-medium">
                     <span
                       className={
                         isCurrent || isPast ? 'text-forest font-semibold' : 'text-stone/60'
@@ -647,7 +647,7 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
         </div>
 
         {/* Form Body Canvas */}
-        <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-5 sm:space-y-6">
           {/* API Error Alert */}
           {apiError && (
             <div
@@ -853,14 +853,14 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
                 </label>
 
                 <div className="flex items-center gap-2">
-                  <div className="w-28 shrink-0">
+                  <div className="w-24 sm:w-28 shrink-0">
                     <select
                       id="currency"
                       name="currency"
                       disabled={isCreating}
                       value={formData.currency}
                       onChange={handleChange}
-                      className="w-full px-3 py-3 rounded-lg border border-sage bg-white text-charcoal font-semibold text-sm focus:outline-none focus:border-forest focus:ring-1 focus:ring-forest transition-colors cursor-pointer"
+                      className="w-full px-2 sm:px-3 py-3 rounded-lg border border-sage bg-white text-charcoal font-semibold text-xs sm:text-sm focus:outline-none focus:border-forest focus:ring-1 focus:ring-forest transition-colors cursor-pointer"
                     >
                       {CURRENCY_OPTIONS.map((c) => (
                         <option key={c} value={c}>
@@ -870,8 +870,8 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
                     </select>
                   </div>
 
-                  <div className="relative flex-1">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone font-semibold text-base">
+                  <div className="relative flex-1 min-w-0">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone font-semibold text-sm sm:text-base">
                       {formData.currency === 'INR' ? '₹' : formData.currency}
                     </span>
                     <input
@@ -887,7 +887,7 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
                       placeholder={formData.currency === 'INR' ? '50000' : '4500'}
                       className={`w-full ${
                         formData.currency === 'INR' ? 'pl-8' : 'pl-14'
-                      } pr-4 py-3 rounded-lg border bg-white text-charcoal font-serif text-xl font-bold placeholder:font-sans placeholder:text-base placeholder:text-stone/40 focus:outline-none focus:ring-1 transition-colors ${
+                      } pr-4 py-3 rounded-lg border bg-white text-charcoal font-serif text-lg sm:text-xl font-bold placeholder:font-sans placeholder:text-sm placeholder:text-stone/40 focus:outline-none focus:ring-1 transition-colors ${
                         errors.budget
                           ? 'border-burnt-crimson focus:border-burnt-crimson focus:ring-burnt-crimson'
                           : 'border-sage focus:border-forest focus:ring-forest'
@@ -1367,7 +1367,7 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
         </div>
 
         {/* Section 4. Navigation Controls */}
-        <div className="px-6 py-4 border-t border-sage/60 bg-sand-ivory/50 flex items-center justify-between gap-3">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-t border-sage/60 bg-sand-ivory/50 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3">
           {/* Back button */}
           {currentStep > 1 ? (
             <Button
@@ -1376,7 +1376,7 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
               size="md"
               disabled={isCreating}
               onClick={handleBack}
-              className="gap-1.5"
+              className="w-full sm:w-auto justify-center gap-1.5"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Back</span>
@@ -1388,14 +1388,14 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
               size="md"
               disabled={isCreating}
               onClick={handleModalClose}
-              className="text-stone hover:text-forest"
+              className="w-full sm:w-auto justify-center text-stone hover:text-forest"
             >
               Cancel
             </Button>
           )}
 
           {/* Continue / Review / Submit Button */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
             {currentStep === 3 && (
               <Button
                 type="button"
@@ -1403,7 +1403,7 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
                 size="md"
                 disabled={isCreating}
                 onClick={() => setCurrentStep(4)}
-                className="text-stone hover:text-forest text-xs font-semibold uppercase tracking-wider"
+                className="w-full sm:w-auto justify-center text-stone hover:text-forest text-xs font-semibold uppercase tracking-wider"
               >
                 Skip to Review
               </Button>
@@ -1415,7 +1415,7 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
                 variant="primary"
                 size="md"
                 onClick={handleNext}
-                className="gap-2"
+                className="w-full sm:w-auto justify-center gap-2"
               >
                 <span>Continue</span>
                 <ArrowRight className="w-4 h-4" />
@@ -1426,7 +1426,7 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
                 variant="primary"
                 size="md"
                 onClick={handleNext}
-                className="gap-2"
+                className="w-full sm:w-auto justify-center gap-2"
               >
                 <span>Review Journey</span>
                 <ArrowRight className="w-4 h-4" />
@@ -1438,7 +1438,7 @@ export default function CreateTripModal({ isOpen, onClose, onSuccess, initialDes
                 size="md"
                 disabled={isCreating}
                 onClick={handleSubmit}
-                className="gap-2"
+                className="w-full sm:w-auto justify-center gap-2"
               >
                 {isCreating ? (
                   <>

@@ -165,7 +165,7 @@ export default function EditActivityModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-charcoal/50 backdrop-blur-xs animate-fadeIn overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 bg-charcoal/50 backdrop-blur-xs animate-fadeIn overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="edit-activity-modal-title"
@@ -175,9 +175,9 @@ export default function EditActivityModal({
         }
       }}
     >
-      <div className="relative w-full max-w-xl bg-white rounded-2xl border border-sage shadow-[0_20px_60px_-15px_rgba(23,61,53,0.3)] overflow-hidden my-8">
+      <div className="relative w-full max-w-xl bg-white rounded-2xl border border-sage shadow-[0_20px_60px_-15px_rgba(23,61,53,0.3)] overflow-hidden my-auto max-h-[92vh] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-5 bg-sand-ivory border-b border-sage/70 flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 bg-sand-ivory border-b border-sage/70 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-forest text-sand-ivory flex items-center justify-center shrink-0">
               <Edit3 className="w-5 h-5" />
@@ -204,7 +204,7 @@ export default function EditActivityModal({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1">
           {/* API Error Alert */}
           {submitError && (
             <div className="p-3.5 rounded-xl bg-burnt-crimson/10 border border-burnt-crimson/30 flex items-start gap-2.5 text-xs text-burnt-crimson">
@@ -444,13 +444,14 @@ export default function EditActivityModal({
           </div>
 
           {/* Action Footer */}
-          <div className="pt-4 border-t border-sage/60 flex items-center justify-end gap-3">
+          <div className="pt-4 border-t border-sage/60 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3">
             <Button
               type="button"
               variant="outline"
               size="md"
               onClick={onClose}
               disabled={isSaving}
+              className="w-full sm:w-auto justify-center"
             >
               Cancel
             </Button>
@@ -459,7 +460,7 @@ export default function EditActivityModal({
               variant="accent"
               size="md"
               disabled={isSaving}
-              className="gap-2 bg-terracotta hover:bg-terracotta-dark text-white shadow-sm"
+              className="w-full sm:w-auto justify-center gap-2 bg-terracotta hover:bg-terracotta-dark text-white shadow-sm"
             >
               {isSaving ? (
                 <>

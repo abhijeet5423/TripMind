@@ -111,7 +111,7 @@ export default function BudgetBreakdown({
       : 0
 
   return (
-    <div className="bg-white rounded-xl border border-sage p-6 sm:p-7 shadow-[0_2px_8px_rgba(23,61,53,0.04)]">
+    <div className="bg-white rounded-xl border border-sage p-4 sm:p-7 shadow-[0_2px_8px_rgba(23,61,53,0.04)]">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-sage/50">
         <div>
@@ -125,7 +125,7 @@ export default function BudgetBreakdown({
         </div>
 
         {/* Total Estimated & Per-Person Pill */}
-        <div className="flex flex-wrap items-baseline gap-3 sm:gap-4 bg-sand-ivory border border-sage/60 px-4 py-2.5 rounded-xl self-start sm:self-auto">
+        <div className="flex flex-wrap items-baseline gap-3 sm:gap-4 bg-sand-ivory border border-sage/60 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl self-start sm:self-auto w-full sm:w-auto">
           <div>
             <span className="text-[11px] uppercase tracking-wider text-stone font-medium block">
               Total Estimated
@@ -149,7 +149,7 @@ export default function BudgetBreakdown({
 
       {/* Target Budget Comparison (if user set a target budget) */}
       {target !== null && (
-        <div className="my-5 p-4 rounded-xl bg-sand-ivory/60 border border-sage/40 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="my-5 p-3.5 sm:p-4 rounded-xl bg-sand-ivory/60 border border-sage/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3 text-xs">
           <div>
             <span className="text-stone">Target Trip Budget: </span>
             <span className="font-semibold text-forest">

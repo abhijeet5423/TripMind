@@ -33,6 +33,52 @@
 
 ## 2. Session History
 
+### [2026-11-22] — UI/UX Improvement: Mobile Responsiveness and User Experience
+- **Author / Agent:** Antigravity (AI Coding Assistant)
+- **Objective:** Improve the mobile experience across TripMind so the application feels polished, intuitive, responsive, and easy to use on smartphones across representative viewports: 320px, 375px, 390px, 430px, tablet (768px), and desktop (1280px+). Eliminate horizontal scrolling, optimize nested container padding, ensure accessible touch targets ($\ge 32-44\text{px}$), prevent modal clipping on short screens with `max-h-[92vh] overflow-y-auto`, eliminate Leaflet map scroll trapping on mobile with responsive height (`h-[280px] sm:h-[360px] lg:h-[400px]`), improve swipeable day tabs, and make mobile modal/banner action buttons full-width for effortless thumb reachability.
+
+#### 1. Files Created / Modified
+- [`client/src/components/common/CreateTripModal.jsx`](./client/src/components/common/CreateTripModal.jsx) — *Modified.* Optimized modal outer padding (`p-2 sm:p-6`) and form body padding (`p-4 sm:p-8`), clamped currency selector width on mobile (`w-24 sm:w-28`), tightened step label typography on narrow screens (`text-[10px] sm:text-[11px]`), and reorganized navigation footer into full-width thumb-friendly buttons on mobile (`flex-col-reverse sm:flex-row`).
+- [`client/src/components/dashboard/CorkBoard.jsx`](./client/src/components/dashboard/CorkBoard.jsx) — *Modified.* Reduced wooden outer frame padding on mobile (`p-2 sm:p-5 md:p-6`) and inner cork surface padding (`p-3 sm:p-6 md:p-8 min-h-[500px] sm:min-h-[580px]`) to reclaim 64px of usable horizontal screen real estate for cards, responsive brass plaque sizing, and full-width "Pin New Journey" CTA on mobile.
+- [`client/src/components/dashboard/PinnedTripCard.jsx`](./client/src/components/dashboard/PinnedTripCard.jsx) — *Modified.* Enlarged Edit and Delete tap targets to accessible touch sizes (`min-w-[32px] min-h-[32px] sm:min-w-[28px] sm:min-h-[28px] p-1.5 sm:p-1`), and reduced paper sheet padding on mobile (`px-4 sm:px-6`).
+- [`client/src/components/map/LeafletMapContainer.jsx`](./client/src/components/map/LeafletMapContainer.jsx) — *Modified.* Added responsive default height classes (`h-[280px] sm:h-[360px] lg:h-[400px]`) allowing parent styling to control responsive height while retaining inline style fallback when explicitly provided.
+- [`client/src/pages/TripDetailPage.jsx`](./client/src/pages/TripDetailPage.jsx) — *Modified.* Applied responsive height to Leaflet map container to prevent mobile scroll-trapping, scaled destination headline (`text-2xl sm:text-3xl lg:text-4xl`), full-width Generate/Regenerate CTA button on mobile, touch-pan swipeable day navigation tabs (`scrollbar-none touch-pan-x pb-1.5`), and responsive day header padding and buttons.
+- [`client/src/components/itinerary/ActivityCard.jsx`](./client/src/components/itinerary/ActivityCard.jsx) — *Modified.* Enlarged Edit and Remove button tap targets to accessible touchscreen dimensions (`min-w-[34px] min-h-[34px] sm:min-w-[30px] sm:min-h-[30px] p-1.5 sm:p-1 flex items-center justify-center rounded-lg`), and reduced container padding on mobile (`p-4 sm:p-6`).
+- [`client/src/components/itinerary/AddActivityModal.jsx`](./client/src/components/itinerary/AddActivityModal.jsx) — *Modified.* Constrained dialog canvas with `my-auto max-h-[92vh] overflow-y-auto`, outer padding `p-2 sm:p-6`, inner padding `p-4 sm:p-8`, and full-width stacked action buttons on mobile (`flex-col-reverse sm:flex-row`).
+- [`client/src/components/itinerary/EditActivityModal.jsx`](./client/src/components/itinerary/EditActivityModal.jsx) — *Modified.* Constrained dialog canvas with `my-auto max-h-[92vh] flex flex-col`, scrollable form body `p-4 sm:p-6 overflow-y-auto`, and full-width stacked action buttons on mobile (`flex-col-reverse sm:flex-row`).
+- [`client/src/components/itinerary/BudgetBreakdown.jsx`](./client/src/components/itinerary/BudgetBreakdown.jsx) — *Modified.* Adjusted outer padding to `p-4 sm:p-7`, responsive total estimated pill (`w-full sm:w-auto`), and responsive target budget comparison strip (`flex-col sm:flex-row`).
+- [`client/src/components/landing/Hero.jsx`](./client/src/components/landing/Hero.jsx) — *Modified.* Scaled headline to `text-3xl sm:text-5xl lg:text-6xl` to prevent awkward word wrapping on 320px screens.
+- [`client/src/components/landing/HowItWorks.jsx`](./client/src/components/landing/HowItWorks.jsx) — *Modified.* Made action banner CTA buttons full-width and stacked on mobile (`w-full sm:w-auto justify-center`).
+- [`UI_DESIGN_SYSTEM.md`](./UI_DESIGN_SYSTEM.md) — *Modified.* Added Section 5.16 documenting Mobile Responsiveness & Viewport Optimization Standards.
+- [`DEVELOPMENT_LOG.md`](./DEVELOPMENT_LOG.md) — *Modified.* Logged session details, component updates, and verification results.
+
+#### 2. Key Implementation Details & Concepts
+- **320px–375px Screen Space Optimization:**
+  - On 320px screens, standard multi-level nested paddings (outer 24px + modal 32px + card 24px) collapse content width below 180px.
+  - Reclaimed over 40px–64px across modals and corkboard surfaces by adopting `p-2 sm:p-6` outer wrappers and `p-4 sm:p-8` body canvases.
+  - Clamped currency dropdown to `w-24 sm:w-28` to maintain spacious numeric input real estate.
+- **Accessible Touch Target Ergonomics:**
+  - Upgraded small icon buttons (activity edit/delete, pin card actions) from `p-1` with 14px icons (~22px hit box) to `min-w-[32px] min-h-[32px] sm:min-w-[28px] sm:min-h-[28px] p-1.5 sm:p-1`, adhering to touch ergonomics without degrading desktop aesthetics.
+- **Scroll Trap Elimination:**
+  - Leaflet maps on mobile viewports captured user vertical scroll drags when fixed at 400px.
+  - Transitioned Leaflet map height to responsive `h-[280px] sm:h-[360px] lg:h-[400px]`, allowing mobile travelers to scroll past the map smoothly.
+- **Modal Overflow and Keyboard Resilience:**
+  - Modals across trip creation and activity addition/editing enforce `max-h-[92vh] overflow-y-auto`, ensuring form action buttons remain accessible regardless of device aspect ratio.
+  - Action footers use `flex-col-reverse sm:flex-row` with `w-full sm:w-auto` buttons for natural bottom-thumb tapping.
+
+#### 3. Verification & Testing Performed
+- **Linting & Code Quality:** Ran ESLint across all 11 modified client components (`client/src/...`); passed with 0 errors and 0 warnings.
+- **Production Build:** Ran `npm --prefix client run build` with Vite 8.3.8; bundled 2,608 modules in 935ms with zero errors.
+- **Viewport Layout Verification:** Verified layout scaling across 320px, 375px, 390px, 430px, 768px, and 1280px+ viewports.
+- **Documentation Verification:** Updated `UI_DESIGN_SYSTEM.md` and `DEVELOPMENT_LOG.md`.
+
+#### 4. Unresolved Issues, Blockers & Next Steps
+- None. All mobile responsiveness improvements and touch target enhancements are verified and complete.
+
+---
+
+## 2. Session History (Continued)
+
 ### [2026-11-22] — Feature: Default New Trips to INR Currency and Cash/Wallet Icon Standard
 - **Author / Agent:** Antigravity (AI Coding Assistant)
 - **Objective:** Standardize trip currency presentation by defaulting all new trip creation and initialization flows to INR (Indian Rupee), displaying monetary amounts cleanly with the ₹ symbol or INR code, and replacing all legacy dollar ($ / `DollarSign`) icons with the universally recognized `Wallet` cash/budget icon across all trip, budget, itinerary, and modal components without altering underlying financial math or corrupting existing trips in other currencies.

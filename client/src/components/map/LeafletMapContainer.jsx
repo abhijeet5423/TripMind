@@ -24,7 +24,7 @@ export default function LeafletMapContainer({
   scrollWheelZoom = DEFAULT_MAP_CONFIG.scrollWheelZoom,
   tileUrl = OSM_TILE_URL,
   attribution = OSM_ATTRIBUTION,
-  height = '420px',
+  height,
   className = '',
   ariaLabel = 'Interactive trip map',
   onMapReady,
@@ -146,8 +146,10 @@ export default function LeafletMapContainer({
     <div
       role="region"
       aria-label={ariaLabel}
-      className={`relative w-full rounded-2xl overflow-hidden border border-sage bg-sand-ivory shadow-xs select-none ${className}`.trim()}
-      style={{ minHeight: height, height }}
+      className={`relative w-full rounded-2xl overflow-hidden border border-sage bg-sand-ivory shadow-xs select-none ${
+        height ? '' : 'h-[280px] sm:h-[360px] lg:h-[400px]'
+      } ${className}`.trim()}
+      style={height ? { minHeight: height, height } : undefined}
     >
       <div
         ref={containerRef}

@@ -95,7 +95,7 @@ export default function CorkBoard({
   return (
     <div className="relative w-full overflow-hidden">
       {/* Physical Wooden Frame Encasing the Corkboard */}
-      <div className="relative rounded-2xl sm:rounded-3xl p-3 sm:p-5 md:p-6 lg:p-7 bg-[#543820] shadow-[0_20px_50px_rgba(20,10,5,0.35),_inset_0_2px_4px_rgba(255,255,255,0.2),_inset_0_-3px_6px_rgba(0,0,0,0.5)] border-4 sm:border-6 border-[#3D2614] overflow-hidden">
+      <div className="relative rounded-2xl sm:rounded-3xl p-2 sm:p-5 md:p-6 lg:p-7 bg-[#543820] shadow-[0_20px_50px_rgba(20,10,5,0.35),_inset_0_2px_4px_rgba(255,255,255,0.2),_inset_0_-3px_6px_rgba(0,0,0,0.5)] border-3 sm:border-6 border-[#3D2614] overflow-hidden">
         {/* Subtle wood grain sheen overlay on frame */}
         <div
           className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.15)_50%,transparent_100%)]"
@@ -106,7 +106,7 @@ export default function CorkBoard({
         {/* Physical Cork Surface Canvas */}
         {/* ----------------------------------------------------------------- */}
         <div
-          className="relative rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 min-h-[580px] overflow-hidden transition-all"
+          className="relative rounded-lg sm:rounded-2xl p-3 sm:p-6 md:p-8 min-h-[500px] sm:min-h-[580px] overflow-hidden transition-all"
           style={{
             backgroundColor: '#BA8950',
             backgroundImage: `
@@ -130,31 +130,31 @@ export default function CorkBoard({
           {/* --------------------------------------------------------------- */}
           {/* Board Header Toolbar: Brass Plaque & Quick Actions */}
           {/* --------------------------------------------------------------- */}
-          <div className="relative z-20 mb-8 sm:mb-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-[#8C5E28]/60">
+          <div className="relative z-20 mb-6 sm:mb-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-[#8C5E28]/60">
             {/* Pinned Brass Header Label Plaque */}
-            <div className="relative inline-flex items-center gap-2.5 px-4 py-2 rounded-lg bg-[#FAF7EE] text-forest border border-[#CBB897] shadow-[0_3px_10px_rgba(30,15,5,0.2)]">
+            <div className="relative inline-flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-[#FAF7EE] text-forest border border-[#CBB897] shadow-[0_3px_10px_rgba(30,15,5,0.2)]">
               {/* Corner Thumbtack */}
               <div className="absolute -top-2.5 -left-2 z-30">
                 <PushPin color="brass" size="sm" />
               </div>
               <Compass className="w-4 h-4 text-terracotta shrink-0" />
               <div>
-                <span className="font-serif text-sm sm:text-base font-bold tracking-tight text-forest">
+                <span className="font-serif text-xs sm:text-base font-bold tracking-tight text-forest">
                   Travel Planning Pinboard
                 </span>
-                <span className="text-[11px] text-stone font-sans block sm:inline sm:ml-2">
+                <span className="text-[10px] sm:text-[11px] text-stone font-sans block sm:inline sm:ml-2">
                   • {tripCount} {tripCount === 1 ? 'journey pinned' : 'journeys pinned'}
                 </span>
               </div>
             </div>
 
             {/* Quick "Plan a Journey" Action Button */}
-            <div className="shrink-0 flex items-center gap-3">
+            <div className="shrink-0 flex items-center gap-3 w-full sm:w-auto">
               <Button
                 variant="accent"
                 size="sm"
                 onClick={onOpenCreate}
-                className="gap-2 shadow-md hover:shadow-lg transition-all"
+                className="w-full sm:w-auto justify-center gap-2 shadow-md hover:shadow-lg transition-all"
               >
                 <Plus className="w-4 h-4" />
                 <span>Pin New Journey</span>

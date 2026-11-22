@@ -176,7 +176,7 @@ export default function AddActivityModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-charcoal/50 backdrop-blur-xs animate-fadeIn overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 bg-charcoal/50 backdrop-blur-xs animate-fadeIn overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-activity-modal-title"
@@ -186,7 +186,7 @@ export default function AddActivityModal({
         }
       }}
     >
-      <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-sage p-6 sm:p-8 my-8 transition-all">
+      <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-sage p-4 sm:p-8 my-auto max-h-[92vh] overflow-y-auto transition-all">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 pb-4 border-b border-sage/60">
           <div>
@@ -463,13 +463,14 @@ export default function AddActivityModal({
           </div>
 
           {/* Action Footer */}
-          <div className="pt-4 border-t border-sage/60 flex items-center justify-end gap-3">
+          <div className="pt-4 border-t border-sage/60 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3">
             <Button
               type="button"
               variant="secondary"
               size="md"
               onClick={onClose}
               disabled={isSaving}
+              className="w-full sm:w-auto justify-center"
             >
               Cancel
             </Button>
@@ -478,7 +479,7 @@ export default function AddActivityModal({
               variant="primary"
               size="md"
               disabled={isSaving}
-              className="gap-2 bg-forest hover:bg-forest-dark text-sand-ivory border-forest"
+              className="w-full sm:w-auto justify-center gap-2 bg-forest hover:bg-forest-dark text-sand-ivory border-forest"
             >
               {isSaving ? (
                 <>

@@ -121,7 +121,7 @@ export default function ActivityCard({
   const lng = hasCoords ? Number(activity.location.longitude).toFixed(4) : null
 
   return (
-    <div className="relative bg-white rounded-xl border border-sage p-5 sm:p-6 shadow-[0_2px_8px_rgba(23,61,53,0.04)] hover:border-forest/40 hover:shadow-[0_6px_20px_rgba(23,61,53,0.07)] transition-all">
+    <div className="relative bg-white rounded-xl border border-sage p-4 sm:p-6 shadow-[0_2px_8px_rgba(23,61,53,0.04)] hover:border-forest/40 hover:shadow-[0_6px_20px_rgba(23,61,53,0.07)] transition-all">
       {/* Top Meta Header: Time, Duration, TimeSlot, Category Pill, and Edit Action */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 mb-3">
         <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-stone">
@@ -146,7 +146,7 @@ export default function ActivityCard({
         </div>
 
         {/* Right Meta Controls: Category Pill + Edit Action */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Category Pill */}
           <span
             className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${categoryMeta.pillClass} shrink-0`}
@@ -160,7 +160,7 @@ export default function ActivityCard({
             <button
               type="button"
               onClick={() => onEdit(activity)}
-              className="p-1 rounded-md text-stone/70 hover:text-forest hover:bg-sand-ivory border border-transparent hover:border-sage transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-forest"
+              className="p-1.5 sm:p-1 min-w-[34px] min-h-[34px] sm:min-w-[30px] sm:min-h-[30px] flex items-center justify-center rounded-lg text-stone/70 hover:text-forest hover:bg-sand-ivory border border-transparent hover:border-sage transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-forest"
               aria-label={`Edit ${title}`}
               title="Edit activity"
             >
@@ -173,7 +173,7 @@ export default function ActivityCard({
             <button
               type="button"
               onClick={() => onDelete(activity)}
-              className="p-1 rounded-md text-stone/70 hover:text-burnt-crimson hover:bg-burnt-crimson/10 border border-transparent hover:border-burnt-crimson/20 transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-burnt-crimson"
+              className="p-1.5 sm:p-1 min-w-[34px] min-h-[34px] sm:min-w-[30px] sm:min-h-[30px] flex items-center justify-center rounded-lg text-stone/70 hover:text-burnt-crimson hover:bg-burnt-crimson/10 border border-transparent hover:border-burnt-crimson/20 transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-burnt-crimson"
               aria-label={`Remove ${title}`}
               title="Remove activity"
             >

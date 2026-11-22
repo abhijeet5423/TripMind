@@ -80,7 +80,7 @@ export default function Hero() {
             </div>
 
             {/* Main Editorial Headline */}
-            <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-sand-ivory tracking-tight leading-[1.12] mb-6 drop-shadow-sm">
+            <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-sand-ivory tracking-tight leading-[1.15] sm:leading-[1.12] mb-6 drop-shadow-sm">
               Your next great journey starts here.
             </h1>
 

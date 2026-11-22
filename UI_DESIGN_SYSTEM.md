@@ -444,4 +444,30 @@ The typographic identity balances literary prestige with modern legibility throu
 - **Feature Badges & Highlights:** Category micro-tag (`text-[10px] uppercase tracking-wider text-stone/80`) paired with a terracotta accent dot, accompanied by itemized feature bullets adorned with olive grove checkmarks (`CheckCircle2`).
 - **Editorial Callout Banner:** Elevated white banner card with dual calls-to-action ("Browse Destinations" scrolling to `#destinations`, and "Start Planning Free" leading to `/dashboard` or `/register`).
 
+---
+
+### 5.16 Mobile Responsiveness & Viewport Optimization Standards
+
+#### 1. Viewport Hierarchy & Ergonomics
+- **Ultra-Compact Smartphones (320px – 375px):** Minimum tested viewport tier (e.g., iPhone SE, narrow Android devices). Available content width after gutters is only ~280px–340px. Outer modal/frame padding is reduced to `p-2` or `p-3` (avoiding nested padding collapse); currency selector width is clamped (`w-24 sm:w-28`); font sizes scale gracefully (`text-2xl sm:text-3xl`).
+- **Standard Modern Smartphones (390px – 430px):** Single-column stacked layouts with full-width primary action controls; natural thumb reachability for bottom buttons.
+- **Tablet (768px – 1023px):** 2-column card layouts, balanced grids with centered multi-column spans.
+- **Desktop (1024px – 1440px+):** Full multi-column grids, fixed sidebars, hoverable desktop profile flyouts, and expansive corkboard/map views.
+
+#### 2. Modal Viewport Constraints & Scroll Safety
+- **Vertical Clamping:** All modal dialogs enforce `my-auto max-h-[92vh] overflow-y-auto` (or `max-h-[94vh]`), preventing off-screen button clipping on short viewports or mobile keyboards.
+- **Modal Gutters:** Outer modal wrappers use `p-2 sm:p-6` to maximize available reading and form canvas width. Inner containers use `p-4 sm:p-8`.
+- **Action Footers:** Action footers adopt `flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3`. Primary and secondary buttons expand to `w-full sm:w-auto justify-center` on mobile, delivering large thumb-friendly touch targets.
+
+#### 3. Touch Target Minimums
+- **Interactive Action Buttons:** Edit, delete, and control buttons feature minimum touch dimensions of $\ge 32\times 32\text{px}$ to $44\times 44\text{px}$ (`min-w-[32px] min-h-[32px] sm:min-w-[28px] sm:min-h-[28px] p-1.5 sm:p-1 flex items-center justify-center rounded`), preventing touch errors while maintaining editorial elegance on desktop.
+- **Floating Action Button (FAB):** Global AI Assistant launcher maintains a prominent 48px–56px circular silhouette (`w-12 h-12 sm:w-14 sm:h-14`) with a full-viewport tap-to-dismiss backdrop on mobile.
+
+#### 4. Mapping & Scroll Trap Elimination
+- **Responsive Map Elevation:** Leaflet map canvas dynamically scales height (`h-[280px] sm:h-[360px] lg:h-[400px]`), eliminating vertical mobile scroll traps where dragging gestures capture the map rather than scrolling the itinerary page.
+
+#### 5. Horizontal Tab Swiping
+- **Day Navigation Tabs:** Day navigation strips apply `overflow-x-auto scrollbar-none touch-pan-x pb-1.5`, ensuring seamless touch scrolling without obtrusive horizontal scrollbars.
+
+
 

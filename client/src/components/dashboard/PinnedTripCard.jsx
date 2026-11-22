@@ -136,7 +136,7 @@ export default function PinnedTripCard({ trip, index = 0, onEdit, onDelete }) {
       />
 
       {/* Main Paper Sheet Container */}
-      <article className="relative bg-[#FAF7EE] text-charcoal rounded-sm border border-[#E2D8C3] pt-6 pb-5 px-5 sm:px-6 shadow-[0_4px_16px_rgba(40,25,15,0.14),_0_1px_3px_rgba(40,25,15,0.08)] group-hover:shadow-[0_12px_32px_rgba(40,25,15,0.22)] transition-shadow flex flex-col justify-between min-h-[360px]">
+      <article className="relative bg-[#FAF7EE] text-charcoal rounded-sm border border-[#E2D8C3] pt-6 pb-5 px-4 sm:px-6 shadow-[0_4px_16px_rgba(40,25,15,0.14),_0_1px_3px_rgba(40,25,15,0.08)] group-hover:shadow-[0_12px_32px_rgba(40,25,15,0.22)] transition-shadow flex flex-col justify-between min-h-[360px]">
         {/* Subtle Paper Texture Faint Ruled Lines */}
         <div
           className="absolute inset-0 rounded-sm pointer-events-none opacity-25 bg-[radial-gradient(#D5C9B0_1px,transparent_1px)] [background-size:16px_16px]"
@@ -165,7 +165,7 @@ export default function PinnedTripCard({ trip, index = 0, onEdit, onDelete }) {
               <button
                 type="button"
                 onClick={() => onEdit(trip)}
-                className="p-1 rounded text-stone hover:text-forest hover:bg-sage/40 transition-colors cursor-pointer"
+                className="p-1.5 sm:p-1 min-w-[32px] min-h-[32px] sm:min-w-[28px] sm:min-h-[28px] flex items-center justify-center rounded text-stone hover:text-forest hover:bg-sage/40 transition-colors cursor-pointer"
                 title="Edit Journey"
                 aria-label={`Edit journey to ${trip.destination}`}
               >
@@ -174,7 +174,7 @@ export default function PinnedTripCard({ trip, index = 0, onEdit, onDelete }) {
               <button
                 type="button"
                 onClick={() => onDelete(trip)}
-                className="p-1 rounded text-stone hover:text-burnt-crimson hover:bg-burnt-crimson/10 transition-colors cursor-pointer"
+                className="p-1.5 sm:p-1 min-w-[32px] min-h-[32px] sm:min-w-[28px] sm:min-h-[28px] flex items-center justify-center rounded text-stone hover:text-burnt-crimson hover:bg-burnt-crimson/10 transition-colors cursor-pointer"
                 title="Delete Journey"
                 aria-label={`Delete journey to ${trip.destination}`}
               >
